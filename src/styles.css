@@ -399,12 +399,18 @@ body{margin:0; background:var(--cream); color:var(--ink); font-family:var(--mono
 
 /* ── Meus presets ────────────────────────────────────────────────────────── */
 .mypresets{display:flex; flex-direction:column}
-.mp-item{display:flex; align-items:center; gap:12px; background:transparent; border:0; border-top:1px solid var(--line); border-radius:0; padding:13px 2px}
+.mp-item{display:flex; flex-direction:column; background:transparent; border-top:1px solid var(--line); padding:0 2px}
+.mp-row{display:flex; align-items:center; gap:12px; padding:13px 0}
+/* Acordeon de edição: abre/fecha suave embaixo do preset. grid 0fr→1fr (sem flicker). */
+.mp-acc{display:grid; grid-template-rows:0fr; transition:grid-template-rows .24s cubic-bezier(.16,1,.3,1)}
+.mp-acc.open{grid-template-rows:1fr}
+.mp-acc-inner{overflow:hidden; min-height:0}
+@media (prefers-reduced-motion: reduce){ .mp-acc{transition:none} }
 .mp-item:first-of-type{border-top:0}
 .mp-label{flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .mp-badge{font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--faint); background:transparent; border:1px solid var(--line); border-radius:var(--rad-btn); padding:2px 7px}
 .mp-actions{display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-top:14px}
-.mp-form{display:flex; flex-direction:column; gap:9px; margin-top:12px; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card); padding:14px}
+.mp-form{display:flex; flex-direction:column; gap:9px; margin:0 0 14px; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card); padding:14px}
 .mp-input{width:100%; font-size:13.5px; font-family:var(--mono); color:var(--ink); background:var(--cream); border:1px solid var(--line); border-radius:var(--rad-btn); padding:8px 11px}
 .mp-input::placeholder{color:var(--faint)}
 .mp-input:focus{border-color:var(--ink); outline:none}

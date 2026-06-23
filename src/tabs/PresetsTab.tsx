@@ -1,5 +1,6 @@
 // PresetsTab.tsx — aba "Presets": preset padrão, CRUD dos presets do usuário e o
-// toggle de few-shot. O rascunho do form (draft) e o erro de validação são locais.
+// toggle de few-shot. O form de edição abre como ACORDEON inline embaixo do preset
+// clicado (expande/colapsa suave). O rascunho (draft) e o erro são locais.
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -12,6 +13,11 @@ type Props = {
   presets: Preset[];
   loadPresets: () => void;
 };
+
+// Âncora especial: form de "novo preset" abre embaixo da lista (não num preset).
+const NEW = "__new__";
+// Duração do colapso do acordeon (precisa casar com a transition do CSS).
+const ANIM_MS = 240;
 
 // Ícone de lixeira (linha, herda a cor via currentColor).
 function TrashIcon() {
@@ -27,33 +33,57 @@ function TrashIcon() {
 }
 
 export default function PresetsTab({ settings, update, presets, loadPresets }: Props) {
-  // Presets: rascunho do form (null = form fechado) + erro de validação.
+  // Form do acordeon: rascunho (null = fechado), âncora (preset id ou NEW) onde
+  // ele aparece, e closing (tocando a animação de fechar) + erro de validação.
   const [draft, setDraft] = useState<PresetDraft | null>(null);
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
   const [presetErr, setPresetErr] = useState("");
-  // Exclusão em dois cliques: id do preset aguardando confirmação inline.
+  // Exclusão/restauração em dois cliques: id aguardando confirmação inline.
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  // Ref do form de edição, pra fechar ao clicar fora dele.
-  const formRef = useRef<HTMLDivElement>(null);
-  // Ref do botão atualmente "armado" (lixeira vermelha / confirmar restauração),
-  // pra cancelar a confirmação ao clicar fora dele.
+  // Ref do botão "armado" (lixeira vermelha / confirmar restauração), pra cancelar
+  // a confirmação ao clicar fora dele.
   const armedRef = useRef<HTMLButtonElement>(null);
 
-  // ── Presets (criar / editar / duplicar / excluir) ──
-  function startNewPreset() {
+  // ── Abrir/fechar o acordeon ──
+  function openFor(a: string, d: PresetDraft) {
     setPresetErr("");
     setConfirmId(null);
-    setDraft({ id: null, label: "", instruction: "", example_input: "", example_output: "" });
+    setClosing(false);
+    setAnchor(a);
+    setDraft(d);
+  }
+  function startNewPreset() {
+    openFor(NEW, { id: null, label: "", instruction: "", example_input: "", example_output: "" });
   }
   function startEditPreset(p: Preset) {
-    setPresetErr("");
-    setConfirmId(null);
-    setDraft({ id: p.id, label: p.label, instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
+    openFor(p.id, { id: p.id, label: p.label, instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
   }
   function startDuplicatePreset(p: Preset) {
-    setPresetErr("");
-    setConfirmId(null);
-    setDraft({ id: null, label: p.label + " (cópia)", instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
+    openFor(p.id, { id: null, label: p.label + " (cópia)", instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
   }
+  // Fecha com animação: tira o "open" (colapsa) MAS mantém o form montado até o fim
+  // da transição, pra o conteúdo ser visível durante o fecho (sem flicker).
+  function closeForm() {
+    if (closing) return;
+    setClosing(true);
+    window.setTimeout(() => {
+      setDraft(null);
+      setAnchor(null);
+      setClosing(false);
+      setPresetErr("");
+    }, ANIM_MS);
+  }
+  // Clicar "Editar" no preset já aberto → fecha (toggle). Em outro → troca.
+  function toggleEdit(p: Preset) {
+    if (closing) return;
+    if (anchor === p.id) closeForm(); else startEditPreset(p);
+  }
+  function toggleNew() {
+    if (closing) return;
+    if (anchor === NEW) closeForm(); else startNewPreset();
+  }
+
   async function savePreset() {
     if (!draft) return;
     setPresetErr("");
@@ -67,8 +97,8 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     try {
       if (draft.id) await invoke("update_preset", { preset: body });
       else await invoke<Preset>("create_preset", { preset: body });
-      setDraft(null);
       loadPresets();
+      closeForm();
     } catch (e) {
       setPresetErr(String(e));
     }
@@ -76,7 +106,6 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
   async function removePreset(p: Preset) {
     try {
       await invoke("delete_preset", { id: p.id });
-      // Se era o preset padrão, volta pro primeiro disponível.
       if (settings.default_preset === p.id) {
         const fallback = presets.find((x) => x.id !== p.id)?.id;
         if (fallback) await update({ default_preset: fallback });
@@ -87,8 +116,6 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
       console.error(e);
     }
   }
-
-  // "Restaurar padrões": desfaz edições/exclusões dos embutidos (não mexe nos seus).
   async function restoreDefaults() {
     try {
       await invoke("restore_default_presets");
@@ -99,32 +126,57 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     }
   }
 
-  // Fecha o form ao clicar FORA dele (descarta o rascunho, igual ao "Cancelar").
-  // Só ativo com o form aberto. mousedown pega o clique antes de qualquer botão.
-  useEffect(() => {
-    if (draft === null) return;
-    function onDown(e: MouseEvent) {
-      if (formRef.current && !formRef.current.contains(e.target as Node)) {
-        setDraft(null);
-        setPresetErr("");
-      }
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [draft]);
-
-  // Cancela a confirmação (exclusão ou restauração) ao clicar FORA do botão
-  // armado — pra um clique errado não ficar preso no vermelho.
+  // Cancela a confirmação (exclusão/restauração) ao clicar FORA do botão armado.
   useEffect(() => {
     if (confirmId === null) return;
     function onArmedOutside(e: MouseEvent) {
-      // Clique no PRÓPRIO botão armado → deixa o onClick (confirmar) agir.
       if (armedRef.current && armedRef.current.contains(e.target as Node)) return;
       setConfirmId(null);
     }
     document.addEventListener("mousedown", onArmedOutside);
     return () => document.removeEventListener("mousedown", onArmedOutside);
   }, [confirmId]);
+
+  // O form do acordeon (renderizado dentro da âncora ativa). Fica montado também
+  // durante o `closing`, pra animar o colapso com o conteúdo visível.
+  const formNode = draft && (
+    <div className="mp-form">
+      <input
+        className="mp-input"
+        aria-label="Nome do preset"
+        placeholder="Nome (ex.: Resumir em tópicos)"
+        value={draft.label}
+        onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+      />
+      <textarea
+        className="mp-input"
+        aria-label="Instrução"
+        rows={3}
+        placeholder="Instrução: o que esse preset deve fazer com o texto"
+        value={draft.instruction}
+        onChange={(e) => setDraft({ ...draft, instruction: e.target.value })}
+      />
+      <input
+        className="mp-input"
+        aria-label="Exemplo de entrada"
+        placeholder="Exemplo de entrada (opcional)"
+        value={draft.example_input}
+        onChange={(e) => setDraft({ ...draft, example_input: e.target.value })}
+      />
+      <input
+        className="mp-input"
+        aria-label="Exemplo de saída"
+        placeholder="Exemplo de saída (opcional)"
+        value={draft.example_output}
+        onChange={(e) => setDraft({ ...draft, example_output: e.target.value })}
+      />
+      <div className="mp-form-actions">
+        <button className="btn-dl primary" onClick={savePreset}>{draft.id ? "Salvar" : "Criar"}</button>
+        <button className="btn-dl" onClick={closeForm}>Cancelar</button>
+        {presetErr && <span className="field-err">{presetErr}</span>}
+      </div>
+    </div>
+  );
 
   return (
     <section className="card">
@@ -146,78 +198,50 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
         <p className="help">Usado no modo instantâneo, sem perguntar nada.</p>
       </div>
 
-      {/* Presets (criar/editar/excluir) */}
+      {/* Presets (criar/editar/duplicar/excluir) — edição em acordeon inline */}
       <div className="field">
         <label>Presets</label>
         <p className="help">Edite, duplique ou exclua qualquer preset. "Restaurar padrões" traz os originais de volta.</p>
         <div className="mypresets">
-          {presets.map((p) => (
-            <div className="mp-item" key={p.id}>
-              <span className="mp-label">{p.label}</span>
-              {p.edited && <span className="mp-badge">editado</span>}
-              <button className="btn-dl" onClick={() => startEditPreset(p)}>Editar</button>
-              <button className="btn-dl" onClick={() => startDuplicatePreset(p)}>Duplicar</button>
-              <button
-                ref={confirmId === p.id ? armedRef : undefined}
-                className={"trash-btn" + (confirmId === p.id ? " armed" : "")}
-                onClick={() => (confirmId === p.id ? removePreset(p) : setConfirmId(p.id))}
-                title={confirmId === p.id ? "Confirmar exclusão" : "Excluir"}
-                aria-label={confirmId === p.id ? "Confirmar exclusão" : "Excluir"}
-              >
-                <TrashIcon />
-                <span className="trash-label">Excluir</span>
-              </button>
-            </div>
-          ))}
+          {presets.map((p) => {
+            const open = anchor === p.id && !closing;
+            return (
+              <div className="mp-item" key={p.id}>
+                <div className="mp-row">
+                  <span className="mp-label">{p.label}</span>
+                  {p.edited && <span className="mp-badge">editado</span>}
+                  <button className="btn-dl" aria-expanded={anchor === p.id} onClick={() => toggleEdit(p)}>Editar</button>
+                  <button className="btn-dl" onClick={() => startDuplicatePreset(p)}>Duplicar</button>
+                  <button
+                    ref={confirmId === p.id ? armedRef : undefined}
+                    className={"trash-btn" + (confirmId === p.id ? " armed" : "")}
+                    onClick={() => (confirmId === p.id ? removePreset(p) : setConfirmId(p.id))}
+                    title={confirmId === p.id ? "Confirmar exclusão" : "Excluir"}
+                    aria-label={confirmId === p.id ? "Confirmar exclusão" : "Excluir"}
+                  >
+                    <TrashIcon />
+                    <span className="trash-label">Excluir</span>
+                  </button>
+                </div>
+                <div className={"mp-acc" + (open ? " open" : "")}>
+                  <div className="mp-acc-inner">{anchor === p.id && formNode}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {draft === null ? (
-          <div className="mp-actions">
-            <button className="btn-dl" onClick={startNewPreset}>+ Novo preset</button>
-            {confirmId === "__restore__" ? (
-              <button ref={armedRef} className="btn-dl danger" onClick={restoreDefaults} title="Desfaz suas edições e exclusões dos presets padrão">Confirmar restauração</button>
-            ) : (
-              <button className="btn-dl" onClick={() => setConfirmId("__restore__")} title="Traz os presets originais de volta (não mexe nos seus)">Restaurar padrões</button>
-            )}
-          </div>
-        ) : (
-          <div className="mp-form" ref={formRef}>
-            <input
-              className="mp-input"
-              aria-label="Nome do preset"
-              placeholder="Nome (ex.: Resumir em tópicos)"
-              value={draft.label}
-              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            />
-            <textarea
-              className="mp-input"
-              aria-label="Instrução"
-              rows={3}
-              placeholder="Instrução: o que esse preset deve fazer com o texto"
-              value={draft.instruction}
-              onChange={(e) => setDraft({ ...draft, instruction: e.target.value })}
-            />
-            <input
-              className="mp-input"
-              aria-label="Exemplo de entrada"
-              placeholder="Exemplo de entrada (opcional)"
-              value={draft.example_input}
-              onChange={(e) => setDraft({ ...draft, example_input: e.target.value })}
-            />
-            <input
-              className="mp-input"
-              aria-label="Exemplo de saída"
-              placeholder="Exemplo de saída (opcional)"
-              value={draft.example_output}
-              onChange={(e) => setDraft({ ...draft, example_output: e.target.value })}
-            />
-            <div className="mp-form-actions">
-              <button className="btn-dl primary" onClick={savePreset}>{draft.id ? "Salvar" : "Criar"}</button>
-              <button className="btn-dl" onClick={() => { setDraft(null); setPresetErr(""); }}>Cancelar</button>
-              {presetErr && <span className="field-err">{presetErr}</span>}
-            </div>
-          </div>
-        )}
+        <div className="mp-actions">
+          <button className="btn-dl" aria-expanded={anchor === NEW} onClick={toggleNew}>+ Novo preset</button>
+          {confirmId === "__restore__" ? (
+            <button ref={armedRef} className="btn-dl danger" onClick={restoreDefaults} title="Desfaz suas edições e exclusões dos presets padrão">Confirmar restauração</button>
+          ) : (
+            <button className="btn-dl" onClick={() => setConfirmId("__restore__")} title="Traz os presets originais de volta (não mexe nos seus)">Restaurar padrões</button>
+          )}
+        </div>
+        <div className={"mp-acc" + (anchor === NEW && !closing ? " open" : "")}>
+          <div className="mp-acc-inner">{anchor === NEW && formNode}</div>
+        </div>
       </div>
 
       {/* Exemplos few-shot */}
