@@ -15,24 +15,25 @@ import GatilhoTab from "./tabs/GatilhoTab";
 import GeralTab from "./tabs/GeralTab";
 import ConnectionStatus from "./ConnectionStatus";
 import { setLocale } from "./i18n";
+import type { Key } from "./i18n/catalog";
 import { useT } from "./i18n/useT";
 
 type Tab = "inicio" | "historico" | "motor" | "presets" | "gatilho" | "geral";
 const TABS: Tab[] = ["inicio", "historico", "presets", "motor", "gatilho", "geral"];
 
-// Rótulo visível de cada aba (glossário canônico num lugar só): o id interno
-// "motor"/"gatilho" diverge do que o usuário lê ("API"/"Atalho").
-const TAB_LABEL: Record<Tab, string> = {
-  inicio: "Início",
-  historico: "Histórico",
-  presets: "Presets",
-  motor: "API",
-  gatilho: "Atalho",
-  geral: "Sobre",
+// Chave de catálogo do rótulo de cada aba (glossário canônico num lugar só): o id
+// interno "motor"/"gatilho" diverge do que o usuário lê ("API"/"Atalho").
+const TAB_KEY: Record<Tab, Key> = {
+  inicio: "tab.inicio",
+  historico: "tab.historico",
+  presets: "tab.presets",
+  motor: "tab.api",
+  gatilho: "tab.gatilho",
+  geral: "tab.sobre",
 };
 
-// Rótulo do modificador do atalho, pra interpolar em mensagens.
-const MOD: Record<Settings["trigger_modifier"], string> = { ctrl: "Ctrl", alt: "Alt", shift: "Shift" };
+// Chave de catálogo do modificador do atalho, pra interpolar em mensagens.
+const MOD_KEY: Record<Settings["trigger_modifier"], Key> = { ctrl: "mod.ctrl", alt: "mod.alt", shift: "mod.shift" };
 
 // Lê a última aba salva no localStorage; "inicio" se ausente/inválida.
 function initialTab(): Tab {
@@ -118,13 +119,14 @@ function NavIcon({ id }: { id: Tab }) {
 // (tauri.conf.json → decorations:false), então desenhamos os botões aqui. Fechar
 // esconde pra bandeja (lib.rs intercepta CloseRequested).
 function WindowControls() {
+  const { t } = useT();
   const win = getCurrentWindow();
   return (
     <div className="tb-controls">
-      <button className="tb-btn" aria-label="Minimizar" title="Minimizar" onClick={() => win.minimize().catch(console.error)}>
+      <button className="tb-btn" aria-label={t("app.window.minimize")} title={t("app.window.minimize")} onClick={() => win.minimize().catch(console.error)}>
         <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="6" width="7" height="1" fill="currentColor" /></svg>
       </button>
-      <button className="tb-btn close" aria-label="Fechar" title="Fechar" onClick={() => win.close().catch(console.error)}>
+      <button className="tb-btn close" aria-label={t("app.window.close")} title={t("app.window.close")} onClick={() => win.close().catch(console.error)}>
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3 9 9 M9 3 3 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
       </button>
     </div>
@@ -133,9 +135,8 @@ function WindowControls() {
 
 export default function App() {
   // Assina o locale: re-renderiza a janela inteira quando o idioma troca (toggle
-  // na aba Geral). Ainda não traduzimos as strings de App aqui — isso vem nas
-  // tasks de extração; por ora só precisamos da reatividade da subscription.
-  useT();
+  // na aba Geral) e devolve o tradutor `t`.
+  const { t, locale } = useT();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [autostart, setAutostart] = useState(false);
@@ -198,6 +199,11 @@ export default function App() {
     return () => { offCtx(); offScroll(); };
   }, []);
 
+  // Título da janela (document.title) acompanha o idioma.
+  useEffect(() => {
+    document.title = t("app.title");
+  }, [t, locale]);
+
   // Carrega tudo do backend ao abrir.
   useEffect(() => {
     loadPresets();
@@ -253,7 +259,7 @@ export default function App() {
       await update({ autostart: on });
     } catch (e) {
       console.error(e);
-      setAutostartErr("Não foi possível iniciar com o sistema. Tente de novo.");
+      setAutostartErr(t("app.autostartError"));
     }
   }
 
@@ -268,7 +274,7 @@ export default function App() {
         </header>
         <div className="loading-brand" data-tauri-drag-region>
           <BrandMark size={28} />
-          <div className="lb-text">Carregando…</div>
+          <div className="lb-text">{t("app.loading")}</div>
         </div>
       </div>
     );
@@ -288,7 +294,7 @@ export default function App() {
 
       <div className="shell">
         {/* ── Rail: logo + navegação de ícones; Geral fixo no rodapé ── */}
-        <nav className="rail" aria-label="Navegação">
+        <nav className="rail" aria-label={t("app.nav")}>
           <div className="rail-brand">
             <BrandMark size={22} />
             <span className="rb-name">imprompt</span>
@@ -303,7 +309,7 @@ export default function App() {
                 onClick={() => selectTab(id)}
               >
                 <NavIcon id={id} />
-                <span>{TAB_LABEL[id]}</span>
+                <span>{t(TAB_KEY[id])}</span>
               </button>
             ))}
           </div>
@@ -315,7 +321,7 @@ export default function App() {
               onClick={() => selectTab("geral")}
             >
               <NavIcon id="geral" />
-              <span>Sobre</span>
+              <span>{t("tab.sobre")}</span>
             </button>
             <ConnectionStatus settings={settings} />
           </div>
@@ -328,14 +334,16 @@ export default function App() {
             {needsAccess && (
               <div className="banner">
                 <div className="banner-text">
-                  <strong>Permissão necessária (macOS)</strong>
+                  <strong>{t("app.access.title")}</strong>
                   <p>
-                    O Imprompt precisa de Acessibilidade pra detectar o seu atalho ({MOD[settings.trigger_modifier] ?? "Ctrl"}+{(settings.trigger_key || "c").toUpperCase()}×2) e colar o
-                    resultado. Ative o Imprompt em Ajustes &gt; Privacidade e Segurança &gt; Acessibilidade.
+                    {t("app.access.body", {
+                      mod: t(MOD_KEY[settings.trigger_modifier] ?? "mod.ctrl"),
+                      key: (settings.trigger_key || "c").toUpperCase(),
+                    })}
                   </p>
                 </div>
                 <button className="btn-dl" onClick={() => invoke("open_accessibility_settings").catch(console.error)}>
-                  Abrir Ajustes
+                  {t("app.access.open")}
                 </button>
               </div>
             )}
@@ -343,17 +351,17 @@ export default function App() {
             {updateVersion && (
               <div className="banner update">
                 <div className="banner-text">
-                  <strong>Atualização disponível: v{updateVersion}</strong>
+                  <strong>{t("app.update.title", { version: updateVersion })}</strong>
                   <p>
                     {installing
-                      ? "Baixando e reiniciando…"
+                      ? t("app.update.installing")
                       : updateErr
-                      ? "Falha: " + updateErr
-                      : "Baixa a versão nova e reinicia o app ao concluir."}
+                      ? t("app.update.error", { error: updateErr })
+                      : t("app.update.body")}
                   </p>
                 </div>
                 <button className="btn-dl primary" disabled={installing} onClick={installUpdate}>
-                  {installing ? "Baixando…" : "Baixar e reiniciar"}
+                  {installing ? t("app.update.btn.installing") : t("app.update.btn")}
                 </button>
               </div>
             )}

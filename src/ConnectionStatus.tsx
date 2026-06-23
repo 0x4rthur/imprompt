@@ -13,11 +13,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ApiKeyStatus, Settings } from "./types";
 import { ApiProviderIcon, providerName } from "./ApiProviderIcon";
+import { t as translate } from "./i18n";
+import { useT } from "./i18n/useT";
 
 type Health = "checking" | "connected" | "error";
 
 function hostOf(url: string): string {
-  try { return new URL(url).host || url; } catch { return url || "(provedor inválido)"; }
+  try { return new URL(url).host || url; } catch { return url || translate("conn.invalidProvider"); }
 }
 function dotClass(h: Health): string {
   return h === "connected" ? "ok" : h === "checking" ? "busy" : "bad";
@@ -28,6 +30,7 @@ function shortErr(e: string): string {
 }
 
 export default function ConnectionStatus({ settings }: { settings: Settings }) {
+  const { t } = useT();
   const { api_base_url, api_model } = settings;
   const [health, setHealth] = useState<Health>("checking");
   const [detail, setDetail] = useState("");
@@ -42,7 +45,7 @@ export default function ConnectionStatus({ settings }: { settings: Settings }) {
     invoke<ApiKeyStatus>("get_api_key_status")
       .then((s) => {
         if (myGen !== genRef.current) return;
-        if (!s.saved) { setHealth("error"); setDetail("sem chave salva"); return; }
+        if (!s.saved) { setHealth("error"); setDetail(translate("conn.noKey")); return; }
         invoke<string>("test_api_connection", { baseUrl: api_base_url, model: api_model })
           .then(() => { if (myGen === genRef.current) { setHealth("connected"); setDetail(""); } })
           .catch((e) => { if (myGen === genRef.current) { setHealth("error"); setDetail(shortErr(String(e))); } });
@@ -62,7 +65,7 @@ export default function ConnectionStatus({ settings }: { settings: Settings }) {
 
   const host = hostOf(api_base_url);
   const name = providerName(host);
-  const stateLabel = health === "checking" ? "Verificando…" : health === "connected" ? "Conectado" : "Sem conexão";
+  const stateLabel = health === "checking" ? t("conn.checking") : health === "connected" ? t("conn.connected") : t("conn.disconnected");
 
   return (
     <button
@@ -72,8 +75,8 @@ export default function ConnectionStatus({ settings }: { settings: Settings }) {
       disabled={health === "checking"}
       title={
         health === "error" && detail
-          ? `${name}: ${detail}`
-          : `${name} (${host}) — clique para testar a conexão`
+          ? t("conn.title.error", { name, detail })
+          : t("conn.title.test", { name, host })
       }
     >
       <span className="conn-ico"><ApiProviderIcon host={host} /></span>

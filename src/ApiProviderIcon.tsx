@@ -3,9 +3,12 @@
 // vivem no CSS (sem libs; gatilho = hover de .prov-pill / .nav-item). Glyphs de marca
 // readaptados do itshover (que usa a lib `motion`) para SVG + CSS puro.
 
+import { t } from "./i18n";
+
 type IconProps = { host: string; size?: number };
 
 // Nome amigável do provedor pelo host (ex.: "api.openai.com" → "OpenAI").
+// Nomes de marca ficam hardcoded; só o fallback genérico é localizado.
 export function providerName(host: string): string {
   const h = (host || "").toLowerCase();
   if (h.includes("openai")) return "OpenAI";
@@ -17,7 +20,7 @@ export function providerName(host: string): string {
   if (h.includes("perplexity")) return "Perplexity";
   if (h.includes("x.ai")) return "xAI";
   if (h.includes("googleapis") || h.includes("generativelanguage") || h.includes("gemini")) return "Google Gemini";
-  return host || "API";
+  return host || t("conn.providerFallback");
 }
 
 // OpenAI — traço (6 arcos); anima "redesenhando" no hover (stroke-dashoffset).
