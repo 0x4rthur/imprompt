@@ -34,6 +34,27 @@ fn lock<T>(m: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Handles concretos dos `MenuItem` da bandeja (runtime `Wry`). Vivem AQUI (não em
+/// commands.rs) pra o binário de testes da lib não puxar o WebView2 no load.
+/// Guardados no `AppState` atrás do trait `commands::TrayRelabel`.
+struct TrayItems {
+    prefs: MenuItem<tauri::Wry>,
+    undo: MenuItem<tauri::Wry>,
+    update: MenuItem<tauri::Wry>,
+    quit: MenuItem<tauri::Wry>,
+}
+
+impl commands::TrayRelabel for TrayItems {
+    /// Re-rotula cada item no idioma dado (`set_text` é best-effort: ignora o erro
+    /// raro de IPC do menu — a bandeja simplesmente fica no rótulo anterior).
+    fn relabel(&self, locale: &str) {
+        let _ = self.prefs.set_text(i18n::tr(locale, "tray.prefs"));
+        let _ = self.undo.set_text(i18n::tr(locale, "tray.undo"));
+        let _ = self.update.set_text(i18n::tr(locale, "tray.update"));
+        let _ = self.quit.set_text(i18n::tr(locale, "tray.quit"));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let loaded = Settings::load();
@@ -94,19 +115,49 @@ pub fn run() {
 
             // 1) Bandeja (tray) com menu: "Preferências" mostra a janela; "Sair"
             //    encerra o app de verdade. (Saímos da config e criamos aqui pra
-            //    ter o menu.)
-            let prefs_i = MenuItem::with_id(app, "prefs", "Preferências", true, None::<&str>)?;
-            let undo_i = MenuItem::with_id(
+            //    ter o menu.) Os rótulos saem do catálogo i18n no idioma INICIAL
+            //    (lido do AppState); `set_settings` os re-rotula AO VIVO ao trocar
+            //    de idioma, via os handles guardados em `AppState.tray_items`.
+            let locale0 = lock(&handle.state::<commands::AppState>().settings)
+                .locale
+                .clone();
+            let prefs_i = MenuItem::with_id(
                 app,
-                "undo",
-                "↩ Desfazer último imprompt",
+                "prefs",
+                i18n::tr(&locale0, "tray.prefs"),
                 true,
                 None::<&str>,
             )?;
-            let update_i =
-                MenuItem::with_id(app, "update", "Verificar atualizações", true, None::<&str>)?;
-            let quit_i = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
+            let undo_i = MenuItem::with_id(
+                app,
+                "undo",
+                i18n::tr(&locale0, "tray.undo"),
+                true,
+                None::<&str>,
+            )?;
+            let update_i = MenuItem::with_id(
+                app,
+                "update",
+                i18n::tr(&locale0, "tray.update"),
+                true,
+                None::<&str>,
+            )?;
+            let quit_i = MenuItem::with_id(
+                app,
+                "quit",
+                i18n::tr(&locale0, "tray.quit"),
+                true,
+                None::<&str>,
+            )?;
             let menu = Menu::with_items(app, &[&prefs_i, &undo_i, &update_i, &quit_i])?;
+            // Guarda os handles (runtime concreto Wry) atrás do trait object
+            // `TrayRelabel`, pra re-rotular ao vivo na troca de idioma.
+            *lock(&handle.state::<commands::AppState>().tray_items) = Some(Box::new(TrayItems {
+                prefs: prefs_i.clone(),
+                undo: undo_i.clone(),
+                update: update_i.clone(),
+                quit: quit_i.clone(),
+            }));
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(tauri::include_image!("icons/tray.png"))
                 .tooltip("Imprompt")
@@ -250,7 +301,7 @@ fn run_refine_flow(app: &tauri::AppHandle) {
     let _guard = RefiningGuard; // libera o flag ao sair (qualquer caminho)
 
     // Lê as preferências atuais.
-    let (mode, preset_id, output, use_examples) = {
+    let (mode, preset_id, output, use_examples, locale) = {
         let state: tauri::State<AppState> = app.state();
         let s = lock(&state.settings);
         (
@@ -258,6 +309,7 @@ fn run_refine_flow(app: &tauri::AppHandle) {
             s.default_preset.clone(),
             s.output.clone(),
             s.use_examples,
+            s.locale.clone(),
         )
     };
 
@@ -298,8 +350,9 @@ fn run_refine_flow(app: &tauri::AppHandle) {
                 }
                 Err(e) => {
                     // Sem janela no modo Instantâneo → avisa com uma notificação
-                    // nativa do SO (em vez de só logar e falhar mudo).
-                    notify_error(app, &e.to_string());
+                    // nativa do SO (em vez de só logar e falhar mudo). A mensagem do
+                    // erro é uma CHAVE i18n (ou detalhe técnico cru) → traduz aqui.
+                    notify_error(app, &i18n::tr_msg(&locale, &e.to_string()));
                 }
             }
         }
@@ -353,9 +406,18 @@ fn notify(app: &tauri::AppHandle, title: &str, body: &str) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
-/// Atalho pra notificar falha de refino.
+/// Lê o locale atual do `AppState` (fonte da verdade do idioma).
+fn current_locale(app: &tauri::AppHandle) -> String {
+    let state: tauri::State<AppState> = app.state();
+    let guard = lock(&state.settings);
+    guard.locale.clone()
+}
+
+/// Atalho pra notificar falha de refino. `message` JÁ vem traduzido (ou é um
+/// detalhe técnico cru); o título sai do catálogo no idioma atual.
 fn notify_error(app: &tauri::AppHandle, message: &str) {
-    notify(app, "Imprompt — falhou", message);
+    let loc = current_locale(app);
+    notify(app, i18n::tr(&loc, "notif.fail.title"), message);
 }
 
 /// Checa atualização em background. `explicit` = o usuário pediu pela bandeja
@@ -370,6 +432,7 @@ fn spawn_update_check(app: tauri::AppHandle, explicit: bool) {
             Ok(updater) => updater.check().await,
             Err(e) => Err(e),
         };
+        let loc = current_locale(&app);
         match checked {
             Ok(Some(update)) => {
                 let version = update.version.clone();
@@ -380,8 +443,8 @@ fn spawn_update_check(app: tauri::AppHandle, explicit: bool) {
                 let _ = app.emit("update-available", version.clone());
                 notify(
                     &app,
-                    "Imprompt",
-                    &format!("Atualização {version} disponível."),
+                    i18n::tr(&loc, "notif.update.title"),
+                    &i18n::tr_args(&loc, "notif.update.available", &[&version]),
                 );
             }
             Ok(None) => {
@@ -391,7 +454,11 @@ fn spawn_update_check(app: tauri::AppHandle, explicit: bool) {
                 }
                 if explicit {
                     let _ = app.emit("update-none", ());
-                    notify(&app, "Imprompt", "Você já está na última versão.");
+                    notify(
+                        &app,
+                        i18n::tr(&loc, "notif.update.title"),
+                        i18n::tr(&loc, "notif.update.uptodate"),
+                    );
                 }
             }
             Err(e) => {
@@ -399,8 +466,8 @@ fn spawn_update_check(app: tauri::AppHandle, explicit: bool) {
                 if explicit {
                     notify(
                         &app,
-                        "Imprompt — atualização",
-                        &format!("Não consegui verificar: {e}"),
+                        i18n::tr(&loc, "notif.update.checkfail.title"),
+                        &i18n::tr_args(&loc, "notif.update.checkfail", &[&e.to_string()]),
                     );
                 }
             }
@@ -414,10 +481,16 @@ fn spawn_update_check(app: tauri::AppHandle, explicit: bool) {
 fn undo_last_refine(app: &tauri::AppHandle) {
     let state: tauri::State<AppState> = app.state();
 
+    let loc = lock(&state.settings).locale.clone();
+
     // Pega o original do refino mais recente (sem segurar o lock além do statement).
     let original = lock(&state.history).first().map(|r| r.original.clone());
     let Some(original) = original else {
-        notify(app, "Imprompt", "Nenhum imprompt para desfazer ainda.");
+        notify(
+            app,
+            i18n::tr(&loc, "notif.update.title"),
+            i18n::tr(&loc, "notif.undo.none"),
+        );
         return;
     };
 
@@ -428,11 +501,15 @@ fn undo_last_refine(app: &tauri::AppHandle) {
     std::thread::sleep(std::time::Duration::from_millis(150));
     let _ = clipboard::deliver(&original, mode);
 
-    let msg = match mode {
-        clipboard::OutputMode::Replace => "Texto original colado de volta.",
-        clipboard::OutputMode::Clipboard => "Original de volta no clipboard — dê Ctrl+V.",
+    let msg_key = match mode {
+        clipboard::OutputMode::Replace => "notif.undo.pasted",
+        clipboard::OutputMode::Clipboard => "notif.undo.clipboard",
     };
-    notify(app, "Imprompt — desfazer", msg);
+    notify(
+        app,
+        i18n::tr(&loc, "notif.undo.title"),
+        i18n::tr(&loc, msg_key),
+    );
 }
 
 /// Posiciona o popup PERTO DO CURSOR (com um pequeno offset pra não cobrir a

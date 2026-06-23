@@ -64,6 +64,18 @@ pub struct AppState {
     /// Config do gatilho (combo + debounce), compartilhada com o listener global
     /// (hotkey.rs) e atualizada AO VIVO pelo `set_settings`.
     pub trigger: Arc<crate::hotkey::TriggerShared>,
+    /// Re-rotulador da bandeja, guardado como TRAIT OBJECT pra re-rotular AO VIVO
+    /// na troca de idioma SEM nomear o runtime concreto (`tauri::Wry`) aqui — isso
+    /// evitava que o binário de TESTES da lib puxasse o WebView2 no load (entrypoint
+    /// not found). O `setup()` (lib.rs) injeta a implementação concreta. `None` até
+    /// a bandeja existir.
+    pub tray_items: Mutex<Option<Box<dyn TrayRelabel>>>,
+}
+
+/// Re-rotula os itens da bandeja no idioma dado. Implementado em lib.rs sobre os
+/// handles concretos dos `MenuItem` (onde o runtime `Wry` já é nomeado).
+pub trait TrayRelabel: Send {
+    fn relabel(&self, locale: &str);
 }
 
 impl AppState {
@@ -82,6 +94,7 @@ impl AppState {
             pending_update: Mutex::new(None),
             usage: Arc::new(crate::usage::UsageTracker::load()),
             trigger,
+            tray_items: Mutex::new(None),
         }
     }
 
@@ -100,6 +113,16 @@ impl AppState {
         );
         h.truncate(HISTORY_CAP);
     }
+}
+
+/// Lê o locale atual do `AppState` (fonte da verdade do idioma).
+fn current_locale(state: &State<AppState>) -> String {
+    lock(&state.settings).locale.clone()
+}
+
+/// Traduz uma CHAVE de erro pro locale atual, pronta pra devolver de um comando.
+fn i18n_err(state: &State<AppState>, key: &str) -> String {
+    crate::i18n::tr_msg(&current_locale(state), key)
 }
 
 /// Epoch em milissegundos (0 se o relógio do sistema estiver antes de 1970).
@@ -146,14 +169,17 @@ pub fn list_presets() -> Vec<PresetView> {
 
 /// Cria um preset custom (gera um id único a partir do nome). Devolve o criado.
 #[tauri::command]
-pub fn create_preset(mut preset: presets::Preset) -> Result<presets::Preset, String> {
+pub fn create_preset(
+    state: State<AppState>,
+    mut preset: presets::Preset,
+) -> Result<presets::Preset, String> {
     let label = preset.label.trim().to_string();
     let instruction = preset.instruction.trim().to_string();
     if label.is_empty() {
-        return Err("Dê um nome ao preset.".to_string());
+        return Err(i18n_err(&state, "err.preset.name"));
     }
     if instruction.is_empty() {
-        return Err("Escreva a instrução do preset.".to_string());
+        return Err(i18n_err(&state, "err.preset.instruction"));
     }
     let mut user = presets::load_user_presets();
     // Ids em uso (padrão + custom): garante unicidade e que NÃO sobrescreve padrão.
@@ -170,18 +196,18 @@ pub fn create_preset(mut preset: presets::Preset) -> Result<presets::Preset, Str
     preset.example_input = preset.example_input.trim().to_string();
     preset.example_output = preset.example_output.trim().to_string();
     user.push(preset.clone());
-    presets::save_user_presets(&user).map_err(|e| e.to_string())?;
+    presets::save_user_presets(&user).map_err(|e| i18n_err(&state, &e.to_string()))?;
     Ok(preset)
 }
 
 /// Edita um preset. PADRÃO → vira um override (o original fica salvo no código;
 /// "Restaurar padrões" reverte). CUSTOM → substitui pelo id.
 #[tauri::command]
-pub fn update_preset(preset: presets::Preset) -> Result<(), String> {
+pub fn update_preset(state: State<AppState>, preset: presets::Preset) -> Result<(), String> {
     let label = preset.label.trim().to_string();
     let instruction = preset.instruction.trim().to_string();
     if label.is_empty() || instruction.is_empty() {
-        return Err("Nome e instrução são obrigatórios.".to_string());
+        return Err(i18n_err(&state, "err.preset.required"));
     }
     let clean = presets::Preset {
         id: preset.id,
@@ -196,16 +222,16 @@ pub fn update_preset(preset: presets::Preset) -> Result<(), String> {
     } else {
         match store.custom.iter_mut().find(|p| p.id == clean.id) {
             Some(slot) => *slot = clean,
-            None => return Err("Preset não encontrado.".to_string()),
+            None => return Err(i18n_err(&state, "err.preset.not_found")),
         }
     }
-    presets::save_store(&store).map_err(|e| e.to_string())
+    presets::save_store(&store).map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// Exclui um preset. PADRÃO → fica ESCONDIDO ("Restaurar padrões" o traz de
 /// volta). CUSTOM → removido de vez.
 #[tauri::command]
-pub fn delete_preset(id: String) -> Result<(), String> {
+pub fn delete_preset(state: State<AppState>, id: String) -> Result<(), String> {
     let mut store = presets::load_store();
     if presets::is_default_id(&id) {
         if !store.hidden.iter().any(|h| h == &id) {
@@ -216,22 +242,22 @@ pub fn delete_preset(id: String) -> Result<(), String> {
         let before = store.custom.len();
         store.custom.retain(|p| p.id != id);
         if store.custom.len() == before {
-            return Err("Preset não encontrado.".to_string());
+            return Err(i18n_err(&state, "err.preset.not_found"));
         }
     }
     // Nunca deixa a lista de presets ficar VAZIA — senão o refino ficaria sem
     // preset (panic em find_preset / Ctrl+C×2 sem efeito). Recusa a exclusão.
     if presets::all_presets_from(&store).is_empty() {
-        return Err("Mantenha ao menos um preset.".to_string());
+        return Err(i18n_err(&state, "err.preset.keep_one"));
     }
-    presets::save_store(&store).map_err(|e| e.to_string())
+    presets::save_store(&store).map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// "Restaurar padrões": desfaz edições e exclusões dos presets PADRÃO. Os presets
 /// custom do usuário ficam intactos.
 #[tauri::command]
-pub fn restore_default_presets() -> Result<(), String> {
-    presets::restore_defaults().map_err(|e| e.to_string())
+pub fn restore_default_presets(state: State<AppState>) -> Result<(), String> {
+    presets::restore_defaults().map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// Lê as settings atuais.
@@ -243,13 +269,25 @@ pub fn get_settings(state: State<AppState>) -> Settings {
 /// Salva settings novas (e persiste no disco).
 #[tauri::command]
 pub fn set_settings(state: State<AppState>, new_settings: Settings) -> Result<(), String> {
-    new_settings.save().map_err(|e| e.to_string())?;
+    new_settings
+        .save()
+        .map_err(|e| crate::i18n::tr_msg(&new_settings.locale, &e.to_string()))?;
     // Aplica o gatilho AO VIVO no listener global (sem reiniciar o app).
     state.trigger.set(
         &new_settings.trigger_modifier,
         &new_settings.trigger_key,
         new_settings.debounce_ms,
     );
+    // Re-rotula a bandeja AO VIVO se o idioma mudou (sem reconstruir o menu nem
+    // reiniciar o app). `relabel` chama `set_text` na main thread — set_settings é
+    // um comando, já invocado lá.
+    let locale_changed = lock(&state.settings).locale != new_settings.locale;
+    if locale_changed {
+        let loc = new_settings.locale.clone();
+        if let Some(items) = lock(&state.tray_items).as_ref() {
+            items.relabel(&loc);
+        }
+    }
     *lock(&state.settings) = new_settings;
     Ok(())
 }
@@ -301,6 +339,9 @@ pub async fn refine_text(
     text: String,
     preset_id: String,
 ) -> Result<String, String> {
+    // Locale lido na borda (antes da thread). Erros internos sobem como CHAVES
+    // i18n (ou detalhe técnico cru) e são traduzidos AQUI via tr_msg.
+    let locale = lock(&app.state::<AppState>().settings).locale.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
         let state = app.state::<AppState>();
@@ -322,7 +363,10 @@ pub async fn refine_text(
         })();
         let _ = tx.send(result);
     });
-    rx.await.map_err(|_| "Refino interrompido.".to_string())?
+    match rx.await {
+        Ok(inner) => inner.map_err(|e| crate::i18n::tr_msg(&locale, &e)),
+        Err(_) => Err(crate::i18n::tr_msg(&locale, "err.refine.interrupted")),
+    }
 }
 
 /// Testa a conexão com a API (valida chave/modelo/base_url) fazendo um refino
@@ -330,13 +374,20 @@ pub async fn refine_text(
 /// std::thread (reqwest::blocking). A chave vem do COFRE — a UI deve salvá-la
 /// (set_api_key) ANTES de testar.
 #[tauri::command]
-pub async fn test_api_connection(base_url: String, model: String) -> Result<String, String> {
+pub async fn test_api_connection(
+    state: State<'_, AppState>,
+    base_url: String,
+    model: String,
+) -> Result<String, String> {
+    // Locale lido na borda (State não cruza pra thread). Erros internos sobem como
+    // CHAVES i18n e são traduzidos aqui via tr_msg.
+    let locale = lock(&state.settings).locale.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
         use crate::api_engine::ApiEngine;
         let result = (|| -> Result<(), String> {
-            let api_key = crate::secrets::load_api_key()
-                .ok_or_else(|| "Configure a chave da API nas Preferências.".to_string())?;
+            let api_key =
+                crate::secrets::load_api_key().ok_or_else(|| "err.test.no_key".to_string())?;
             let eng = ApiEngine::new(&base_url, &model, &api_key).map_err(|e| e.to_string())?;
             // Ping mínimo: zero-shot (sem exemplo) — só valida credencial/modelo.
             eng.refine("Responda apenas com a palavra OK.", None, "ping")
@@ -345,9 +396,12 @@ pub async fn test_api_connection(base_url: String, model: String) -> Result<Stri
         })();
         let _ = tx.send(result);
     });
-    rx.await
-        .map_err(|_| "Teste interrompido.".to_string())?
-        .map(|_| "Conexão OK.".to_string())
+    match rx.await {
+        Ok(inner) => inner
+            .map(|_| crate::i18n::tr_msg(&locale, "err.test.ok"))
+            .map_err(|e| crate::i18n::tr_msg(&locale, &e)),
+        Err(_) => Err(crate::i18n::tr_msg(&locale, "err.test.interrupted")),
+    }
 }
 
 /// Estado da chave de API (pra UI), sem NUNCA expor o valor — só se existe e uma
@@ -360,8 +414,8 @@ pub struct ApiKeyStatus {
 
 /// Salva (ou apaga, se vier vazia) a chave da API no cofre do SO.
 #[tauri::command]
-pub fn set_api_key(key: String) -> Result<(), String> {
-    crate::secrets::save_api_key(&key).map_err(|e| e.to_string())
+pub fn set_api_key(state: State<AppState>, key: String) -> Result<(), String> {
+    crate::secrets::save_api_key(&key).map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// Diz se há uma chave salva e devolve uma forma mascarada pra UI. O valor real
@@ -391,7 +445,7 @@ pub fn get_captured_text(state: State<AppState>) -> String {
 #[tauri::command]
 pub fn deliver_result(state: State<AppState>, text: String) -> Result<(), String> {
     let mode = lock(&state.settings).output.clone();
-    crate::clipboard::deliver(&text, mode.into()).map_err(|e| e.to_string())
+    crate::clipboard::deliver(&text, mode.into()).map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// Devolve o histórico de refinos (mais recente primeiro) pra timeline da tela Início.
@@ -471,28 +525,29 @@ pub fn open_accessibility_settings() -> Result<(), String> {
 // Shell::open está depreciado, mas é o opener-sem-shell já disponível (o plugin-shell
 // já é inicializado). Migrar p/ tauri-plugin-opener fica de follow-up.
 #[allow(deprecated)]
-pub fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+pub fn open_url(state: State<AppState>, app: tauri::AppHandle, url: String) -> Result<(), String> {
     use tauri_plugin_shell::ShellExt;
 
+    let invalid = || i18n_err(&state, "err.url.invalid");
     // Parse estrito: exige esquema http/https E um host. Rejeita caminhos,
     // esquemas exóticos (file:, javascript:) e URLs sem host.
-    let parsed = url::Url::parse(url.trim()).map_err(|_| "URL inválida.".to_string())?;
+    let parsed = url::Url::parse(url.trim()).map_err(|_| invalid())?;
     if parsed.scheme() != "http" && parsed.scheme() != "https" {
-        return Err("URL inválida.".to_string());
+        return Err(invalid());
     }
     if parsed.host_str().map(|h| h.is_empty()).unwrap_or(true) {
-        return Err("URL inválida.".to_string());
+        return Err(invalid());
     }
     // Rejeita userinfo embutido (http://user:senha@host): não há uso legítimo aqui
     // e pode mascarar o destino real da URL.
     if !parsed.username().is_empty() || parsed.password().is_some() {
-        return Err("URL inválida.".to_string());
+        return Err(invalid());
     }
 
     // Opener nativo (sem shell) — abre no navegador padrão sem passar por cmd.exe.
     app.shell()
         .open(parsed.as_str(), None)
-        .map_err(|e| e.to_string())
+        .map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// Versão de uma atualização pendente (a UI puxa ao montar). `None` = nada novo.
@@ -507,15 +562,19 @@ pub fn get_pending_update(state: State<AppState>) -> Option<String> {
 #[tauri::command]
 pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_updater::UpdaterExt;
+    let locale = lock(&app.state::<AppState>().settings).locale.clone();
     let checked = app
         .updater()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?
         .check()
         .await
         // Falha aqui é quase sempre rede/endpoint — palavreado RETENTÁVEL, não um
         // seco "nenhuma atualização" (que confundiria com o caso Ok(None)).
         .map_err(|e| {
-            format!("Não consegui verificar a atualização agora (rede?). Tente de novo. [{e}]")
+            crate::i18n::tr_msg(
+                &locale,
+                &crate::i18n::key_with_args("err.update.failed", &[&e.to_string()]),
+            )
         })?;
 
     let Some(update) = checked else {
@@ -532,7 +591,7 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     update
         .download_and_install(|_chunk, _total| {}, || {})
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?;
     app.restart();
 }
 
