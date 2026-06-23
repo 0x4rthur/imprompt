@@ -1,0 +1,172 @@
+/* ============================================================================
+   Imprompt — redesign do SHELL (rail + Início + loader)
+   ----------------------------------------------------------------------------
+   Importe ESTE arquivo DEPOIS do styles.css em src/main.tsx:
+
+       import "./styles.css";
+       import "./styles.redesign-shell.css";   // <— adicione esta linha
+
+   Reusa os tokens do :root do styles.css (--ink, --line, --mint-fg, etc).
+   Substitui o layout antigo (.layout/.sidenav/.app-inner centrado) por um
+   rail fixo à esquerda + conteúdo rolável à direita, e adiciona a tela Início.
+   ============================================================================ */
+
+/* ── Barra de título (marca foi pro rail; aqui só título + controles) ─────── */
+.titlebar { justify-content: flex-start; padding-left: 0; }
+.tb-title {
+  position: absolute; left: 0; right: 0; text-align: center;
+  font-size: 12.5px; font-weight: 600; color: var(--stone); letter-spacing: .02em;
+  pointer-events: none;
+}
+.titlebar .tb-right { margin-left: auto; }
+
+/* ── Shell: rail + main ocupam a janela inteira abaixo da barra ───────────── */
+.shell { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; overflow: hidden; }
+
+/* Rail à esquerda */
+.rail {
+  flex: 0 0 252px; display: flex; flex-direction: column;
+  padding: 20px 16px; background: var(--surface-soft);
+  border-right: 1px solid var(--line); overflow-y: auto;
+}
+.rail-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px; }
+.rail-brand .rb-name { font-weight: 700; font-size: 16px; letter-spacing: -.01em; color: var(--ink); }
+.rail-nav { margin-top: 18px; display: flex; flex-direction: column; gap: 7px; }
+.rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 7px; }
+.rail-status {
+  padding: 13px 9px 2px; margin-top: 8px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--faint); line-height: 1.6;
+}
+.rail-status .ok { color: var(--mint-fg); }
+
+/* Itens de navegação (ícone + rótulo, linha única) */
+.nav-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 11px 13px; cursor: pointer; text-align: left;
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  color: var(--dim); background: transparent;
+  border: 1px solid transparent; border-radius: var(--rad-btn);
+}
+.nav-item:hover { color: var(--ink); background: var(--cream); }
+.nav-item.active {
+  color: var(--ink); background: var(--cream); font-weight: 600;
+  border-color: var(--line); box-shadow: 0 1px 0 rgba(24, 24, 27, .04);
+}
+
+/* Conteúdo rolável */
+.main { flex: 1 1 auto; min-width: 0; overflow-y: auto; scrollbar-gutter: stable; }
+.main-inner { max-width: 760px; padding: 28px 32px 34px; }
+
+/* ── Tela Início ──────────────────────────────────────────────────────────── */
+.inicio { display: flex; flex-direction: column; gap: 26px; }
+
+/* Hero COMPACTO: a missão dele é ensinar o gesto Ctrl+C×2 + mostrar o modo —
+   referência, não billboard. Padding e tipografia reduzidos pra caber o gesto
+   numa linha só e liberar o espaço dos "Refinos recentes" (≈250px → ≈120px). */
+.hero {
+  border: 1px solid var(--line); background: var(--surface-soft);
+  border-radius: var(--rad-card); padding: 22px 26px; text-align: center;
+}
+.hero-label { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.hero-title {
+  margin-top: 12px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
+}
+.hero-cap {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; height: 28px; padding: 0 9px;
+  font-size: 13px; font-weight: 600; font-family: var(--mono);
+  border: 1px solid var(--line-2); background: var(--cream);
+  border-radius: var(--rad-btn); box-shadow: 0 1px 0 rgba(24, 24, 27, .07);
+}
+.hero-plus { color: var(--faint); font-size: 15px; }
+.hero-x2 { font-size: 14px; color: var(--stone); font-weight: 600; }
+.hero-sub { margin-top: 10px; font-size: 12px; color: var(--stone); }
+
+.inicio-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 24px; }
+.inicio-head h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+
+.timeline { display: flex; flex-direction: column; gap: 24px; }
+.tl-group-date { font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); padding: 0 2px 6px; }
+.tl-list { border-top: 1px solid var(--line); }
+.tl-row { display: flex; gap: 20px; padding: 18px 2px; border-bottom: 1px solid rgba(24, 24, 27, .09); }
+.tl-time { width: 52px; flex: none; font-size: 12px; color: var(--faint); padding-top: 3px; font-family: var(--mono); }
+.tl-body { flex: 1; min-width: 0; }
+/* Cor por tarefa: cada preset tem um matiz (--pc-h, ver presetColor.ts) → tinta
+   clara de fundo + texto/borda escuros do mesmo matiz, legível pra todos. */
+.tl-preset {
+  display: inline-block; margin-bottom: 9px;
+  font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600;
+  color: oklch(0.46 0.12 var(--pc-h, 255));
+  background: oklch(0.96 0.03 var(--pc-h, 255));
+  border: 1px solid oklch(0.88 0.06 var(--pc-h, 255));
+  border-radius: var(--rad-btn); padding: 3px 9px;
+}
+.tl-line { display: flex; gap: 10px; font-size: 12.5px; line-height: 1.5; word-break: break-word; }
+.tl-line.orig { color: var(--dim); }
+.tl-line.res { color: var(--ink); font-size: 13px; line-height: 1.55; margin-top: 7px; }
+.tl-mk { flex: none; color: var(--faint); font-family: var(--mono); }
+.tl-mk.ok { color: var(--mint-fg); }
+.tl-empty { padding: 28px 2px; color: var(--stone); font-size: 12.5px; line-height: 1.6; }
+
+/* Acordeon do histórico: cabeçalho clicável + corpo que expande (grid 0fr→1fr,
+   sem medir altura nem causar reflow). */
+.acc { border-bottom: 1px solid rgba(24, 24, 27, .09); }
+.acc-head { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 13px 6px; font-family: var(--mono); border-radius: var(--rad-btn); transition: background .15s ease; }
+.acc-head:hover { background: var(--surface-soft); }
+.acc-head .tl-time { padding-top: 0; }
+.acc-head .tl-preset { margin-bottom: 0; flex: none; }
+.acc-prev { flex: 1; min-width: 0; font-size: 12.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc.open .acc-prev { color: var(--faint); }
+.acc-chev { flex: none; width: 14px; height: 14px; color: var(--faint); transition: transform .25s cubic-bezier(.16, 1, .3, 1); }
+.acc.open .acc-chev { transform: rotate(180deg); }
+.acc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.16, 1, .3, 1); }
+.acc.open .acc-body { grid-template-rows: 1fr; }
+.acc-inner { overflow: hidden; min-height: 0; }
+.acc-pad { padding: 2px 6px 16px 66px; }
+@media (prefers-reduced-motion: reduce) { .acc-body, .acc-chev { transition: none; } }
+
+/* ── Status de conexão (rodapé do rail) — provedor de API ─────────────────── */
+.conn {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  margin-top: 10px; padding: 11px 12px; text-align: left; font-family: var(--mono);
+  border: 1px solid var(--line); border-radius: var(--rad-card); background: var(--cream);
+}
+button.conn { cursor: pointer; transition: filter .14s, border-color .14s; }
+button.conn:hover:not(:disabled) { filter: brightness(.985); }
+button.conn:disabled { cursor: default; }
+
+.conn-ico { flex: none; display: inline-flex; align-items: center; color: var(--ink); }
+/* Indicação ENXUTA: logo + estado + bolinha. Sem nome do provedor nem host (o
+   logo já identifica o provedor); o detalhe completo vai no title (tooltip). */
+.conn-label { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conn.api.connected .conn-label { color: var(--mint-fg); }
+.conn.api.checking .conn-label { color: var(--amber-fg); }
+.conn.api.error .conn-label { color: var(--danger); }
+
+/* Bolinha de estado (verde/âmbar/vermelho) */
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; margin-left: auto; }
+.conn-dot.ok { background: var(--mint); box-shadow: 0 0 0 3px var(--mint-soft); }
+.conn-dot.busy { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); animation: conn-pulse 1s ease-in-out infinite; }
+.conn-dot.bad { background: var(--danger); box-shadow: 0 0 0 3px rgba(165, 0, 17, .12); }
+@keyframes conn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .conn-dot.busy { animation: none; } }
+
+/* Tintas por estado: VERDE quando a API conecta; âmbar verificando; vermelho erro. */
+.conn.api.connected { background: var(--mint-soft); border-color: var(--mint-line); }
+.conn.api.checking { background: var(--amber-soft); border-color: var(--amber-line); }
+.conn.api.error { background: rgba(165, 0, 17, .06); border-color: rgba(165, 0, 17, .35); }
+
+/* ── Janela estreita: rail vira faixa no topo ─────────────────────────────── */
+@media (max-width: 680px) {
+  .shell { flex-direction: column; }
+  .rail {
+    flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px;
+    border-right: 0; border-bottom: 1px solid var(--line); overflow: visible;
+  }
+  .rail-brand { padding: 4px 8px; }
+  .rail-nav { margin-top: 0; flex-direction: row; flex-wrap: wrap; }
+  .rail-foot { margin-top: 0; flex-direction: row; }
+  .rail-status, .conn { display: none; }
+  .main-inner { padding: 22px 18px 26px; }
+}

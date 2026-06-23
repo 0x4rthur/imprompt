@@ -1,0 +1,92 @@
+[package]
+name = "imprompt"
+version = "0.1.0"
+description = "Melhore qualquer prompt sem sair do lugar — via API, sem trocar de janela."
+authors = ["0x4rthur"]
+edition = "2021"
+
+# O binário e a lib compartilham o nome-base. main.rs chama imprompt_lib::run().
+[lib]
+name = "imprompt_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# --- App shell ---
+# `tray-icon`: a tauri.conf.json declara um trayIcon, então o generate_context!
+# precisa desta feature (senão Context::set_tray_icon não existe → E0599).
+# NOTA: `tauri` e todos os `tauri-plugin-*` precisam ficar no MESMO minor
+# (ex.: 2.x) — o plugin liga contra a ABI interna do tauri, então um minor
+# desencontrado quebra a compilação. Suba todos juntos.
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+# Iniciar com o sistema (autostart), estilo Handy. Desktop-only.
+tauri-plugin-autostart = "2"
+# Instância única + encaminha o `--trigger` (atalho do sistema no Wayland) pra
+# instância residente, que refina reusando o cliente de API já em cache.
+tauri-plugin-single-instance = "2"
+# Notificações nativas do SO: avisam falha de refino no modo Instantâneo (que
+# não tem janela pra mostrar o erro). Chamado só pelo backend (Rust).
+tauri-plugin-notification = "2"
+# Atualização automática (updater oficial do Tauri 2). Desktop-only, como os
+# plugins acima. A chave pública fica no tauri.conf.json; o release é assinado
+# com a privada (ver UPDATER.md).
+tauri-plugin-updater = "2"
+
+# --- Gatilho global de teclado (Ctrl+C×2) — mesma escolha do Handy ---
+rdev = "0.5"
+
+# --- Clipboard (ler seleção / escrever resultado) + colar simulado ---
+arboard = "3"
+enigo = "0.2"
+
+# --- Chamadas à API externa (ApiEngine) ---
+# `blocking`+`json`: o ApiEngine fala HTTP de forma síncrona (a trait Engine é
+# síncrona). Roda sempre numa std::thread fora do runtime async (refine_text e o
+# fluxo do gatilho), porque reqwest::blocking não pode rodar dentro do tokio.
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+# `sync`: oneshot pra ponte thread→async no refine_text (UI não trava mais).
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+
+# --- Serialização das settings / catálogo ---
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# --- Pastas do sistema (config/dados) ---
+dirs = "5"
+
+# --- Validação de URL (open_url + base_url da API) sem shell nem heurística ---
+url = "2"
+
+# --- Calendário: bucketiza o uso da API pelo mês em HORÁRIO LOCAL (a virada de
+# mês no fuso do usuário, não em UTC). `local-offset` lê o offset do SO.
+time = { version = "0.3", features = ["local-offset", "std"] }
+
+# --- Erros ---
+anyhow = "1"
+
+# --- Cofre de credenciais do SO (a chave de API sai do settings.json) ---
+# Fixamos a LINHA 3.x: a API (Entry::new -> Result, set_password, get_password,
+# delete_credential, Error::NoEntry) é estável e bem documentada. A v4.x saiu em
+# 2026-06-17 e reestruturou a crate em sub-crates (keyring-core + stores) — evitamos
+# um release do mesmo dia em código que guarda credencial de app distribuído.
+# Features POR PLATAFORMA: cada SO usa seu cofre nativo e o Windows (alvo principal)
+# não puxa dbus/secret-service. Sem nenhuma store-feature, a keyring usaria um
+# "mock" em memória que NÃO persiste — por isso a feature é obrigatória.
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+
+[profile.release]
+# Release otimizado e enxuto (binário menor e mais rápido, sem símbolos).
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

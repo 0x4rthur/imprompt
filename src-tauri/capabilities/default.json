@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissões base do Imprompt: eventos (listen/emit) para o progresso de download e o popup, e operações de janela (hide/show/focus/minimize/arrastar) usadas pela barra de título custom da janela principal e pelo popup.",
+  "windows": ["main", "loader", "popup"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-minimize",
+    "core:window:allow-start-dragging",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    "notification:default"
+  ]
+}

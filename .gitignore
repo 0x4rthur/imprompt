@@ -1,0 +1,31 @@
+# deps
+node_modules
+# build
+dist
+src-tauri/target
+src-tauri/gen
+# segredos / chaves — NUNCA commitar. A chave de API fica no cofre do SO (keyring);
+# a chave de assinatura do updater fica FORA do repo (~/.tauri/). Estas regras são
+# defensivas pra nada sensível entrar por acidente.
+.env
+.env.*
+*.key
+*.pem
+*.sig
+.tauri/
+# backup interno (não publicar no open source)
+_backup_pre_apionly/
+# OS
+.DS_Store
+Thumbs.db
+# binários / arquivos compactados (artefatos — não são fonte)
+*.exe
+*.zip
+# protótipos e screenshots ANTIGOS (refs do modelo local removido) — ficam no disco
+# local; tire daqui se quiser republicar versões atualizadas.
+preview/
+ui-redesign/
+reference/
+# editor
+.vscode/
+.idea/

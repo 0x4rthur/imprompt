@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- Guard: fail if the updater endpoint still has the placeholder ----
+      - name: Check updater placeholder
+        shell: pwsh
+        run: |
+          $conf = "src-tauri/tauri.conf.json"
+          if (Select-String -Path $conf -Pattern "SEU-USUARIO" -Quiet) {
+            Write-Error "Placeholder 'SEU-USUARIO' found in $conf. Replace the updater endpoint with the real GitHub repo before releasing."
+            exit 1
+          }
+          Write-Host "No placeholder found in $conf."
+
+      # ---- Toolchains ----
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      # ---- Rust checks (src-tauri) ----
+      - name: cargo fmt
+        working-directory: src-tauri
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test
+
+      # ---- Frontend checks (root) ----
+      - name: npm ci
+        run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: build
+        run: npm run build

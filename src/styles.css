@@ -1,0 +1,507 @@
+/* ============================================================================
+   Imprompt — Redesign visual "Mono / Cream"  (drop-in para src/styles.css)
+   ----------------------------------------------------------------------------
+   Substitui o tema ESCURO (ink + warm/cool) pelo tema CLARO monoespaçado:
+   fundo creme, tinta PRETA neutra, rampa de cinza neutra, e os dois ÚNICOS
+   sinais de cor — Mint (estado OK/seguro/conectado) e Âmbar (texto sai da
+   máquina, via API / atenção).
+
+   Mantém TODOS os nomes de classe do App.tsx e popup.tsx atuais — então é
+   majoritariamente "trocar este arquivo". As poucas mudanças de MARKUP
+   (logo [I], ícone de marca por modelo, barra de progresso) estão no README
+   e em components/. Procure por  >>> MARKUP  abaixo.
+   ============================================================================ */
+
+:root{
+  /* Base */
+  --cream:#fcfcfd;        /* fundo / superfície */
+  --ink:#18181b;          /* PRINCIPAL — preto neutro (era grafite, era ugly) */
+  --on-ink:#fcfcfd;       /* texto sobre preto */
+  --surface-soft:#f6f6f8; /* inputs, blocos sutis */
+  --surface-card:#eeeef1; /* pílula/realce levemente elevado */
+  --track:#eaeaee;        /* trilho de barra de progresso */
+
+  /* Linhas */
+  --line:rgba(24,24,27,.12);    /* hairline padrão */
+  --line-2:rgba(24,24,27,.20);  /* borda de controle */
+
+  /* Rampa de texto (neutra, combina com o preto) */
+  --text:#18181b;   /* títulos / valores fortes */
+  --body:#3f3f46;   /* corpo de texto */
+  --dim:#52525b;    /* secundário */
+  --stone:#71717a;  /* terciário */
+  --faint:#a1a1aa;  /* rótulos / desabilitado */
+  --bracket:#c4c4cd;/* colchetes do logo [I] */
+
+  /* Sinais: mint = estado OK/seguro/conectado; âmbar = texto sai da máquina (API) */
+  --mint:#30d158; --mint-fg:#1f7a37; --mint-soft:rgba(48,209,88,.14); --mint-line:rgba(48,209,88,.45);
+  --amber:#ff9f0a; --amber-fg:#9a5b00; --amber-soft:rgba(255,159,10,.13); --amber-line:rgba(255,159,10,.40);
+  --danger:#a50011;
+
+  /* Forma */
+  --rad-card:5px; --rad-btn:4px; --pill:9999px;
+
+  /* Tipografia — 100% MONOESPAÇADA (a decisão de marca) */
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+  --sans:var(--mono); /* alias: tudo que usava --sans agora é mono, sem mudar markup */
+}
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0; background:var(--cream); color:var(--ink); font-family:var(--mono); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; overflow:hidden}
+.loading{padding:40px; color:var(--dim); font-family:var(--mono)}
+
+/* ── App shell: barra de título fixa + área de rolagem ───────────────────── */
+/* A janela roda SEM decoração nativa (tauri.conf.json → decorations:false), então
+   tudo (marca + controles de janela) é desenhado aqui dentro como UMA peça só.
+   O .app ocupa a janela inteira; a .titlebar fica FIXA no topo e apenas a
+   .app-scroll rola — assim o cabeçalho "Imprompt" nunca sai de vista. */
+.app{height:100%; display:flex; flex-direction:column; background:var(--cream); overflow:hidden}
+
+/* Barra de título custom e arrastável. A barra INTEIRA é a região de arrasto
+   (data-tauri-drag-region no markup); por isso os filhos ficam pointer-events:none
+   e só os botões de controle voltam a ser clicáveis. */
+.titlebar{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; height:44px; padding-left:16px; background:var(--cream); border-bottom:1px solid var(--line); user-select:none; -webkit-user-select:none}
+.titlebar *{pointer-events:none}
+.titlebar button{pointer-events:auto}
+.tb-brand{display:flex; align-items:center; gap:10px}
+.tb-brand h1{margin:0; font-size:14.5px; font-weight:700; letter-spacing:-.01em; color:var(--ink)}
+.tb-right{align-self:stretch; display:flex; align-items:center; gap:14px}
+
+/* Pílula de status — agora mora na barra de título. */
+.badge{font-family:var(--mono); font-size:12px; font-weight:500; color:var(--mint-fg); background:var(--mint-soft); border:1px solid var(--mint-line); border-radius:var(--pill); padding:5px 12px; white-space:nowrap}
+/* Modo API: pílula ÂMBAR (o texto sai da máquina). Mint p/ estado OK/seguro/conectado. */
+.badge.warn{color:var(--amber-fg); background:var(--amber-soft); border-color:var(--amber-line)}
+
+/* Controles de janela (minimizar / fechar) — estilo nativo, tema claro. */
+.tb-controls{align-self:stretch; display:flex}
+.tb-btn{align-self:stretch; display:inline-flex; align-items:center; justify-content:center; width:46px; border:0; background:transparent; color:var(--stone); cursor:default; transition:background .12s, color .12s}
+.tb-btn:hover{background:var(--surface-soft); color:var(--ink)}
+.tb-btn:active{background:var(--surface-card)}
+.tb-btn.close:hover{background:var(--danger); color:#fff}
+.tb-btn svg{width:12px; height:12px}
+
+/* Área de rolagem: reserva SEMPRE a calha da barra de rolagem (scrollbar-gutter),
+   pra trocar de seção (Motor↔Geral, alturas bem diferentes) não deslocar o
+   conteúdo centralizado — fim do "redimensionamento" ao mudar de aba. */
+.app-scroll{flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable}
+.app-inner{max-width:900px; margin:0 auto; padding:24px 26px 30px}
+
+/* ── Barra de rolagem custom (overlay com fade) — lógica em autoscroll.ts ── */
+/* Esconde a nativa nos scrollers que recebem o thumb próprio. */
+.has-cscroll{scrollbar-width:none}
+.has-cscroll::-webkit-scrollbar{width:0; height:0}
+/* O thumb: retângulo fino, preto, cantos sutis (4px); some/aparece com fade. */
+.cscroll-thumb{position:fixed; width:6px; z-index:9999; background:var(--ink); border-radius:4px; opacity:0; pointer-events:none; transition:opacity .3s ease}
+.cscroll-thumb.on{opacity:.78; pointer-events:auto}
+.cscroll-thumb.on:hover{opacity:.9}
+.cscroll-thumb.drag{opacity:.95; pointer-events:auto}
+@media (prefers-reduced-motion: reduce){ .cscroll-thumb{transition:none} }
+
+/* ── Banners (permissão / atualização) ───────────────────────────────────── */
+.banner{display:flex; align-items:center; gap:16px; justify-content:space-between; background:var(--amber-soft); border:1px solid var(--amber-line); border-radius:var(--rad-card); padding:14px 18px; margin-bottom:18px}
+.banner-text strong{font-size:14px; color:var(--ink); font-weight:600}
+.banner-text p{margin:4px 0 0; font-size:12.5px; color:var(--amber-fg); line-height:1.5}
+.banner button{flex:0 0 auto; white-space:nowrap}
+.banner.update{background:var(--amber-soft); border-color:var(--amber-line)}
+.banner.update .banner-text strong{color:var(--ink)}
+
+/* ── Layout: sidebar de abas + conteúdo ──────────────────────────────────── */
+.layout{display:flex; gap:24px; align-items:flex-start}
+.sidenav{flex:0 0 210px; display:flex; flex-direction:column; gap:3px; position:sticky; top:20px}
+.sidenav button{cursor:pointer; border:0; background:transparent; color:var(--dim); font-size:14px; font-weight:600; text-align:left; padding:9px 12px; border-radius:var(--rad-btn); display:flex; align-items:center; gap:9px; font-family:var(--mono)}
+/* >>> MARKUP (opcional, recomendado): a seta ">" indica a aba ativa.
+   Coloque  <span className="nav-arrow">&gt;</span>  como primeiro filho de cada
+   <button> da sidenav. Ela só aparece no item ativo. */
+.sidenav button .nav-arrow{width:14px; display:inline-block; font-weight:700; visibility:hidden}
+.sidenav button:hover{color:var(--ink); background:var(--surface-soft)}
+.sidenav button.active{color:var(--ink); background:var(--cream)}
+.sidenav button.active .nav-arrow{visibility:visible}
+.tab-content{flex:1; min-width:0}
+
+@media (max-width:680px){
+  .layout{flex-direction:column; gap:14px}
+  .sidenav{flex:0 0 auto; flex-direction:row; flex-wrap:wrap; position:static; top:auto}
+  .seg{display:flex; flex-wrap:wrap}
+  .trigger-row,.usage-row{flex-wrap:wrap}
+}
+
+/* ── Cartões / campos ────────────────────────────────────────────────────── */
+.card{background:var(--cream); border:1px solid var(--line); border-radius:var(--rad-card); padding:20px 22px; margin-bottom:22px}
+.field{margin-bottom:22px}
+.field:last-child{margin-bottom:4px}
+.field>label{display:block; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); margin-bottom:13px}
+/* Rótulo de seção no estilo do protótipo: "[ rótulo ]". */
+.field>label::before{content:"[ "}
+.field>label::after{content:" ]"}
+.help{margin:13px 0 0; font-size:12.5px; color:var(--dim); line-height:1.6}
+
+/* ── Indicador de privacidade ────────────────────────────────────────────── */
+.privacy{margin-top:15px; font-size:13px; border-radius:var(--rad-btn); padding:11px 14px; line-height:1.5}
+.privacy.ok{color:var(--mint-fg); background:var(--mint-soft); border:1px solid var(--mint-line)}
+.privacy.ok strong{color:var(--mint-fg)}
+.privacy.warn{color:var(--amber-fg); background:var(--amber-soft); border:1px solid var(--amber-line)}
+.privacy.warn strong{color:var(--amber-fg)}
+
+/* ── Segmented control ───────────────────────────────────────────────────── */
+.seg{display:inline-flex; flex-wrap:wrap; gap:8px}
+.seg button{cursor:pointer; font-family:var(--mono); font-size:13px; font-weight:500; color:var(--dim); background:var(--cream); border:1.5px solid var(--line); border-radius:var(--rad-btn); padding:9px 17px; white-space:nowrap}
+.seg button:hover{color:var(--ink); border-color:var(--stone)}
+.seg button.active{color:var(--on-ink); background:var(--ink); border-color:var(--ink)}
+
+/* ── Chips (preset padrão) ───────────────────────────────────────────────── */
+.chips{display:flex; flex-wrap:wrap; gap:9px}
+/* Cada chip de preset (tarefa) recebe seu matiz via --pc-h (ver presetColor.ts):
+   borda + texto na cor da tarefa quando inativo; preenche na cor quando ativo.
+   Texto escuro sobre tinta clara (inativo) e claro sobre tinta média (ativo) →
+   legível em qualquer matiz. */
+.chip{display:inline-flex; align-items:center; gap:8px; cursor:pointer; background:transparent; border:1px solid oklch(0.82 0.06 var(--pc-h, 250)); color:oklch(0.46 0.12 var(--pc-h, 250)); border-radius:var(--rad-btn); padding:7px 14px; font-size:13px; font-family:var(--mono)}
+.chip:hover{border-color:oklch(0.62 0.13 var(--pc-h, 250)); color:oklch(0.4 0.14 var(--pc-h, 250))}
+.chip.active{color:var(--on-ink); background:oklch(0.48 0.13 var(--pc-h, 250)); border-color:oklch(0.32 0.12 var(--pc-h, 250)); font-weight:500}
+
+/* ── Botões utilitários ──────────────────────────────────────────────────── */
+.btn-dl{cursor:pointer; font-size:12.5px; color:var(--body); background:transparent; border:1px solid var(--line-2); border-radius:var(--rad-btn); padding:6px 13px; font-family:var(--mono)}
+.btn-dl:hover{border-color:var(--ink); color:var(--ink)}
+.btn-dl.primary{color:var(--on-ink); background:var(--ink); border-color:var(--ink); font-weight:600}
+.btn-dl.primary:hover{filter:brightness(1.2)}
+.btn-dl.danger{color:var(--danger); border-color:rgba(165,0,17,.35); background:transparent}
+.btn-dl.danger:hover{border-color:var(--danger)}
+
+/* Botão de excluir preset: lixeira compacta que, ao ARMAR (1º clique), expande
+   pro lado revelando "Excluir" e se preenche de vermelho. 2º clique exclui;
+   clicar fora cancela (desarma). */
+.trash-btn{display:inline-flex; align-items:center; height:30px; padding:0 7px; cursor:pointer; background:transparent; border:1px solid rgba(165,0,17,.35); border-radius:var(--rad-btn); color:var(--danger); transition:background .18s ease, border-color .18s ease, color .18s ease, padding .2s cubic-bezier(.16,1,.3,1)}
+.trash-btn svg{flex:none}
+.trash-btn:hover{border-color:var(--danger); background:rgba(165,0,17,.06)}
+.trash-label{display:inline-block; max-width:0; overflow:hidden; white-space:nowrap; opacity:0; font-size:12.5px; font-family:var(--mono); transition:max-width .22s cubic-bezier(.16,1,.3,1), opacity .16s ease, margin-left .22s cubic-bezier(.16,1,.3,1)}
+.trash-btn.armed{background:var(--danger); border-color:var(--danger); color:var(--on-ink); padding-right:11px}
+.trash-btn.armed:hover{filter:brightness(1.08)}
+.trash-btn.armed .trash-label{max-width:64px; opacity:1; margin-left:6px}
+@media (prefers-reduced-motion: reduce){ .trash-btn, .trash-label{ transition:none } }
+
+/* ── Config da API ───────────────────────────────────────────────────────── */
+.api-cfg{display:flex; flex-direction:column; gap:14px}
+.api-cfg .api-label{display:block; font-size:11.5px; color:var(--dim); margin-bottom:6px}
+.api-cfg input{width:100%; font-size:13.5px; font-family:var(--mono); color:var(--ink); background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-btn); padding:9px 12px}
+.api-cfg input::placeholder{color:var(--faint)}
+.api-cfg input:focus{border-color:var(--ink); background:var(--cream); outline:none}
+.api-row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:2px}
+.api-saved{display:inline-flex; align-items:center; gap:6px; margin-top:7px; font-size:11.5px; color:var(--mint-fg); font-family:var(--mono)}
+.api-saved svg, .privacy svg{vertical-align:-2px}
+
+/* Dropdown estilizado (provedor / modelo) — substitui o <select> nativo. */
+.dd{position:relative}
+.dd-btn{display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; cursor:pointer; font-size:13.5px; font-family:var(--mono); color:var(--ink); background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-btn); padding:9px 12px; text-align:left}
+.dd-btn:hover{border-color:var(--stone)}
+.dd-btn.open{border-color:var(--ink); background:var(--cream)}
+.dd-val{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dd-chev{flex:none; color:var(--dim); transition:transform .15s ease}
+.dd-btn.open .dd-chev{transform:rotate(180deg)}
+.dd-list{position:absolute; z-index:20; top:calc(100% + 4px); left:0; right:0; margin:0; padding:4px; list-style:none; background:var(--cream); border:1px solid var(--line); border-radius:var(--rad-btn); box-shadow:0 8px 24px rgba(24,24,27,.12); max-height:240px; overflow:auto}
+.dd-opt{cursor:pointer; font-size:13px; font-family:var(--mono); color:var(--ink); padding:8px 10px; border-radius:calc(var(--rad-btn) - 2px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; outline:none}
+.dd-opt:hover, .dd-opt:focus-visible{background:var(--surface-soft)}
+.dd-opt.sel{color:var(--mint-fg); font-weight:500}
+
+/* Base URL travada (provedor conhecido) + dica de personalização + input extra do modelo. */
+.api-cfg input[readonly]{color:var(--dim); background:rgba(24,24,27,.03); cursor:default}
+.api-cfg input[readonly]:focus{border-color:var(--line); background:rgba(24,24,27,.03)}
+.api-hint{display:block; margin-top:6px; font-size:11.5px; color:var(--faint)}
+.dd-extra-input{margin-top:8px}
+
+/* Resultado do teste de conexão: plug que "conecta" (pop ao aparecer) + texto. */
+.test-ok{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-family:var(--mono); color:var(--mint-fg)}
+.test-ok .plug-ico{flex:none; animation:plug-pop .42s cubic-bezier(.16,1,.3,1)}
+@keyframes plug-pop{0%{transform:scale(.5) translateY(2px); opacity:0} 60%{transform:scale(1.14)} 100%{transform:scale(1); opacity:1}}
+@media (prefers-reduced-motion: reduce){ .test-ok .plug-ico{ animation:none } }
+
+/* Seletor de provedor — pílulas com logo de marca + transições suaves. */
+.prov-grid{display:flex; flex-wrap:wrap; gap:8px}
+.prov-pill{position:relative; display:inline-flex; align-items:center; gap:7px; cursor:pointer; padding:7px 12px; font-size:12.5px; font-weight:500; font-family:var(--mono); color:var(--dim); background:var(--cream); border:1.5px solid var(--line); border-radius:var(--rad-btn); transition:background .2s ease-in-out, border-color .2s ease-in-out, color .2s ease-in-out, transform .2s ease-in-out}
+.prov-pill svg{flex:none}
+.prov-pill:hover{border-color:var(--stone); color:var(--ink); transform:translateY(-1px)}
+.prov-pill.on{border-color:var(--ink); background:var(--surface-soft); color:var(--ink)}
+.prov-pill.on:hover{transform:translateY(-1px)}
+/* Ponto "ativo" — absoluto (não desloca o layout), entra com fade+scale. */
+
+/* ── Logos animadas no HOVER da pílula (readaptadas do itshover p/ CSS) ── */
+.ico path{transition:transform .25s ease-in-out, opacity .25s ease-in-out}
+/* OpenAI — redesenha os traços (stroke-dashoffset), escalonado */
+.ico-openai .oai-draw{stroke-dasharray:1 1}
+.prov-pill:hover .ico-openai .oai-draw{animation:oai-draw .8s ease-in-out both}
+.prov-pill:hover .ico-openai .oai-draw:nth-of-type(2){animation-delay:.05s}
+.prov-pill:hover .ico-openai .oai-draw:nth-of-type(3){animation-delay:.1s}
+.prov-pill:hover .ico-openai .oai-draw:nth-of-type(4){animation-delay:.15s}
+.prov-pill:hover .ico-openai .oai-draw:nth-of-type(5){animation-delay:.2s}
+.prov-pill:hover .ico-openai .oai-draw:nth-of-type(6){animation-delay:.25s}
+@keyframes oai-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* Anthropic — a barra dá um pulse (skew/scale) */
+.ico-anthropic .ant-i{transform-box:fill-box; transform-origin:center}
+.prov-pill:hover .ico-anthropic .ant-i{transform:skewX(-12deg) scaleY(1.1)}
+/* Gemini — gira 180° + leve zoom */
+.ico-gemini{transform-origin:center; transition:transform .7s ease-in-out}
+.prov-pill:hover .ico-gemini{transform:rotate(180deg) scale(.9)}
+/* xAI — explode pra fora e volta */
+.ico-xai path{transform-box:fill-box; transform-origin:center}
+.prov-pill:hover .ico-xai .xai-1{animation:xai-1 .55s ease-in-out}
+.prov-pill:hover .ico-xai .xai-2{animation:xai-2 .55s ease-in-out}
+.prov-pill:hover .ico-xai .xai-3{animation:xai-3 .55s ease-in-out}
+.prov-pill:hover .ico-xai .xai-4{animation:xai-4 .55s ease-in-out}
+@keyframes xai-1{0%,100%{transform:translate(0,0)}45%{transform:translate(-3px,-1.5px)}}
+@keyframes xai-2{0%,100%{transform:translate(0,0)}45%{transform:translate(-2px,2px)}}
+@keyframes xai-3{0%,100%{transform:translate(0,0)}45%{transform:translate(3px,-2px)}}
+@keyframes xai-4{0%,100%{transform:translate(0,0)}45%{transform:translate(2px,1.5px)}}
+/* DeepSeek — wiggle / "swim" (animação própria) */
+.ico-deepseek{transform-origin:center}
+.prov-pill:hover .ico-deepseek{animation:ds-wiggle .55s ease-in-out}
+@keyframes ds-wiggle{0%,100%{transform:rotate(0)}30%{transform:rotate(-8deg)}65%{transform:rotate(6deg)}}
+/* OpenRouter — zoom leve */
+.ico-openrouter{transform-origin:center; transition:transform .25s ease-in-out}
+.prov-pill:hover .ico-openrouter{transform:scale(1.12)}
+/* Personalizado (código) — colchetes abrem */
+.prov-pill:hover .ico-code .br-l{transform:translateX(-3px)}
+.prov-pill:hover .ico-code .br-r{transform:translateX(3px)}
+
+/* Plug do ícone da aba API (rail) — "conecta" no hover do item de nav. */
+.ico-plug path{transition:transform .3s ease-out, opacity .3s ease-out}
+.nav-item:hover .ico-plug .plug-upper{transform:translate(-2px,2px)}
+.nav-item:hover .ico-plug .plug-lower{transform:translate(2px,-2px)}
+.nav-item:hover .ico-plug .plug-leg{opacity:0}
+/* Ícone Início (pizza) — "desenha" no hover do item de nav. */
+.ico-pie .pie-main, .ico-pie .pie-slice{stroke-dasharray:1 1}
+.nav-item:hover .ico-pie .pie-main{animation:pie-draw .5s ease-out both}
+.nav-item:hover .ico-pie .pie-slice{animation:pie-draw .4s ease-out .2s both}
+@keyframes pie-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* Ícone Histórico (relógio) — rebobina o ponteiro + o anel no hover. */
+.ico-hist .clock-hand, .ico-hist .history-circle{transform-box:view-box; transform-origin:center; transition:transform .3s ease-out}
+.nav-item:hover .ico-hist .clock-hand{transform:rotate(-30deg)}
+.nav-item:hover .ico-hist .history-circle{transform:rotate(-45deg)}
+/* Ícone Presets (estante) — os livros inclinam/levantam no hover. */
+.ico-library{overflow:visible}
+.ico-library path{transition:transform .4s cubic-bezier(.175,.885,.32,1.275)}
+.ico-library .book-1{transform-box:view-box; transform-origin:18px 20px}
+.ico-library .book-2{transform-box:view-box; transform-origin:12px 20px}
+.ico-library .book-3{transform-box:view-box; transform-origin:8px 20px}
+.ico-library .book-4{transform-box:view-box; transform-origin:4px 20px}
+.nav-item:hover .ico-library .book-1{transform:rotate(12deg)}
+.nav-item:hover .ico-library .book-2{transform:translateY(-3px) rotate(-8deg)}
+.nav-item:hover .ico-library .book-3{transform:rotate(-12deg)}
+.nav-item:hover .ico-library .book-4{transform:rotate(-5deg)}
+/* Ícone Atalho (link externo) — a seta "sai" e a janela encolhe no hover. */
+.ico-extlink .external-box, .ico-extlink .external-arrow{transform-box:view-box; transform-origin:center; transition:transform .3s ease-out}
+.nav-item:hover .ico-extlink .external-arrow{transform:translate(2px,-2px) scale(1.1)}
+.nav-item:hover .ico-extlink .external-box{transform:scale(.95)}
+/* Ícone Sobre (info) — o "i" se desenha no hover. */
+.ico-info .info-dot, .ico-info .info-line{stroke-dasharray:1 1}
+.nav-item:hover .ico-info .info-dot{animation:info-draw .3s ease-out both}
+.nav-item:hover .ico-info .info-line{animation:info-draw .4s ease-out .1s both}
+@keyframes info-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){
+  .nav-item:hover .ico-pie .pie-main, .nav-item:hover .ico-pie .pie-slice{animation:none}
+  .ico-hist .clock-hand, .ico-hist .history-circle, .ico-library path, .ico-extlink .external-box, .ico-extlink .external-arrow{transition:none}
+  .nav-item:hover .ico-info .info-dot, .nav-item:hover .ico-info .info-line{animation:none}
+}
+
+/* Aparições suaves (hint da Base URL, benchmark) + troca suave dos pontinhos. */
+.api-hint, .bench{animation:fade-soft .25s ease-out}
+.bench-dot{transition:background .2s ease-in-out, border-color .2s ease-in-out}
+@keyframes fade-soft{from{opacity:0; transform:translateY(2px)}to{opacity:1; transform:translateY(0)}}
+
+@media (prefers-reduced-motion: reduce){
+  .prov-pill, .prov-dot, .ico path, .ico-gemini, .ico-openrouter, .ico-plug path{transition:none}
+  .prov-pill:hover, .prov-pill.on:hover{transform:none}
+  .prov-pill:hover .ico-openai .oai-draw, .prov-pill:hover .ico-xai path, .prov-pill:hover .ico-deepseek{animation:none}
+  .api-hint, .bench{animation:none}
+}
+
+/* Mini-benchmark do modelo — 3 pontinhos por eixo (barato=3, mais=melhor). */
+.bench{display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px; margin-top:11px}
+.bench-axis{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--dim)}
+.bench-dots{display:flex; gap:4px}
+.bench-dot{width:8px; height:8px; border-radius:2.5px; border:1px solid var(--line-2)}
+/* Cor por nível: 1 (baixo/lento/caro)=vermelho · 2 (médio)=amarelo · 3 (alto/rápido/barato)=verde. */
+.bench-dots.lvl-1 .bench-dot.on{background:var(--danger); border-color:var(--danger)}
+.bench-dots.lvl-2 .bench-dot.on{background:var(--amber); border-color:var(--amber)}
+.bench-dots.lvl-3 .bench-dot.on{background:var(--mint); border-color:var(--mint)}
+
+/* ── Dashboard (aba Início) — barras horizontais, alto contraste ── */
+/* Faixa fina do atalho — utilitário no topo, não billboard. */
+.dash-strip{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:2px; padding:9px 13px; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-btn); font-size:11.5px; font-family:var(--mono); color:var(--dim)}
+.dash-strip strong{color:var(--ink); font-weight:600}
+.dash-strip-r{color:var(--stone)}
+
+/* Título de seção (eyebrow) — um sistema só. */
+.ey{font-size:10.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--faint); font-family:var(--mono); font-weight:500; margin:24px 0 12px}
+.ey .t{color:var(--body); letter-spacing:0; text-transform:none; font-weight:600}
+
+/* "Este mês" — custo em destaque, demais secundários. */
+.stats-row{display:flex; flex-wrap:wrap; gap:16px 60px; align-items:baseline}
+.st .n{font-size:19px; font-weight:600; font-family:var(--mono); color:var(--ink); letter-spacing:-.01em}
+.st .l{font-size:11px; color:var(--stone); font-family:var(--mono); margin-top:3px}
+
+/* Tokens — barra empilhada entrada → saída. */
+.tbar{display:flex; gap:2px; height:13px; border-radius:4px; overflow:hidden; margin-top:2px}
+.tbar .seg{height:100%}
+.seg.in{background:#cdcdd2}
+.seg.out{background:var(--ink)}
+.tleg{display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 18px; margin-top:9px; font-size:11.5px; color:var(--dim); font-family:var(--mono)}
+.tleg .dot{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px}
+.tleg .pct{color:var(--faint)}
+.tnone{font-size:12px; color:var(--stone); font-family:var(--mono); line-height:1.5}
+
+/* Gastos por mês — barras horizontais (rótulo + trilho + valor). */
+.mrow{display:flex; align-items:center; gap:12px; margin-bottom:9px; font-size:11.5px; font-family:var(--mono)}
+.mrow .mx{width:32px; flex:none; color:var(--stone)}
+.mrow.cur .mx{color:var(--ink); font-weight:600}
+.mrow .mt{flex:1; height:11px; background:var(--surface-soft); border:1px solid var(--line); border-radius:4px; overflow:hidden}
+.mrow .mf{display:block; height:100%; background:var(--stone); border-radius:0; transition:width .35s cubic-bezier(.16,1,.3,1)}
+.mrow.cur .mf{background:var(--ink)}
+.mrow .mv{width:108px; text-align:right; flex:none; color:var(--body)}
+.hint{font-size:10.5px; color:var(--faint); font-family:var(--mono); margin-top:2px}
+
+/* Cards de atalho (preferências + presets). */
+.dash-short{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:2px}
+.short-card{display:flex; flex-direction:column; align-items:flex-start; gap:5px; text-align:left; cursor:pointer; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card); padding:13px 15px; transition:border-color .2s ease-in-out, transform .2s ease-in-out, background .2s ease-in-out}
+.short-card:hover{border-color:var(--ink); transform:translateY(-1px)}
+.short-ico{display:inline-flex; align-items:center; min-height:20px}
+.short-tt{font-size:13px; font-weight:600; font-family:var(--mono); color:var(--ink)}
+.short-sub{font-size:11.5px; color:var(--dim); font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+@media (prefers-reduced-motion: reduce){ .short-card, .mrow .mf, .seg{transition:none} .short-card:hover{transform:none} }
+
+/* ── Motion clonada da aba API → todas as telas/janelas ── */
+/* Cada aba entra com um fade+slide sutil (o "feel" fluido da aba API). */
+.card, .inicio{animation:tab-in .28s cubic-bezier(.16,1,.3,1)}
+@keyframes tab-in{from{opacity:0; transform:translateY(7px)} to{opacity:1; transform:translateY(0)}}
+/* Controles que mudavam de forma instantânea no hover agora transicionam suave
+   (mesma curva das pílulas da API); botões e chips ganham o leve "lift". */
+.btn-dl, .seg button, .chip, .nav-item, .trigger-sel, .copy, .redo{transition:background .18s ease-in-out, border-color .18s ease-in-out, color .18s ease-in-out, filter .18s ease-in-out, transform .15s ease-in-out}
+.btn-dl:hover, .chip:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion: reduce){
+  .card, .inicio{animation:none}
+  .btn-dl, .seg button, .chip, .nav-item, .trigger-sel, .copy, .redo{transition:none}
+  .btn-dl:hover, .chip:hover{transform:none}
+}
+
+/* Confirmar/Cancelar inline (ex.: "Zerar contagem"). */
+.usage-confirm{display:inline-flex; gap:8px; align-items:center}
+
+/* Help recolhível (divulgação progressiva). */
+.help-more{margin-top:8px; font-size:12.5px; color:var(--dim)}
+.help-more>summary{cursor:pointer; color:var(--stone); list-style:none; user-select:none}
+.help-more>summary::-webkit-details-marker{display:none}
+.help-more>summary::before{content:"▸ "; color:var(--faint)}
+.help-more[open]>summary::before{content:"▾ "}
+.help-more>summary:hover{color:var(--ink)}
+.help-more p{margin:8px 0 0; line-height:1.6}
+
+/* ── Uso / custo ─────────────────────────────────────────────────────────── */
+.usage-row{display:flex; align-items:center; gap:12px; justify-content:space-between}
+.usage-stat{font-size:15px; font-weight:600; font-family:var(--mono); color:var(--ink)}
+
+/* ── Meus presets ────────────────────────────────────────────────────────── */
+.mypresets{display:flex; flex-direction:column}
+.mp-item{display:flex; align-items:center; gap:12px; background:transparent; border:0; border-top:1px solid var(--line); border-radius:0; padding:13px 2px}
+.mp-item:first-of-type{border-top:0}
+.mp-label{flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mp-badge{font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--faint); background:transparent; border:1px solid var(--line); border-radius:var(--rad-btn); padding:2px 7px}
+.mp-actions{display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-top:14px}
+.mp-form{display:flex; flex-direction:column; gap:9px; margin-top:12px; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card); padding:14px}
+.mp-input{width:100%; font-size:13.5px; font-family:var(--mono); color:var(--ink); background:var(--cream); border:1px solid var(--line); border-radius:var(--rad-btn); padding:8px 11px}
+.mp-input::placeholder{color:var(--faint)}
+.mp-input:focus{border-color:var(--ink); outline:none}
+textarea.mp-input{resize:vertical; line-height:1.5; min-height:180px}
+.mp-form-actions{display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+
+/* ── Gatilho ─────────────────────────────────────────────────────────────── */
+.trigger-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.trigger-sel{font-size:14px; font-weight:600; font-family:var(--mono); color:var(--ink); background:var(--surface-soft); border:1px solid var(--line-2); border-radius:var(--rad-btn); padding:10px 14px}
+.trigger-sel:focus{border-color:var(--ink); outline:none}
+.trigger-plus{color:var(--stone); font-size:18px}
+.trigger-x2{color:var(--dim); font-family:var(--mono); font-size:14px; margin-left:2px}
+.debounce-row{display:flex; align-items:center; justify-content:space-between; gap:18px; margin-top:22px}
+.debounce-label{font-size:13px; color:var(--body)}
+.debounce-label strong{color:var(--ink)}
+/* Key-recorder do atalho (grava ao pressionar as teclas) */
+.trigger-rec-wrap{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.trigger-rec{display:inline-flex; align-items:center; min-width:152px; min-height:44px; cursor:pointer; padding:8px 15px; background:var(--surface-soft); border:1.5px solid var(--line-2); border-radius:var(--rad-btn); font-family:var(--mono); transition:border-color .18s ease-in-out, background .18s ease-in-out}
+.trigger-rec:hover{border-color:var(--stone)}
+.trigger-rec.rec{border-color:var(--ink); background:var(--cream)}
+.trigger-combo{display:inline-flex; align-items:center; gap:8px}
+.trigger-rec kbd{font-size:13px; font-weight:600; color:var(--ink); padding:3px 9px; min-width:22px}
+.trigger-rec-prompt{display:inline-flex; align-items:center; font-size:13px; font-weight:500; color:var(--ink)}
+.rec-caret{display:inline-block; width:2px; height:15px; background:var(--ink); margin-left:3px; animation:rec-blink 1.05s step-end infinite}
+@keyframes rec-blink{50%{opacity:0}}
+.trigger-rec-edit{font-size:11.5px; color:var(--faint); font-family:var(--mono)}
+.trigger-rec-hint{font-size:11.5px; color:var(--amber-fg); font-family:var(--mono)}
+@media (prefers-reduced-motion: reduce){ .rec-caret{animation:none} .trigger-rec{transition:none} }
+
+input[type=range]{-webkit-appearance:none; appearance:none; height:6px; border-radius:0; background:var(--track); outline:none; width:300px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:var(--rad-btn); background:var(--ink); cursor:pointer}
+input[type=range]::-moz-range-thumb{width:16px; height:16px; border:0; border-radius:var(--rad-btn); background:var(--ink); cursor:pointer}
+
+.foot{text-align:left; color:var(--stone); font-size:12.5px; margin-top:20px; line-height:1.6}
+*:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:2px}
+
+/* ── Estados de erro / feedback inline ───────────────────────────────────── */
+/* Erro inline mostrado perto do controle que falhou (ex.: autostart na aba Geral). */
+.field-err{margin-top:10px; font-size:12.5px; color:var(--danger); background:rgba(165,0,17,.06); border:1px solid rgba(165,0,17,.35); border-radius:var(--rad-btn); padding:9px 12px; line-height:1.5; word-break:break-word}
+
+
+/* ── Estado "carregando" de marca (tela inicial) ─────────────────────────── */
+/* Tela de carregamento: agora vive DENTRO do .app shell, abaixo da .titlebar —
+   por isso preenche o espaço restante (flex:1) em vez de 100vh (que somaria à
+   barra e estouraria). */
+.loading-brand{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:var(--dim); font-family:var(--mono)}
+.loading-brand .lb-text{font-size:13px; letter-spacing:.04em; color:var(--stone)}
+
+/* ============================================================================
+   POPUP / paleta de refino  (popup.tsx)
+   ============================================================================ */
+kbd{font-family:var(--mono); font-size:11.5px; line-height:1; color:var(--stone); background:transparent; border:1px solid var(--line-2); border-radius:var(--rad-btn); padding:3px 7px; min-width:18px; text-align:center; display:inline-block}
+
+/* Janela OPACA (creme) com sombra nativa: o conteúdo PREENCHE a janela inteira (sem
+   margem), então NADA transparente aparece atrás — nem no repouso, nem nas animações
+   (fade só, sem revelar bordas). Cantos arredondados + sombra vêm do SO (igual à principal). */
+.overlay{position:fixed; inset:0; overflow:auto; z-index:50}
+.palette{position:relative; width:100%; min-height:100vh; background:var(--cream); padding:22px 24px 20px; animation:pop-in .2s ease both}
+.palette.closing{animation:pop-out .12s ease both}
+@keyframes pop-in{from{opacity:0} to{opacity:1}}
+@keyframes pop-out{from{opacity:1} to{opacity:0}}
+
+/* Cabeçalho = alça de arraste da janela (borderless). Filhos sem captura de
+   ponteiro/seleção pra o arraste pegar a faixa inteira. */
+.palette-head{display:flex; align-items:baseline; gap:9px; margin-bottom:20px; cursor:move}
+.palette-head > *{pointer-events:none; user-select:none}
+.ph-mark{line-height:0; display:inline-flex; align-self:center}
+.ph-title{font-size:13px; font-weight:600; color:var(--ink); letter-spacing:-.01em}
+.ph-sub{flex:1; font-size:12px; color:var(--faint)}
+.ph-esc kbd{color:var(--stone)}
+
+/* Texto capturado como CITAÇÃO (protagonista). Recolhido: 3 linhas; clique expande. */
+.capture{font-family:var(--mono); font-size:13.5px; line-height:1.62; color:var(--body); border-left:3px solid var(--ink); padding:2px 2px 2px 16px; white-space:pre-wrap; word-break:break-word; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.capture.exp{display:block; max-height:160px; overflow:auto}
+.presets-label{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:500; margin:24px 0 12px}
+.presets{display:flex; flex-wrap:wrap; gap:9px}
+.chip .num{font-family:var(--mono); font-size:10.5px; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; color:var(--stone); background:transparent; border:1px solid var(--line-2); border-radius:3px; padding:0}
+.chip.active .num{color:var(--on-ink); border-color:rgba(252,252,253,.4)}
+
+.actions{display:flex; align-items:center; gap:12px; margin-top:24px}
+.refine{display:inline-flex; align-items:center; gap:9px; cursor:pointer; border:0; color:var(--on-ink); font-size:13px; font-weight:600; background:var(--ink); border-radius:var(--rad-btn); padding:10px 16px; transition:filter .16s, transform .12s}
+.refine:hover{filter:brightness(1.2)}
+.refine:active{transform:scale(.98)}
+.refine[disabled]{cursor:default; opacity:.5}
+.refine .enter{font-size:10.5px; color:rgba(252,252,253,.7); background:transparent; border:1px solid rgba(252,252,253,.25); min-width:auto; padding:2px 7px}
+.loc-note{font-size:11.5px; color:var(--faint); line-height:1.4}
+
+.result{margin-top:16px; border-top:1px solid var(--line); padding-top:14px; animation:reveal .35s cubic-bezier(.16,1,.3,1)}
+@keyframes reveal{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+.result-head{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.result-title{flex:1; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:500}
+.result-badge{font-family:var(--mono); font-size:11.5px; font-weight:500; color:var(--mint-fg); background:var(--mint-soft); border:1px solid var(--mint-line); border-radius:var(--pill); padding:4px 11px}
+.result-body{font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--ink); background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-btn); padding:12px 13px; white-space:pre-wrap; word-break:break-word}
+.result-body.err{color:var(--danger); border-color:rgba(165,0,17,.35); background:rgba(165,0,17,.06)}
+.result-actions{display:flex; gap:9px; margin-top:11px; flex-wrap:wrap}
+.replace{cursor:pointer; border:0; color:var(--on-ink); background:var(--ink); font-weight:600; font-size:12.5px; border-radius:var(--rad-btn); padding:8px 16px; transition:filter .16s}
+.replace:hover{filter:brightness(1.2)}
+.copy,.redo{cursor:pointer; background:transparent; border:1px solid var(--line-2); color:var(--body); font-size:12.5px; border-radius:var(--rad-btn); padding:8px 16px}
+.copy:hover,.redo:hover{border-color:var(--ink); color:var(--ink)}
+@media (prefers-reduced-motion: reduce){ .palette, .palette.closing, .result{animation:none} }
