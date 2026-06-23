@@ -16,6 +16,12 @@ export function getLocale(): Locale {
 export function setLocale(l: Locale): void {
   if (l !== current && l in CATALOG) {
     current = l;
+    // Sincroniza o atributo lang do documento (a11y: leitor de tela usa a voz
+    // certa). Cada janela (principal/popup) ajusta o SEU document. Guard pro
+    // ambiente de teste (node, sem document).
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = l;
+    }
     listeners.forEach((fn) => fn());
   }
 }
