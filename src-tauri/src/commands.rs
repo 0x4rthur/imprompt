@@ -145,15 +145,16 @@ pub struct PresetView {
 }
 
 /// Lista TODOS os presets (padrão + custom), marcando quais são padrão e quais
-/// foram editados pelo usuário.
+/// foram editados pelo usuário. Os padrões saem no idioma atual (AppState.locale).
 #[tauri::command]
-pub fn list_presets() -> Vec<PresetView> {
-    let default_ids: std::collections::HashSet<String> = presets::default_presets()
+pub fn list_presets(state: State<AppState>) -> Vec<PresetView> {
+    let locale = current_locale(&state);
+    let default_ids: std::collections::HashSet<String> = presets::default_presets(&locale)
         .into_iter()
         .map(|p| p.id)
         .collect();
     let store = presets::load_store();
-    presets::all_presets()
+    presets::all_presets(&locale)
         .into_iter()
         .map(|p| {
             let builtin = default_ids.contains(&p.id);
@@ -183,10 +184,12 @@ pub fn create_preset(
     }
     let mut user = presets::load_user_presets();
     // Ids em uso (padrão + custom): garante unicidade e que NÃO sobrescreve padrão.
-    let mut existing: std::collections::HashSet<String> = presets::default_presets()
-        .into_iter()
-        .map(|p| p.id)
-        .collect();
+    // Os ids dos padrões são estáveis entre idiomas — o locale só escolhe o catálogo.
+    let mut existing: std::collections::HashSet<String> =
+        presets::default_presets(&current_locale(&state))
+            .into_iter()
+            .map(|p| p.id)
+            .collect();
     for p in &user {
         existing.insert(p.id.clone());
     }
@@ -217,7 +220,7 @@ pub fn update_preset(state: State<AppState>, preset: presets::Preset) -> Result<
         example_output: preset.example_output.trim().to_string(),
     };
     let mut store = presets::load_store();
-    if presets::is_default_id(&clean.id) {
+    if presets::is_default_id(&clean.id, &current_locale(&state)) {
         store.overrides.insert(clean.id.clone(), clean);
     } else {
         match store.custom.iter_mut().find(|p| p.id == clean.id) {
@@ -232,8 +235,9 @@ pub fn update_preset(state: State<AppState>, preset: presets::Preset) -> Result<
 /// volta). CUSTOM → removido de vez.
 #[tauri::command]
 pub fn delete_preset(state: State<AppState>, id: String) -> Result<(), String> {
+    let locale = current_locale(&state);
     let mut store = presets::load_store();
-    if presets::is_default_id(&id) {
+    if presets::is_default_id(&id, &locale) {
         if !store.hidden.iter().any(|h| h == &id) {
             store.hidden.push(id.clone());
         }
@@ -247,7 +251,7 @@ pub fn delete_preset(state: State<AppState>, id: String) -> Result<(), String> {
     }
     // Nunca deixa a lista de presets ficar VAZIA — senão o refino ficaria sem
     // preset (panic em find_preset / Ctrl+C×2 sem efeito). Recusa a exclusão.
-    if presets::all_presets_from(&store).is_empty() {
+    if presets::all_presets_from(&store, &locale).is_empty() {
         return Err(i18n_err(&state, "err.preset.keep_one"));
     }
     presets::save_store(&store).map_err(|e| i18n_err(&state, &e.to_string()))
@@ -340,14 +344,16 @@ pub async fn refine_text(
     preset_id: String,
 ) -> Result<String, String> {
     // Locale lido na borda (antes da thread). Erros internos sobem como CHAVES
-    // i18n (ou detalhe técnico cru) e são traduzidos AQUI via tr_msg.
+    // i18n (ou detalhe técnico cru) e são traduzidos AQUI via tr_msg. Uma cópia vai
+    // pra thread (escolhe o catálogo de presets + a base do system prompt no idioma).
     let locale = lock(&app.state::<AppState>().settings).locale.clone();
+    let thread_locale = locale.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
         let state = app.state::<AppState>();
         let result = (|| -> Result<String, String> {
-            let all = presets::all_presets();
-            let preset = presets::find_preset(&all, &preset_id);
+            let all = presets::all_presets(&thread_locale);
+            let preset = presets::find_preset(&all, &preset_id, &thread_locale);
             // Few-shot conforme a preferência (default on).
             let use_examples = lock(&state.settings).use_examples;
             let example = preset.example_for(use_examples);
@@ -355,7 +361,7 @@ pub async fn refine_text(
             // — libera o Mutex antes do refino (que pode levar segundos).
             let engine = ensure_engine_loaded(&app).map_err(|e| e.to_string())?;
             let refined = engine
-                .refine(&preset.system_prompt(), example, &text)
+                .refine(&preset.system_prompt(&thread_locale), example, &text)
                 .map_err(|e| e.to_string())?;
             // Registra no histórico ANTES de entregar (o popup chama deliver depois).
             state.push_history(&text, &refined, &preset_id);

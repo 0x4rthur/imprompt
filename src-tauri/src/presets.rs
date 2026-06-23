@@ -31,11 +31,22 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
-/// Base enxuta e positiva, sempre presente. A cláusula final deixa o preset de
-/// tradução sobrescrever o idioma sem contradição.
-pub const BASE_INSTRUCTION: &str = "Você transforma o texto do usuário em um prompt claro e eficaz para uma IA. \
+/// Base enxuta e positiva, sempre presente, POR IDIOMA. A cláusula final deixa o
+/// preset de tradução sobrescrever o idioma sem contradição.
+///
+/// Os IDs dos presets são estáveis entre idiomas; só o CONTEÚDO (label/instrução/
+/// exemplos) muda. O `en` é a fonte principal; o `pt-BR` preserva o texto histórico.
+/// Locale desconhecido → cai no EN (fallback), igual ao resto do i18n.
+pub fn base_instruction(locale: &str) -> &'static str {
+    match locale {
+        "pt-BR" => "Você transforma o texto do usuário em um prompt claro e eficaz para uma IA. \
 Responda apenas com o prompt reescrito — o texto final, pronto para colar — sem comentários nem preâmbulo. \
-Preserve o idioma do original, a menos que a tarefa peça outro.";
+Preserve o idioma do original, a menos que a tarefa peça outro.",
+        _ => "You turn the user's text into a clear, effective prompt for an AI. \
+Reply with the rewritten prompt only — the final text, ready to paste — no comments and no preamble. \
+Keep the original's language, unless the task asks for another.",
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preset {
@@ -55,9 +66,11 @@ pub struct Preset {
 }
 
 impl Preset {
-    /// system prompt final = base + diretiva (SEM o exemplo — ele vai por turnos).
-    pub fn system_prompt(&self) -> String {
-        format!("{}\n\n{}", BASE_INSTRUCTION, self.instruction)
+    /// system prompt final = base (no idioma) + diretiva (SEM o exemplo — ele vai
+    /// por turnos). O `locale` escolhe a BASE; a diretiva já vem no idioma do preset
+    /// (presets padrão) ou no idioma em que o usuário a escreveu (custom/override).
+    pub fn system_prompt(&self, locale: &str) -> String {
+        format!("{}\n\n{}", base_instruction(locale), self.instruction)
     }
 
     /// Tem um exemplo utilizável pra montar few-shot?
@@ -76,10 +89,24 @@ impl Preset {
     }
 }
 
-/// Os 5 presets. Ordem importa: vira o atalho 1–5 no popup.
-/// (`\` no fim da linha continua a string sem quebrar; `\n` insere uma quebra
-/// real — é assim que controlamos exatamente o que o modelo lê.)
-pub fn default_presets() -> Vec<Preset> {
+/// Os 5 presets, NO IDIOMA pedido. Ordem importa: vira o atalho 1–5 no popup.
+/// Os IDs são estáveis entre idiomas (`estruturar`, `codigo`, `corrigir`, `ingles`,
+/// `frontend`) — só o conteúdo muda. Locale desconhecido → EN (fallback).
+///
+/// A decisão de few-shot é POR-PRESET e idêntica nos dois idiomas: exemplos só em
+/// `corrigir` e `ingles` (tarefas que PRESERVAM estrutura e ancoram uma regra sutil);
+/// `estruturar`/`codigo`/`frontend` rodam zero-shot (ver doc no topo do arquivo).
+pub fn default_presets(locale: &str) -> Vec<Preset> {
+    match locale {
+        "pt-BR" => presets_pt_br(),
+        _ => presets_en(),
+    }
+}
+
+/// Catálogo `pt-BR` (texto histórico preservado). (`\` no fim da linha continua a
+/// string sem quebrar; `\n` insere uma quebra real — é assim que controlamos
+/// exatamente o que o modelo lê.)
+fn presets_pt_br() -> Vec<Preset> {
     vec![
         Preset {
             id: "estruturar".into(),
@@ -207,16 +234,151 @@ Refatoração ampla do projeto, sem alterar funcionalidades existentes.
     ]
 }
 
+/// Catálogo `en` — reescrita cuidadosa do design (NÃO tradução literal): mesma
+/// intenção e regras de cada preset, idiomático em inglês técnico de produto.
+fn presets_en() -> Vec<Preset> {
+    vec![
+        Preset {
+            id: "estruturar".into(),
+            label: "Structure".into(),
+            instruction: "Rewrite the prompt with a clear, logical structure: role, context, task, \
+and output format, in that order. Include only the sections the content actually supports — don't \
+force empty sections or invent new content; make what's already there explicit, without expanding it. \
+Don't answer the prompt — just restructure it and return the restructured version only, no comments.".into(),
+            // Zero-shot: 'Structure' GENERATES structure and varies a lot with the input — a fixed
+            // example would become a rigid template (over-constraining), against the directive above
+            // ("only the sections the content supports"). On current API models the instruction suffices.
+            example_input: String::new(),
+            example_output: String::new(),
+        },
+        Preset {
+            id: "codigo".into(),
+            label: "Code prompt".into(),
+            instruction: "Turn the prompt into a precise engineering spec, not the code itself: what to \
+build, constraints, edge cases, the technology (when stated), the exact output format, and verifiable \
+acceptance criteria. Keep the request's scope, without adding unrequested features. Don't implement or \
+answer — produce the spec only, no comments.".into(),
+            // Zero-shot: a 6-label template from ONE case (web/CRUD) hamstrung small scripts, SQL,
+            // regex, etc. — the model invented content to fill the labels, against the "don't add what
+            // wasn't asked" rule. The instruction guides better without the example locking the format.
+            example_input: String::new(),
+            example_output: String::new(),
+        },
+        Preset {
+            id: "corrigir".into(),
+            label: "Fix & clarify".into(),
+            instruction: "Fix the prompt's grammar, spelling, and ambiguity, making the intent unmistakable \
+without changing the meaning. Make the fewest edits possible and preserve the original's length and tone \
+— don't expand or rewrite what's already clear. Don't answer the prompt — just fix it and return the \
+corrected version only, no comments.".into(),
+            // Few-shot: anchors the subtle rule "fix spelling/grammar but KEEP the casual tone" — the
+            // example stays colloquial after the fix (not formalized), so the model doesn't over-polish.
+            example_input: "can u send me that report b4 the meeting tmrw i need it for my boss".into(),
+            example_output: "Can you send me that report before the meeting tomorrow? I need it for my boss.".into(),
+        },
+        Preset {
+            id: "ingles".into(),
+            label: "Translate to English".into(),
+            instruction: "Translate the prompt into clear, idiomatic English optimized for an AI, preserving \
+100% of the original's intent, specificity, and structure. Leave untranslatable spans intact (code, proper \
+names, canonical technical terms, quoted text). Don't answer the prompt — just translate it and return the \
+English version only.".into(),
+            // Few-shot: anchors the rule "don't translate code identifiers / proper names" — `calcular_total`
+            // stays verbatim through the translation. The pair is a non-English input → English output, the
+            // task this preset performs (useful when the user pastes non-English text).
+            example_input: "Crie uma função Python chamada `calcular_total` que some uma lista de preços.".into(),
+            example_output: "Write a Python function named `calcular_total` that sums a list of prices.".into(),
+        },
+        Preset {
+            id: "frontend".into(),
+            label: "Front-end".into(),
+            instruction: r#"<role>
+You turn any user request about UI/UX, animations, visual behavior, or code (front-end and back-end) into a technical prompt ready to paste into Codex or Claude Code. You don't carry out the task and you don't chat — you only write the prompt.
+</role>
+
+<essential_rule>
+The prompt is addressed to the coding tool (Codex/Claude Code), which already runs inside the project and has access to all of the code. Therefore: never ask for code, files, the repository, or "the project"; never offer to do the work yourself; never describe your own capabilities; never chat. Even for broad requests ("refactor the whole project") or with no code attached, generate the prompt — the tool explores the codebase on its own.
+</essential_rule>
+
+<how_to_write>
+- Reply with the prompt only, inside a code block, with no text before or after.
+- In the input's language; technical terms in their canonical form (e.g., backdrop-filter, flex, translateY).
+- Dense, high-leverage prompts, never generic checklists. The tool already knows the best practices (SOLID, OWASP, a11y, etc.) — don't enumerate them. Instead, tell it to audit the codebase, find the real problems, and prioritize them by impact. Scale the prompt's size to the request's real complexity: small request, short prompt.
+- Preserve the intent; don't invent unrequested requirements; replace vagueness ("make it pretty") with concrete instructions; numeric values are suggestions ("e.g.,").
+- Instruct the tool to inspect the existing code before editing and to be surgical (nothing beyond the request; no overengineering; don't rewrite what's stable without a measurable gain).
+- Structure: Context · Current problem · Desired behavior · Visual adjustments (only if it's visual) · Technical requirements · Acceptance criteria. For UI changes, require responsiveness, legibility, and consistency.
+- Per-subdomain details, where they fit: lightweight animation without flicker via transform/opacity; hover with initial/hover/active states; glassmorphism with backdrop-filter, transparency, a subtle border, contrast, and a fallback; chat preserving history, alignment, avatar, and typing; layout with gap/padding/max-width.
+- Only if the intent of the change is undecipherable, ask a single objective question, outside the block.
+</how_to_write>
+
+<examples>
+<example>
+Input: "the lil bot avatar shakes while its typing and the new msg kinda flickers"
+Output:
+## Context
+Chat with an agent avatar and a typing indicator.
+
+## Current problem
+- The avatar shakes during typing (animation likely on the avatar container, or a reflow) and the new message flickers (a re-render or an animation that abruptly changes the layout).
+
+## Desired behavior
+- Avatar stable during typing and while messages arrive; new messages enter smoothly, with no flicker and no shifting of neighbors.
+
+## Visual adjustments
+- Typing indicator animated in isolation (e.g., three dots), without moving the avatar; message entrance with opacity + a slight translateY (e.g., 4–8px).
+
+## Technical requirements
+- Isolate the indicator's animation and use transform/opacity; give the avatar fixed dimensions to avoid reflow.
+- Preserve history, alignment, avatar, and the typing state.
+- Inspect the chat's components and styles before editing; be surgical. [stack: detect from the project]
+
+## Acceptance criteria
+- The avatar doesn't shake (validate with 10+ messages) and no message causes flicker or shifting.
+- Responsiveness (320–1440px), legibility, and consistency preserved.
+</example>
+
+<example>
+Input: "do a refactor of my project, applying everything that can be improved and fixing flaws and bugs"
+Output:
+## Context
+Broad refactor of the project, without changing existing functionality.
+
+## Current problem
+- A broad request about quality/architecture/performance/security. The real problems must be discovered by analyzing the codebase; don't assume any a priori.
+
+## Desired behavior
+- Same behavior and flows as today, with the codebase more readable, modular, secure, and performant where it actually matters.
+
+## Technical requirements
+- First, audit the codebase (stack, structure, dependencies, tests) and produce a list of the concrete problems found — bugs, technical debt, bottlenecks, vulnerabilities — prioritized by impact.
+- Tackle the highest-impact ones first, in small, reviewable, surgical changes, preserving the public API and compatibility; don't rewrite what's stable without a measurable gain.
+- Apply the stack's standard best practices (you already know them — no need to enumerate them); avoid overengineering and unrequested abstractions.
+- Run lint, type check, build, and tests; don't break existing tests and cover the bugs you fixed.
+
+## Acceptance criteria
+- Compiles, builds, and passes the tests; no functional regressions.
+- The highest-impact problems identified in the audit have been fixed.
+- Short report: what was audited, what was fixed (bugs, vulnerabilities, optimizations), and risks/suggestions prioritized by impact.
+</example>
+</examples>"#.into(),
+            // No example: the instruction is already long and specific → runs zero-shot.
+            example_input: String::new(),
+            example_output: String::new(),
+        },
+    ]
+}
+
 /// Acha um preset pelo id (ou cai no primeiro como fallback seguro). TOTAL: nunca
 /// faz panic — se a fatia estiver vazia (lista totalmente escondida + sem custom),
-/// cai num preset padrão (default_presets sempre tem ≥1).
-pub fn find_preset(presets: &[Preset], id: &str) -> Preset {
+/// cai num preset padrão (default_presets sempre tem ≥1). O `locale` só é usado nesse
+/// fallback extremo (a fatia recebida já vem no idioma certo via `all_presets`).
+pub fn find_preset(presets: &[Preset], id: &str, locale: &str) -> Preset {
     presets
         .iter()
         .find(|p| p.id == id)
         .cloned()
         .or_else(|| presets.first().cloned())
-        .unwrap_or_else(|| default_presets().swap_remove(0))
+        .unwrap_or_else(|| default_presets(locale).swap_remove(0))
 }
 
 // ── Presets do usuário (persistidos em presets_user.json) ────────────────────
@@ -305,20 +467,22 @@ pub fn save_user_presets(presets: &[Preset]) -> Result<()> {
     save_store(&store)
 }
 
-/// O id pertence a um preset PADRÃO?
-pub fn is_default_id(id: &str) -> bool {
-    default_presets().iter().any(|p| p.id == id)
+/// O id pertence a um preset PADRÃO? (Os ids são estáveis entre idiomas, então o
+/// `locale` só decide de qual catálogo lemos os ids — o resultado é o mesmo.)
+pub fn is_default_id(id: &str, locale: &str) -> bool {
+    default_presets(locale).iter().any(|p| p.id == id)
 }
 
-/// Lista COMPLETA: padrões (com overrides aplicados, pulando os hidden) + custom.
-pub fn all_presets() -> Vec<Preset> {
-    all_presets_from(&load_store())
+/// Lista COMPLETA: padrões NO IDIOMA (com overrides aplicados, pulando os hidden) + custom.
+pub fn all_presets(locale: &str) -> Vec<Preset> {
+    all_presets_from(&load_store(), locale)
 }
 
-/// PURA → testável. Aplica overrides nos padrões, pula os hidden, e anexa os
-/// custom (ids únicos; padrão tem prioridade na ordem).
-pub fn all_presets_from(store: &PresetStore) -> Vec<Preset> {
-    let effective_defaults: Vec<Preset> = default_presets()
+/// PURA → testável. Aplica overrides nos padrões localizados, pula os hidden, e
+/// anexa os custom (ids únicos; padrão tem prioridade na ordem). Os overrides/custom
+/// do usuário entram COMO O USUÁRIO os criou — não são re-traduzidos pelo `locale`.
+pub fn all_presets_from(store: &PresetStore, locale: &str) -> Vec<Preset> {
+    let effective_defaults: Vec<Preset> = default_presets(locale)
         .into_iter()
         .filter(|d| !store.hidden.iter().any(|h| h == &d.id))
         .map(|d| store.overrides.get(&d.id).cloned().unwrap_or(d))
@@ -376,8 +540,8 @@ pub fn unique_id(base: &str, existing: &HashSet<String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        all_presets_from, default_presets, find_preset, merge_unique, slugify, unique_id, Preset,
-        PresetStore,
+        all_presets_from, base_instruction, default_presets, find_preset, merge_unique, slugify,
+        unique_id, Preset, PresetStore,
     };
     use std::collections::HashSet;
 
@@ -386,7 +550,7 @@ mod tests {
         // Few-shot só em tarefas que PRESERVAM estrutura (ancoram uma regra sutil):
         // corrigir e ingles. As que GERAM estrutura (estruturar, codigo) e o frontend
         // são zero-shot — o exemplo fixo engessaria (ver doc no topo do arquivo).
-        let com_exemplo: Vec<String> = default_presets()
+        let com_exemplo: Vec<String> = default_presets("pt-BR")
             .into_iter()
             .filter(|p| p.has_example())
             .map(|p| p.id)
@@ -396,7 +560,7 @@ mod tests {
             vec!["corrigir".to_string(), "ingles".to_string()]
         );
         // Nenhum preset embute o exemplo na própria diretiva.
-        for p in default_presets() {
+        for p in default_presets("pt-BR") {
             assert!(
                 !p.instruction.contains("Exemplo:"),
                 "'{}' embute o exemplo na diretiva",
@@ -406,12 +570,59 @@ mod tests {
     }
 
     #[test]
+    fn both_locales_have_5_presets_same_ids() {
+        // IDs estáveis entre idiomas → settings.default_preset e os atalhos 1–5
+        // continuam válidos ao trocar de idioma.
+        let ids = |loc| {
+            default_presets(loc)
+                .into_iter()
+                .map(|p| p.id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ids("en"), ids("pt-BR"));
+        assert_eq!(ids("en").len(), 5);
+        // Locale desconhecido cai no EN (fallback) — mesmos ids.
+        assert_eq!(ids("xx"), ids("en"));
+    }
+
+    #[test]
+    fn fewshot_split_holds_in_both_locales() {
+        // A decisão few-shot por-preset é idêntica nos dois idiomas: só corrigir/ingles.
+        for loc in ["en", "pt-BR"] {
+            let with: Vec<String> = default_presets(loc)
+                .into_iter()
+                .filter(|p| p.has_example())
+                .map(|p| p.id)
+                .collect();
+            assert_eq!(
+                with,
+                vec!["corrigir".to_string(), "ingles".to_string()],
+                "locale {loc}"
+            );
+        }
+    }
+
+    #[test]
+    fn base_instruction_localized_with_en_fallback() {
+        assert!(base_instruction("pt-BR").starts_with("Você transforma"));
+        assert!(base_instruction("en").starts_with("You turn"));
+        // Locale desconhecido → EN.
+        assert!(base_instruction("xx").starts_with("You turn"));
+    }
+
+    #[test]
     fn system_prompt_has_base_and_directive_but_not_example() {
-        let p = find_preset(&default_presets(), "estruturar");
-        let sys = p.system_prompt();
-        assert!(sys.starts_with("Você transforma")); // base
-        assert!(sys.contains("estrutura clara")); // diretiva
-        assert!(!sys.contains("cobrança")); // o exemplo NÃO entra no system prompt
+        // pt-BR: base + diretiva no idioma, sem o exemplo.
+        let pt = find_preset(&default_presets("pt-BR"), "estruturar", "pt-BR");
+        let sys_pt = pt.system_prompt("pt-BR");
+        assert!(sys_pt.starts_with("Você transforma")); // base PT
+        assert!(sys_pt.contains("estrutura clara")); // diretiva PT
+        assert!(!sys_pt.contains("cobrança")); // o exemplo NÃO entra no system prompt
+                                               // en: base + diretiva no idioma.
+        let en = find_preset(&default_presets("en"), "estruturar", "en");
+        let sys_en = en.system_prompt("en");
+        assert!(sys_en.starts_with("You turn")); // base EN
+        assert!(sys_en.contains("clear, logical structure")); // diretiva EN
     }
 
     fn mk(id: &str) -> Preset {
@@ -426,7 +637,7 @@ mod tests {
 
     #[test]
     fn merge_unique_does_not_override_defaults_or_duplicate() {
-        let defaults = default_presets();
+        let defaults = default_presets("pt-BR");
         let n = defaults.len();
         let user = vec![mk("estruturar"), mk("meu-preset"), mk("meu-preset")];
         let all = merge_unique(defaults, user);
@@ -455,7 +666,7 @@ mod tests {
             },
         ); // edita um padrão
         store.custom.push(mk("meu"));
-        let all = all_presets_from(&store);
+        let all = all_presets_from(&store, "pt-BR");
         // O padrão excluído sumiu.
         assert!(!all.iter().any(|p| p.id == "estruturar"));
         // O padrão editado virou a versão do usuário (mesmo id, label novo).
@@ -502,7 +713,7 @@ mod tests {
         save_user_presets(&list).unwrap();
         // Releitura do disco = o que aconteceria no próximo arranque do app.
         assert!(load_user_presets().iter().any(|p| p.id == "selftest-xyz"));
-        assert!(all_presets().iter().any(|p| p.id == "selftest-xyz"));
+        assert!(all_presets("en").iter().any(|p| p.id == "selftest-xyz"));
         // Restaura o estado original (não deixa lixo).
         save_user_presets(&original).unwrap();
         assert!(!load_user_presets().iter().any(|p| p.id == "selftest-xyz"));

@@ -544,7 +544,8 @@ mod tests {
         use crate::presets;
         let key = crate::secrets::load_api_key().expect("precisa de uma chave no cofre pro A/B");
         let eng = ApiEngine::new("https://api.openai.com/v1", "gpt-4o-mini", &key).unwrap();
-        let all = presets::default_presets();
+        // A/B com os inputs PT → usa o catálogo pt-BR (label/exemplos no idioma).
+        let all = presets::default_presets("pt-BR");
         let cases = [
             (
                 "corrigir",
@@ -556,8 +557,8 @@ mod tests {
             ),
         ];
         for (pid, input) in cases {
-            let p = presets::find_preset(&all, pid);
-            let sys = p.system_prompt();
+            let p = presets::find_preset(&all, pid, "pt-BR");
+            let sys = p.system_prompt("pt-BR");
             let ex = (p.example_input.as_str(), p.example_output.as_str());
             let zero = eng.refine(&sys, None, input).unwrap();
             let few = eng.refine(&sys, Some(ex), input).unwrap();

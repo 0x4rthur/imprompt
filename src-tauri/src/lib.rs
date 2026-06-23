@@ -329,10 +329,10 @@ fn run_refine_flow(app: &tauri::AppHandle) {
             // roda FORA de qualquer lock — não segura o lock do engine durante o HTTP.
             let result = match commands::ensure_engine_loaded(app) {
                 Ok(engine) => {
-                    let all = presets::all_presets();
-                    let preset = presets::find_preset(&all, &preset_id);
+                    let all = presets::all_presets(&locale);
+                    let preset = presets::find_preset(&all, &preset_id, &locale);
                     let example = preset.example_for(use_examples);
-                    engine.refine(&preset.system_prompt(), example, &text)
+                    engine.refine(&preset.system_prompt(&locale), example, &text)
                 }
                 Err(e) => Err(e),
             };
