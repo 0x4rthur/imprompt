@@ -135,6 +135,90 @@ const en = {
   "gatilho.output.clipboard": "Copy",
   "gatilho.output.replace.help": "Replaces the selected text with the result, automatically.",
   "gatilho.output.clipboard.help": "Puts the result on the clipboard. You press Ctrl+V wherever you want.",
+
+  // ── Aba Presets (PresetsTab) ──
+  // Preset padrão.
+  "presets.default": "Default preset",
+  "presets.default.help": "Used in instant mode, without asking anything.",
+  // Lista de presets (CRUD).
+  "presets.list": "Presets",
+  "presets.list.help": "Edit, duplicate or delete any preset. \"Restore defaults\" brings the originals back.",
+  // Sufixo de duplicação (interpolado no label).
+  "presets.copySuffix": " (copy)",
+  // Form de edição: placeholders e aria-labels.
+  "presets.form.name.placeholder": "Name (e.g. Summarize as bullet points)",
+  "presets.form.name.aria": "Preset name",
+  "presets.form.instruction.placeholder": "Instruction: what this preset should do with the text",
+  "presets.form.instruction.aria": "Instruction",
+  "presets.form.exampleInput.placeholder": "Example input (optional)",
+  "presets.form.exampleInput.aria": "Example input",
+  "presets.form.exampleOutput.placeholder": "Example output (optional)",
+  "presets.form.exampleOutput.aria": "Example output",
+  // Ações do form.
+  "presets.save": "Save",
+  "presets.create": "Create",
+  "presets.cancel": "Cancel",
+  // Item da lista.
+  "presets.badge.edited": "edited",
+  "presets.edit": "Edit",
+  "presets.duplicate": "Duplicate",
+  "presets.delete": "Delete",
+  "presets.delete.confirm": "Confirm deletion",
+  // Novo preset / restauração.
+  "presets.new": "+ New preset",
+  "presets.restore": "Restore defaults",
+  "presets.restore.title": "Brings the original presets back (doesn't touch yours)",
+  "presets.restore.confirm": "Confirm restore",
+  "presets.restore.confirm.title": "Undoes your edits and deletions of the default presets",
+  // Few-shot.
+  "presets.fewShot": "Use examples (few-shot)",
+  "presets.fewShot.aria": "Use examples",
+  "presets.fewShot.yes": "Yes",
+  "presets.fewShot.no": "No",
+  "presets.fewShot.on.help":
+    "Each preset sends one example (input → output) as conversation turns before your text. Usually improves the quality of the API's answer.",
+  "presets.fewShot.off.help":
+    "Zero-shot: just the preset's instruction, no example. Useful for comparing (A/B).",
+
+  // ── Aba Início (InicioTab) ──
+  // Faixa fina do atalho (com markup inline via <Trans>).
+  "inicio.strip.mode": "mode {mode} · via API",
+  "inicio.strip.mode.popup": "Show popup",
+  "inicio.strip.mode.instant": "Instant",
+  "inicio.strip.hint": "Select and press {mod} + {key} ×2",
+  // Este mês.
+  "inicio.month": "This month",
+  "inicio.month.cost": "cost",
+  "inicio.month.imprompts": "imprompts",
+  "inicio.month.perImprompt": "per imprompt",
+  // Tokens.
+  "inicio.tokens": "Tokens",
+  "inicio.tokens.month": "· {n} this month",
+  "inicio.tokens.aria": "Tokens: input {in} ({inPct}%), output {out} ({outPct}%)",
+  "inicio.tokens.in": "input",
+  "inicio.tokens.out": "output",
+  "inicio.tokens.empty": "No tokens this month yet — they show up after the first imprompt.",
+  // Gastos por mês.
+  "inicio.spend": "Spending by month",
+  "inicio.spend.empty": "No data yet. Your monthly spending shows up here as you use it.",
+  "inicio.spend.aria": "Spending by month: {list}",
+  "inicio.spend.rowTitle": "{month}: {n} imprompt(s) · ~US$ {cost}",
+  "inicio.spend.hint": "Previous months' bars fill in here as you use it.",
+  // Atalhos (short-cards).
+  "inicio.shortcuts": "Shortcuts",
+  "inicio.short.presets.default": "default: {label}",
+  "inicio.short.gatilho.sub": "{mod}+{key} ×2 · {action}",
+  "inicio.short.gatilho.replace": "replace",
+  "inicio.short.gatilho.copy": "copy",
+  "inicio.short.sobre.sub": "autostart · version",
+
+  // ── Aba Histórico (HistoricoTab) ──
+  "historico.title": "Imprompt history",
+  "historico.today": "Today",
+  "historico.yesterday": "Yesterday",
+  "historico.empty": "No imprompts in this session. Your imprompts show up here — and aren't saved to disk.",
+  "historico.aria.original": "original",
+  "historico.aria.result": "result",
 } as const;
 
 const ptBR: Record<keyof typeof en, string> = {
@@ -237,6 +321,77 @@ const ptBR: Record<keyof typeof en, string> = {
   "gatilho.output.clipboard": "Copiar",
   "gatilho.output.replace.help": "Troca o texto selecionado pelo resultado, automaticamente.",
   "gatilho.output.clipboard.help": "Coloca o resultado na área de transferência. Você dá Ctrl+V onde quiser.",
+
+  // ── Aba Presets (PresetsTab) ──
+  "presets.default": "Preset padrão",
+  "presets.default.help": "Usado no modo instantâneo, sem perguntar nada.",
+  "presets.list": "Presets",
+  "presets.list.help": "Edite, duplique ou exclua qualquer preset. \"Restaurar padrões\" traz os originais de volta.",
+  "presets.copySuffix": " (cópia)",
+  "presets.form.name.placeholder": "Nome (ex.: Resumir em tópicos)",
+  "presets.form.name.aria": "Nome do preset",
+  "presets.form.instruction.placeholder": "Instrução: o que esse preset deve fazer com o texto",
+  "presets.form.instruction.aria": "Instrução",
+  "presets.form.exampleInput.placeholder": "Exemplo de entrada (opcional)",
+  "presets.form.exampleInput.aria": "Exemplo de entrada",
+  "presets.form.exampleOutput.placeholder": "Exemplo de saída (opcional)",
+  "presets.form.exampleOutput.aria": "Exemplo de saída",
+  "presets.save": "Salvar",
+  "presets.create": "Criar",
+  "presets.cancel": "Cancelar",
+  "presets.badge.edited": "editado",
+  "presets.edit": "Editar",
+  "presets.duplicate": "Duplicar",
+  "presets.delete": "Excluir",
+  "presets.delete.confirm": "Confirmar exclusão",
+  "presets.new": "+ Novo preset",
+  "presets.restore": "Restaurar padrões",
+  "presets.restore.title": "Traz os presets originais de volta (não mexe nos seus)",
+  "presets.restore.confirm": "Confirmar restauração",
+  "presets.restore.confirm.title": "Desfaz suas edições e exclusões dos presets padrão",
+  "presets.fewShot": "Usar exemplos (few-shot)",
+  "presets.fewShot.aria": "Usar exemplos",
+  "presets.fewShot.yes": "Sim",
+  "presets.fewShot.no": "Não",
+  "presets.fewShot.on.help":
+    "Cada preset manda um exemplo (entrada → saída) como turnos de conversa antes do seu texto. Costuma melhorar a qualidade da resposta da API.",
+  "presets.fewShot.off.help":
+    "Zero-shot: só a instrução do preset, sem exemplo. Útil pra comparar (A/B).",
+
+  // ── Aba Início (InicioTab) ──
+  "inicio.strip.mode": "modo {mode} · via API",
+  "inicio.strip.mode.popup": "Mostrar popup",
+  "inicio.strip.mode.instant": "Instantâneo",
+  "inicio.strip.hint": "Selecione e aperte {mod} + {key} ×2",
+  "inicio.month": "Este mês",
+  "inicio.month.cost": "custo",
+  "inicio.month.imprompts": "imprompts",
+  "inicio.month.perImprompt": "por imprompt",
+  "inicio.tokens": "Tokens",
+  "inicio.tokens.month": "· {n} no mês",
+  "inicio.tokens.aria": "Tokens: entrada {in} ({inPct}%), saída {out} ({outPct}%)",
+  "inicio.tokens.in": "entrada",
+  "inicio.tokens.out": "saída",
+  "inicio.tokens.empty": "Sem tokens neste mês ainda — aparecem após o primeiro imprompt.",
+  "inicio.spend": "Gastos por mês",
+  "inicio.spend.empty": "Sem dados ainda. Seus gastos por mês aparecem aqui conforme você usa.",
+  "inicio.spend.aria": "Gastos por mês: {list}",
+  "inicio.spend.rowTitle": "{month}: {n} imprompt(s) · ~US$ {cost}",
+  "inicio.spend.hint": "As barras dos meses anteriores entram aqui conforme você usa.",
+  "inicio.shortcuts": "Atalhos",
+  "inicio.short.presets.default": "padrão: {label}",
+  "inicio.short.gatilho.sub": "{mod}+{key} ×2 · {action}",
+  "inicio.short.gatilho.replace": "substitui",
+  "inicio.short.gatilho.copy": "copia",
+  "inicio.short.sobre.sub": "autostart · versão",
+
+  // ── Aba Histórico (HistoricoTab) ──
+  "historico.title": "Histórico de imprompts",
+  "historico.today": "Hoje",
+  "historico.yesterday": "Ontem",
+  "historico.empty": "Nenhum imprompt nesta sessão. Seus imprompts aparecem aqui — e não são salvos no disco.",
+  "historico.aria.original": "original",
+  "historico.aria.result": "resultado",
 };
 
 export const CATALOG = { en, "pt-BR": ptBR } as const;

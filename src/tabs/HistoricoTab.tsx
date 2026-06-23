@@ -6,22 +6,26 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { Preset, RefineRecord } from "../types";
 import { presetHue } from "../presetColor";
+import { useT } from "../i18n/useT";
+import { t as translate } from "../i18n";
 
 type Props = { history: RefineRecord[]; presets: Preset[] };
 
-// "Hoje" / "Ontem" / data curta, a partir do timestamp do imprompt.
-function dayLabel(ts: number): string {
+// "Hoje" / "Ontem" / data curta (conforme o locale), a partir do timestamp.
+function dayLabel(ts: number, localeTag: string): string {
   const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
   const t0 = startToday.getTime();
-  if (ts >= t0) return "Hoje";
-  if (ts >= t0 - 86400000) return "Ontem";
-  return new Date(ts).toLocaleDateString();
+  if (ts >= t0) return translate("historico.today");
+  if (ts >= t0 - 86400000) return translate("historico.yesterday");
+  return new Date(ts).toLocaleDateString(localeTag);
 }
-function timeLabel(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function timeLabel(ts: number, localeTag: string): string {
+  return new Date(ts).toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function HistoricoTab({ history, presets }: Props) {
+  const { t, locale } = useT();
+  const localeTag = locale === "pt-BR" ? "pt-BR" : "en-US";
   // Quais entradas estão expandidas (por timestamp). Default: todas colapsadas.
   const [open, setOpen] = useState<Set<number>>(new Set());
   const toggle = (ts: number) =>
@@ -34,7 +38,7 @@ export default function HistoricoTab({ history, presets }: Props) {
   // Agrupa preservando a ordem (history vem do mais recente pro mais antigo).
   const groups: { date: string; items: RefineRecord[] }[] = [];
   for (const h of history) {
-    const label = dayLabel(h.timestamp);
+    const label = dayLabel(h.timestamp, localeTag);
     const last = groups[groups.length - 1];
     if (last && last.date === label) last.items.push(h);
     else groups.push({ date: label, items: [h] });
@@ -44,11 +48,11 @@ export default function HistoricoTab({ history, presets }: Props) {
   return (
     <div className="inicio">
       <div className="inicio-head" style={{ marginTop: 0 }}>
-        <h2>Histórico de imprompts</h2>
+        <h2>{t("historico.title")}</h2>
       </div>
 
       {history.length === 0 ? (
-        <div className="tl-empty">Nenhum imprompt nesta sessão. Seus imprompts aparecem aqui — e não são salvos no disco.</div>
+        <div className="tl-empty">{t("historico.empty")}</div>
       ) : (
         <div className="timeline">
           {groups.map((g, gi) => (
@@ -60,7 +64,7 @@ export default function HistoricoTab({ history, presets }: Props) {
                   return (
                     <div className={"acc" + (isOpen ? " open" : "")} key={h.timestamp + "-" + i}>
                       <button className="acc-head" onClick={() => toggle(h.timestamp)} aria-expanded={isOpen}>
-                        <span className="tl-time">{timeLabel(h.timestamp)}</span>
+                        <span className="tl-time">{timeLabel(h.timestamp, localeTag)}</span>
                         <span className="tl-preset" style={{ "--pc-h": presetHue(h.preset) } as CSSProperties}>{presetLabel(h.preset)}</span>
                         <span className="acc-prev">{h.original}</span>
                         <svg className="acc-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -70,8 +74,8 @@ export default function HistoricoTab({ history, presets }: Props) {
                       <div className="acc-body">
                         <div className="acc-inner">
                           <div className="acc-pad">
-                            <div className="tl-line orig"><span className="tl-mk" aria-label="original">[-]</span><span>{h.original}</span></div>
-                            <div className="tl-line res"><span className="tl-mk ok" aria-label="resultado">[+]</span><span>{h.result}</span></div>
+                            <div className="tl-line orig"><span className="tl-mk" aria-label={t("historico.aria.original")}>[-]</span><span>{h.original}</span></div>
+                            <div className="tl-line res"><span className="tl-mk ok" aria-label={t("historico.aria.result")}>[+]</span><span>{h.result}</span></div>
                           </div>
                         </div>
                       </div>

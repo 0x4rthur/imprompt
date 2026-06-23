@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Preset, PresetDraft, Settings } from "../types";
 import { presetHue } from "../presetColor";
+import { useT } from "../i18n/useT";
 
 type Props = {
   settings: Settings;
@@ -33,6 +34,7 @@ function TrashIcon() {
 }
 
 export default function PresetsTab({ settings, update, presets, loadPresets }: Props) {
+  const { t } = useT();
   // Form do acordeon: rascunho (null = fechado), âncora (preset id ou NEW) onde
   // ele aparece, e closing (tocando a animação de fechar) + erro de validação.
   const [draft, setDraft] = useState<PresetDraft | null>(null);
@@ -60,7 +62,7 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     openFor(p.id, { id: p.id, label: p.label, instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
   }
   function startDuplicatePreset(p: Preset) {
-    openFor(p.id, { id: null, label: p.label + " (cópia)", instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
+    openFor(p.id, { id: null, label: p.label + t("presets.copySuffix"), instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
   }
   // Fecha com animação: tira o "open" (colapsa) MAS mantém o form montado até o fim
   // da transição, pra o conteúdo ser visível durante o fecho (sem flicker).
@@ -143,36 +145,36 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     <div className="mp-form">
       <input
         className="mp-input"
-        aria-label="Nome do preset"
-        placeholder="Nome (ex.: Resumir em tópicos)"
+        aria-label={t("presets.form.name.aria")}
+        placeholder={t("presets.form.name.placeholder")}
         value={draft.label}
         onChange={(e) => setDraft({ ...draft, label: e.target.value })}
       />
       <textarea
         className="mp-input"
-        aria-label="Instrução"
+        aria-label={t("presets.form.instruction.aria")}
         rows={3}
-        placeholder="Instrução: o que esse preset deve fazer com o texto"
+        placeholder={t("presets.form.instruction.placeholder")}
         value={draft.instruction}
         onChange={(e) => setDraft({ ...draft, instruction: e.target.value })}
       />
       <input
         className="mp-input"
-        aria-label="Exemplo de entrada"
-        placeholder="Exemplo de entrada (opcional)"
+        aria-label={t("presets.form.exampleInput.aria")}
+        placeholder={t("presets.form.exampleInput.placeholder")}
         value={draft.example_input}
         onChange={(e) => setDraft({ ...draft, example_input: e.target.value })}
       />
       <input
         className="mp-input"
-        aria-label="Exemplo de saída"
-        placeholder="Exemplo de saída (opcional)"
+        aria-label={t("presets.form.exampleOutput.aria")}
+        placeholder={t("presets.form.exampleOutput.placeholder")}
         value={draft.example_output}
         onChange={(e) => setDraft({ ...draft, example_output: e.target.value })}
       />
       <div className="mp-form-actions">
-        <button className="btn-dl primary" onClick={savePreset}>{draft.id ? "Salvar" : "Criar"}</button>
-        <button className="btn-dl" onClick={closeForm}>Cancelar</button>
+        <button className="btn-dl primary" onClick={savePreset}>{draft.id ? t("presets.save") : t("presets.create")}</button>
+        <button className="btn-dl" onClick={closeForm}>{t("presets.cancel")}</button>
         {presetErr && <span className="field-err">{presetErr}</span>}
       </div>
     </div>
@@ -182,7 +184,7 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     <section className="card">
       {/* Preset padrão */}
       <div className="field">
-        <label>Preset padrão</label>
+        <label>{t("presets.default")}</label>
         <div className="chips">
           {presets.map((p) => (
             <button
@@ -195,13 +197,13 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
             </button>
           ))}
         </div>
-        <p className="help">Usado no modo instantâneo, sem perguntar nada.</p>
+        <p className="help">{t("presets.default.help")}</p>
       </div>
 
       {/* Presets (criar/editar/duplicar/excluir) — edição em acordeon inline */}
       <div className="field">
-        <label>Presets</label>
-        <p className="help">Edite, duplique ou exclua qualquer preset. "Restaurar padrões" traz os originais de volta.</p>
+        <label>{t("presets.list")}</label>
+        <p className="help">{t("presets.list.help")}</p>
         <div className="mypresets">
           {presets.map((p) => {
             const open = anchor === p.id && !closing;
@@ -209,18 +211,18 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
               <div className="mp-item" key={p.id}>
                 <div className="mp-row">
                   <span className="mp-label">{p.label}</span>
-                  {p.edited && <span className="mp-badge">editado</span>}
-                  <button className="btn-dl" aria-expanded={anchor === p.id} onClick={() => toggleEdit(p)}>Editar</button>
-                  <button className="btn-dl" onClick={() => startDuplicatePreset(p)}>Duplicar</button>
+                  {p.edited && <span className="mp-badge">{t("presets.badge.edited")}</span>}
+                  <button className="btn-dl" aria-expanded={anchor === p.id} onClick={() => toggleEdit(p)}>{t("presets.edit")}</button>
+                  <button className="btn-dl" onClick={() => startDuplicatePreset(p)}>{t("presets.duplicate")}</button>
                   <button
                     ref={confirmId === p.id ? armedRef : undefined}
                     className={"trash-btn" + (confirmId === p.id ? " armed" : "")}
                     onClick={() => (confirmId === p.id ? removePreset(p) : setConfirmId(p.id))}
-                    title={confirmId === p.id ? "Confirmar exclusão" : "Excluir"}
-                    aria-label={confirmId === p.id ? "Confirmar exclusão" : "Excluir"}
+                    title={confirmId === p.id ? t("presets.delete.confirm") : t("presets.delete")}
+                    aria-label={confirmId === p.id ? t("presets.delete.confirm") : t("presets.delete")}
                   >
                     <TrashIcon />
-                    <span className="trash-label">Excluir</span>
+                    <span className="trash-label">{t("presets.delete")}</span>
                   </button>
                 </div>
                 <div className={"mp-acc" + (open ? " open" : "")}>
@@ -232,11 +234,11 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
         </div>
 
         <div className="mp-actions">
-          <button className="btn-dl" aria-expanded={anchor === NEW} onClick={toggleNew}>+ Novo preset</button>
+          <button className="btn-dl" aria-expanded={anchor === NEW} onClick={toggleNew}>{t("presets.new")}</button>
           {confirmId === "__restore__" ? (
-            <button ref={armedRef} className="btn-dl danger" onClick={restoreDefaults} title="Desfaz suas edições e exclusões dos presets padrão">Confirmar restauração</button>
+            <button ref={armedRef} className="btn-dl danger" onClick={restoreDefaults} title={t("presets.restore.confirm.title")}>{t("presets.restore.confirm")}</button>
           ) : (
-            <button className="btn-dl" onClick={() => setConfirmId("__restore__")} title="Traz os presets originais de volta (não mexe nos seus)">Restaurar padrões</button>
+            <button className="btn-dl" onClick={() => setConfirmId("__restore__")} title={t("presets.restore.title")}>{t("presets.restore")}</button>
           )}
         </div>
         <div className={"mp-acc" + (anchor === NEW && !closing ? " open" : "")}>
@@ -246,15 +248,15 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
 
       {/* Exemplos few-shot */}
       <div className="field">
-        <label>Usar exemplos (few-shot)</label>
-        <div className="seg" role="group" aria-label="Usar exemplos">
-          <button aria-pressed={settings.use_examples} className={settings.use_examples ? "active" : ""} onClick={() => update({ use_examples: true })}>Sim</button>
-          <button aria-pressed={!settings.use_examples} className={!settings.use_examples ? "active" : ""} onClick={() => update({ use_examples: false })}>Não</button>
+        <label>{t("presets.fewShot")}</label>
+        <div className="seg" role="group" aria-label={t("presets.fewShot.aria")}>
+          <button aria-pressed={settings.use_examples} className={settings.use_examples ? "active" : ""} onClick={() => update({ use_examples: true })}>{t("presets.fewShot.yes")}</button>
+          <button aria-pressed={!settings.use_examples} className={!settings.use_examples ? "active" : ""} onClick={() => update({ use_examples: false })}>{t("presets.fewShot.no")}</button>
         </div>
         <p className="help">
           {settings.use_examples
-            ? "Cada preset manda um exemplo (entrada → saída) como turnos de conversa antes do seu texto. Costuma melhorar a qualidade da resposta da API."
-            : "Zero-shot: só a instrução do preset, sem exemplo. Útil pra comparar (A/B)."}
+            ? t("presets.fewShot.on.help")
+            : t("presets.fewShot.off.help")}
         </p>
       </div>
     </section>
