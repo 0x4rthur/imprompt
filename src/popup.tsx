@@ -248,9 +248,8 @@ function Palette() {
         tabIndex={-1}
       >
         <div className="palette-head" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
-          <span className="ph-mark" aria-hidden="true"><BrandMark size={18} /></span>
+          <span className="ph-mark" aria-hidden="true"><BrandMark size={19} /></span>
           <span className="ph-title">Imprompt</span>
-          <span className="ph-sub">{t("popup.head.sub")}</span>
           <span className="ph-esc"><kbd>Esc</kbd></span>
         </div>
 
@@ -262,7 +261,6 @@ function Palette() {
           {captured || t("popup.capture.empty")}
         </div>
 
-        <div className="presets-label">{t("popup.presets.label")}</div>
         <div className="presets" role="group" aria-label={t("popup.presets.label")}>
           {presets.map((p, i) => (
             <button
