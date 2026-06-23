@@ -46,6 +46,9 @@ fn default_trigger_key() -> String {
 fn default_debounce_ms() -> u64 {
     400
 }
+fn default_locale() -> String {
+    "en".into()
+}
 
 impl From<OutputPref> for OutputMode {
     fn from(p: OutputPref) -> Self {
@@ -88,6 +91,12 @@ pub struct Settings {
     pub trigger_key: String,
     #[serde(default = "default_debounce_ms")]
     pub debounce_ms: u64,
+
+    /// Idioma da UI ("en" ou "pt-BR"). Fonte da verdade do i18n. Default "en":
+    /// instalações novas e settings.json legados (sem o campo) começam em inglês.
+    /// `serde(default)` garante que JSONs antigos carreguem sem zerar as prefs.
+    #[serde(default = "default_locale")]
+    pub locale: String,
     // NOTA: a chave da API NÃO mora mais aqui. Ela vai pro cofre de credenciais
     // do SO (ver secrets.rs). Settings antigos que ainda tiverem "api_key" são
     // migrados em `load()` e o campo some do JSON. serde ignora campos extras,
@@ -113,6 +122,7 @@ impl Default for Settings {
             trigger_modifier: default_trigger_modifier(),
             trigger_key: default_trigger_key(),
             debounce_ms: default_debounce_ms(),
+            locale: default_locale(),
         }
     }
 }
@@ -218,6 +228,20 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn locale_defaults_to_en_and_legacy_json_keeps_prefs() {
+        // JSON legado SEM o campo `locale` (instalações anteriores ao i18n)
+        // desserializa com locale="en" e PRESERVA as outras preferências —
+        // o `#[serde(default = "default_locale")]` não pode zerar nada.
+        // Inclui os campos sem serde-default (default_preset/mode/output).
+        let legacy = r#"{"default_preset":"codigo","mode":"popup","output":"replace"}"#;
+        let s: Settings = serde_json::from_str(legacy).unwrap();
+        assert_eq!(s.locale, "en");
+        assert_eq!(s.default_preset, "codigo"); // não zerou as outras prefs
+        assert_eq!(s.mode, super::ActivationMode::Popup);
+        assert_eq!(s.output, super::OutputPref::Replace);
     }
 
     #[test]

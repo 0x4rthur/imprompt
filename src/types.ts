@@ -31,6 +31,8 @@ export type Settings = {
   trigger_modifier: "ctrl" | "alt" | "shift";
   trigger_key: string;
   debounce_ms: number;
+  // Idioma da UI. Espelha Settings.locale do backend (default "en").
+  locale: "en" | "pt-BR";
   // NOTA: a chave NÃO trafega mais nas settings — ela vai pro cofre do SO via os
   // comandos set_api_key / get_api_key_status.
 };
