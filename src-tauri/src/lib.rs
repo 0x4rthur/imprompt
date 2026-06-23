@@ -10,6 +10,7 @@ mod clipboard;
 mod commands;
 mod engine;
 mod hotkey;
+mod i18n;
 mod presets;
 mod secrets;
 mod settings;
