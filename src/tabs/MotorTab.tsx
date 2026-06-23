@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ApiKeyStatus, Settings } from "../types";
 import { ApiProviderIcon } from "../ApiProviderIcon";
+import { t as translate } from "../i18n";
+import { useT } from "../i18n/useT";
+import { Trans } from "../i18n/Trans";
 
 // Provedores conhecidos (formato OpenAI). Escolher um (ou ter a chave detectada)
 // pré-preenche Base URL + modelo e oferece os modelos recomendados na lista.
@@ -46,15 +49,25 @@ const BENCH: Record<string, ModelBench> = {
   "google/gemini-2.5-flash": { q: 2, s: 3, c: 3, conf: "low" },
   "deepseek/deepseek-chat": { q: 2, s: 2, c: 3, conf: "medium" },
 };
-const QS_CAP: Record<number, string> = { 1: "baixo", 2: "médio", 3: "alto" };
-const COST_CAP: Record<number, string> = { 1: "caro", 2: "médio", 3: "barato" };
+// Rótulos do benchmark mapeiam o valor (1-3) para uma chave do catálogo; o texto
+// final é traduzido no render (QS_CAP = qualidade/velocidade; COST_CAP = custo).
+const QS_CAP: Record<number, "motor.cap.low" | "motor.cap.medium" | "motor.cap.high"> = {
+  1: "motor.cap.low",
+  2: "motor.cap.medium",
+  3: "motor.cap.high",
+};
+const COST_CAP: Record<number, "motor.cap.expensive" | "motor.cap.medium" | "motor.cap.cheap"> = {
+  1: "motor.cap.expensive",
+  2: "motor.cap.medium",
+  3: "motor.cap.cheap",
+};
 
 // Host de uma Base URL (ex.: "https://api.openai.com/v1" → "api.openai.com").
 function hostOf(url: string): string {
   try {
     return new URL(url).host || url;
   } catch {
-    return url || "(provedor inválido)";
+    return url || translate("motor.invalidProvider");
   }
 }
 
@@ -115,13 +128,14 @@ function Dots({ fill, level }: { fill: number; level: number }) {
 // Qualidade/velocidade: mais quadrados = melhor (cor segue o valor). Custo: mais
 // quadrados = mais caro (cor é o inverso — c é "barato=3", então level=c, fill=4-c).
 function BenchView({ model }: { model: string }) {
+  const { t } = useT();
   const b = BENCH[model];
   if (!b) return null;
   return (
     <div className="bench">
-      <div className="bench-axis" aria-label={`qualidade: ${b.q} de 3`}><span>qualidade · {QS_CAP[b.q]}</span><Dots fill={b.q} level={b.q} /></div>
-      <div className="bench-axis" aria-label={`velocidade: ${b.s} de 3`}><span>velocidade · {QS_CAP[b.s]}</span><Dots fill={b.s} level={b.s} /></div>
-      <div className="bench-axis" aria-label={`custo: ${COST_CAP[b.c]}`}><span>custo · {COST_CAP[b.c]}</span><Dots fill={4 - b.c} level={b.c} /></div>
+      <div className="bench-axis" aria-label={t("motor.bench.quality.aria", { value: b.q })}><span>{t("motor.bench.quality")} · {t(QS_CAP[b.q])}</span><Dots fill={b.q} level={b.q} /></div>
+      <div className="bench-axis" aria-label={t("motor.bench.speed.aria", { value: b.s })}><span>{t("motor.bench.speed")} · {t(QS_CAP[b.s])}</span><Dots fill={b.s} level={b.s} /></div>
+      <div className="bench-axis" aria-label={t("motor.bench.cost.aria", { value: t(COST_CAP[b.c]) })}><span>{t("motor.bench.cost")} · {t(COST_CAP[b.c])}</span><Dots fill={4 - b.c} level={b.c} /></div>
     </div>
   );
 }
@@ -226,6 +240,7 @@ type Props = {
 };
 
 export default function MotorTab({ settings, update }: Props) {
+  const { t } = useT();
   // Config da API em estado local (evita gravar settings.json a cada tecla); só
   // persiste no "Aplicar e testar".
   // Inicializa já das settings (lazy) — evita um frame com apiBase vazio que
@@ -282,7 +297,7 @@ export default function MotorTab({ settings, update }: Props) {
 
   const modelOptions: Opt[] = [
     ...recModels.map((m) => ({ value: m, label: m })),
-    { value: MODEL_CUSTOM, label: "Personalizado…" },
+    { value: MODEL_CUSTOM, label: t("motor.model.customOption") },
   ];
   const modelDropValue = modelCustom || !modelInList ? MODEL_CUSTOM : apiModel;
 
@@ -354,7 +369,7 @@ export default function MotorTab({ settings, update }: Props) {
     } catch (e) {
       setResult({
         ok: false,
-        msg: typeof e === "string" && e.trim() ? e : "Não consegui conectar. Confira a Base URL, o modelo e a chave.",
+        msg: typeof e === "string" && e.trim() ? e : t("motor.connectError"),
       });
     } finally {
       setApiBusy(false);
@@ -365,12 +380,12 @@ export default function MotorTab({ settings, update }: Props) {
     <section className="card">
       {/* Conexão (provedor + endpoint + modelo + chave) */}
       <div className="field">
-        <label>Conexão</label>
+        <label>{t("motor.connection")}</label>
 
         <div className="api-cfg">
           <div>
-            <span className="api-label">Provedor</span>
-            <div className="prov-grid" role="group" aria-label="Provedor">
+            <span className="api-label">{t("motor.provider")}</span>
+            <div className="prov-grid" role="group" aria-label={t("motor.provider")}>
               {PROVIDERS.map((p) => (
                 <button
                   key={p.id}
@@ -388,16 +403,16 @@ export default function MotorTab({ settings, update }: Props) {
                 aria-pressed={isCustom}
                 className={"prov-pill" + (isCustom ? " on" : "")}
                 onClick={() => onProviderSelect(CUSTOM)}
-                title="Endpoint próprio (formato OpenAI)"
+                title={t("motor.custom.title")}
               >
                 <CustomGlyph />
-                <span>Personalizado</span>
+                <span>{t("motor.custom")}</span>
               </button>
             </div>
           </div>
 
           <div>
-            <label className="api-label" htmlFor="api-base">Base URL</label>
+            <label className="api-label" htmlFor="api-base">{t("motor.baseUrl")}</label>
             <input
               id="api-base"
               ref={baseRef}
@@ -408,23 +423,23 @@ export default function MotorTab({ settings, update }: Props) {
               spellCheck={false}
               autoComplete="off"
             />
-            {!isCustom && <span className="api-hint">Definido pelo provedor — escolha "Personalizado" para editar.</span>}
+            {!isCustom && <span className="api-hint">{t("motor.baseUrl.hint")}</span>}
           </div>
 
           <div>
-            <span className="api-label">Modelo</span>
+            <span className="api-label">{t("motor.model")}</span>
             {recModels.length > 0 && (
-              <Dropdown ariaLabel="Modelo" value={modelDropValue} options={modelOptions} onSelect={onModelSelect} />
+              <Dropdown ariaLabel={t("motor.model")} value={modelDropValue} options={modelOptions} onSelect={onModelSelect} />
             )}
             {showModelInput && (
               <input
                 id="api-model"
                 ref={modelRef}
-                aria-label="Id do modelo"
+                aria-label={t("motor.model.aria")}
                 className={recModels.length > 0 ? "dd-extra-input" : ""}
                 value={apiModel}
                 onChange={(e) => { setApiModel(e.target.value); setResult(null); }}
-                placeholder="ex.: gpt-4o-mini"
+                placeholder={t("motor.model.placeholder")}
                 spellCheck={false}
                 autoComplete="off"
               />
@@ -433,29 +448,29 @@ export default function MotorTab({ settings, update }: Props) {
           </div>
 
           <div>
-            <label className="api-label" htmlFor="api-key">Chave da API</label>
+            <label className="api-label" htmlFor="api-key">{t("motor.apiKey")}</label>
             <input
               id="api-key"
               type="password"
               value={apiKey}
               onChange={(e) => { setApiKey(e.target.value); setResult(null); maybeAutoSelectProvider(e.target.value); }}
-              placeholder={keySaved ? "digite para trocar a chave" : "sk-…"}
+              placeholder={keySaved ? t("motor.apiKey.placeholderChange") : "sk-…"}
               spellCheck={false}
               autoComplete="off"
             />
             {keySaved && (
               <span className="api-saved">
-                <LockIcon /> Chave salva no cofre do sistema{keyMasked ? ` (${keyMasked})` : ""}
+                <LockIcon /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
               </span>
             )}
           </div>
 
           <div className="api-row">
             <button className="btn-dl primary" disabled={apiBusy} onClick={applyApi}>
-              {apiBusy ? "Testando…" : "Aplicar e testar"}
+              {apiBusy ? t("motor.testing") : t("motor.applyTest")}
             </button>
             {!apiBusy && result?.ok && (
-              <span className="test-ok"><PlugIcon /> Conectado</span>
+              <span className="test-ok"><PlugIcon /> {t("motor.connected")}</span>
             )}
           </div>
           {!apiBusy && result && !result.ok && (
@@ -465,22 +480,13 @@ export default function MotorTab({ settings, update }: Props) {
 
         {/* Indicador de privacidade: segue o provedor que está sendo configurado. */}
         <div className="privacy warn">
-          <ArrowOutIcon /> A cada imprompt, seu texto é enviado para <strong>{hostOf(apiBase)}</strong>.
+          <ArrowOutIcon /> <Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} />
         </div>
 
-        <p className="help">
-          Custa centavos (~US$0,0005 por imprompt no gpt-4o-mini). A chave fica no cofre de
-          credenciais do sistema, nunca em texto puro no disco.
-        </p>
+        <p className="help">{t("motor.help")}</p>
         <details className="help-more">
-          <summary>Provedores e segurança</summary>
-          <p>
-            O provedor é detectado pela sua chave (ex.: sk-ant-… → Claude, sk-or-… → OpenRouter,
-            AIza… → Gemini, xai-… → xAI). Você também pode escolhê-lo nos botões ou usar
-            "Personalizado" para um endpoint próprio no formato OpenAI. A chave vai pro cofre do
-            sistema (Windows Credential
-            Manager / macOS Keychain / Linux Secret Service) — uma chave por vez.
-          </p>
+          <summary>{t("motor.more.summary")}</summary>
+          <p>{t("motor.more.body")}</p>
         </details>
       </div>
 

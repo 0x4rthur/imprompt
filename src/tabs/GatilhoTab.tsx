@@ -3,18 +3,23 @@
 // do resultado.
 import { useEffect, useState } from "react";
 import type { Settings } from "../types";
+import { useT } from "../i18n/useT";
+import { Trans } from "../i18n/Trans";
+import type { Key } from "../i18n/catalog";
 
 type Props = {
   settings: Settings;
   update: (patch: Partial<Settings>) => Promise<void>;
 };
 
-const MOD_LABEL: Record<Settings["trigger_modifier"], string> = { ctrl: "Ctrl", alt: "Alt", shift: "Shift" };
+// Reusa as chaves canônicas mod.* (Ctrl/Alt/Shift); traduzidas no render.
+const MOD_LABEL: Record<Settings["trigger_modifier"], Key> = { ctrl: "mod.ctrl", alt: "mod.alt", shift: "mod.shift" };
 
 // Grava o atalho ao pressionar: um modificador (Ctrl/Alt/Shift) + uma letra (A–Z).
 // Usa e.code (tecla física → casa com o rdev do backend) e os flags de modificador.
 // Salva via update() — o backend re-registra o hotkey quando as settings mudam.
 function TriggerRecorder({ settings, update }: Props) {
+  const { t } = useT();
   const [recording, setRecording] = useState(false);
   const [hint, setHint] = useState("");
 
@@ -35,8 +40,8 @@ function TriggerRecorder({ settings, update }: Props) {
         return;
       }
       if (isModKey) { setHint(""); return; }            // segurando só o modificador, espera a letra
-      if (!mod) { setHint("Segure Ctrl, Alt ou Shift + uma letra."); return; }
-      setHint("Use uma letra de A a Z.");               // modificador + tecla que não é letra
+      if (!mod) { setHint(t("gatilho.hint.needMod")); return; }
+      setHint(t("gatilho.hint.needLetter"));            // modificador + tecla que não é letra
     };
     const onBlur = () => { setRecording(false); setHint(""); };
     window.addEventListener("keydown", onKey, true);
@@ -45,9 +50,9 @@ function TriggerRecorder({ settings, update }: Props) {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("blur", onBlur);
     };
-  }, [recording, update]);
+  }, [recording, update, t]);
 
-  const mod = MOD_LABEL[settings.trigger_modifier] ?? "Ctrl";
+  const mod = t(MOD_LABEL[settings.trigger_modifier] ?? "mod.ctrl");
   const key = (settings.trigger_key || "c").toUpperCase();
 
   return (
@@ -56,33 +61,34 @@ function TriggerRecorder({ settings, update }: Props) {
         type="button"
         className={"trigger-rec" + (recording ? " rec" : "")}
         onClick={() => { setRecording((r) => !r); setHint(""); }}
-        aria-label="Gravar atalho de ativação"
+        aria-label={t("gatilho.record.aria")}
         aria-pressed={recording}
       >
         {recording ? (
-          <span className="trigger-rec-prompt">Pressione o atalho<span className="rec-caret" /></span>
+          <span className="trigger-rec-prompt">{t("gatilho.record.prompt")}<span className="rec-caret" /></span>
         ) : (
           <span className="trigger-combo">
             <kbd>{mod}</kbd><span className="trigger-plus">+</span><kbd>{key}</kbd>
-            <span className="trigger-x2" title="pressionado duas vezes">× 2</span>
+            <span className="trigger-x2" title={t("gatilho.record.x2.title")}>{t("gatilho.record.x2")}</span>
           </span>
         )}
       </button>
-      <span className="trigger-rec-edit">{recording ? "Esc cancela" : "clique e pressione as teclas"}</span>
+      <span className="trigger-rec-edit">{recording ? t("gatilho.record.cancel") : t("gatilho.record.edit")}</span>
       {hint && <span className="trigger-rec-hint" role="status">{hint}</span>}
     </div>
   );
 }
 
 export default function GatilhoTab({ settings, update }: Props) {
+  const { t } = useT();
   return (
     <section className="card">
       {/* Atalho de ativação — gravado direto pelo teclado */}
       <div className="field">
-        <label>Atalho</label>
+        <label>{t("gatilho.label")}</label>
         <TriggerRecorder settings={settings} update={update} />
         <div className="debounce-row">
-          <span id="debounce-label" className="debounce-label">Janela entre os 2 toques: <strong>{settings.debounce_ms} ms</strong></span>
+          <span id="debounce-label" className="debounce-label"><Trans k="gatilho.debounce" slots={{ ms: <strong>{settings.debounce_ms} ms</strong> }} /></span>
           <input
             type="range"
             aria-labelledby="debounce-label"
@@ -95,37 +101,35 @@ export default function GatilhoTab({ settings, update }: Props) {
           />
         </div>
         <p className="help">
-          O 1º toque copia a seleção; o 2º (dentro da janela) ativa o Imprompt.
-          <strong> Ctrl+C é o recomendado</strong> — é ele que copia o texto; outros
-          atalhos exigem que você já tenha copiado o texto antes.
+          <Trans k="gatilho.help" slots={{ strong: <strong>{t("gatilho.help.strong")}</strong> }} />
         </p>
       </div>
 
       {/* Modo de ativação */}
       <div className="field">
-        <label>Quando ativar</label>
-        <div className="seg" role="group" aria-label="Quando ativar">
-          <button aria-pressed={settings.mode === "instant"} className={settings.mode === "instant" ? "active" : ""} onClick={() => update({ mode: "instant" })}>Instantâneo</button>
-          <button aria-pressed={settings.mode === "popup"} className={settings.mode === "popup" ? "active" : ""} onClick={() => update({ mode: "popup" })}>Mostrar popup</button>
+        <label>{t("gatilho.when")}</label>
+        <div className="seg" role="group" aria-label={t("gatilho.when")}>
+          <button aria-pressed={settings.mode === "instant"} className={settings.mode === "instant" ? "active" : ""} onClick={() => update({ mode: "instant" })}>{t("gatilho.when.instant")}</button>
+          <button aria-pressed={settings.mode === "popup"} className={settings.mode === "popup" ? "active" : ""} onClick={() => update({ mode: "popup" })}>{t("gatilho.when.popup")}</button>
         </div>
         <p className="help">
           {settings.mode === "instant"
-            ? "Usa seu preset padrão na hora, sem mostrar nada. Mais rápido."
-            : "Abre o popup pra você escolher o preset a cada ativação."}
+            ? t("gatilho.when.instant.help")
+            : t("gatilho.when.popup.help")}
         </p>
       </div>
 
       {/* Saída */}
       <div className="field">
-        <label>O que fazer com o resultado</label>
-        <div className="seg" role="group" aria-label="O que fazer com o resultado">
-          <button aria-pressed={settings.output === "replace"} className={settings.output === "replace" ? "active" : ""} onClick={() => update({ output: "replace" })}>Substituir</button>
-          <button aria-pressed={settings.output === "clipboard"} className={settings.output === "clipboard" ? "active" : ""} onClick={() => update({ output: "clipboard" })}>Copiar</button>
+        <label>{t("gatilho.output")}</label>
+        <div className="seg" role="group" aria-label={t("gatilho.output")}>
+          <button aria-pressed={settings.output === "replace"} className={settings.output === "replace" ? "active" : ""} onClick={() => update({ output: "replace" })}>{t("gatilho.output.replace")}</button>
+          <button aria-pressed={settings.output === "clipboard"} className={settings.output === "clipboard" ? "active" : ""} onClick={() => update({ output: "clipboard" })}>{t("gatilho.output.clipboard")}</button>
         </div>
         <p className="help">
           {settings.output === "replace"
-            ? "Troca o texto selecionado pelo resultado, automaticamente."
-            : "Coloca o resultado na área de transferência. Você dá Ctrl+V onde quiser."}
+            ? t("gatilho.output.replace.help")
+            : t("gatilho.output.clipboard.help")}
         </p>
       </div>
     </section>
