@@ -526,11 +526,8 @@ fn position_popup(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
     };
     let (cx, cy) = (cursor.x as i32, cursor.y as i32);
     // Tamanho FIXO da janela do popup (sem resize dinâmico — evita qualquer loop).
-    let (w, h) = (496, 430);
-    let mut x = cx + 16;
-    let mut y = cy + 16;
-    // Monitor sob o cursor (fallback: primário) pra o clamp não jogar a janela
-    // pro monitor errado num setup multi-tela.
+    let (w, h) = (496i32, 430i32);
+    // Monitor sob o cursor (fallback: primário) pra posicionar/clampar na tela certa.
     let mon = app
         .available_monitors()
         .ok()
@@ -542,16 +539,32 @@ fn position_popup(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
             })
         })
         .or_else(|| app.primary_monitor().ok().flatten());
-    if let Some(m) = mon {
-        let p = m.position();
-        let s = m.size();
-        let min_x = p.x + 12;
-        let min_y = p.y + 12;
-        let max_x = (p.x + s.width as i32 - w - 12).max(min_x);
-        let max_y = (p.y + s.height as i32 - h - 12).max(min_y);
-        x = x.clamp(min_x, max_x);
-        y = y.clamp(min_y, max_y);
-    }
+    // Sem monitor → fallback seguro: centraliza.
+    let m = match mon {
+        Some(m) => m,
+        None => {
+            let _ = win.center();
+            return;
+        }
+    };
+    let p = m.position();
+    let s = m.size();
+    // Centro do popup = o cursor PUXADO em direção ao centro da tela. Assim ele
+    // aparece perto de onde o texto foi copiado, mas gravita pro meio — não cola
+    // nas bordas nem fica "muito embaixo" (atrás da barra de tarefas). A VERTICAL
+    // puxa mais (era a queixa); a HORIZONTAL fica mais perto do cursor (do texto).
+    let scx = p.x + s.width as i32 / 2;
+    let scy = p.y + s.height as i32 / 2;
+    let pcx = cx + ((scx - cx) as f32 * 0.30) as i32;
+    let pcy = cy + ((scy - cy) as f32 * 0.55) as i32;
+    // Margem generosa pra respirar das bordas e da barra de tarefas.
+    let margin = 24;
+    let min_x = p.x + margin;
+    let min_y = p.y + margin;
+    let max_x = (p.x + s.width as i32 - w - margin).max(min_x);
+    let max_y = (p.y + s.height as i32 - h - margin).max(min_y);
+    let x = (pcx - w / 2).clamp(min_x, max_x);
+    let y = (pcy - h / 2).clamp(min_y, max_y);
     let _ = win.set_position(PhysicalPosition::new(x, y));
 }
 
