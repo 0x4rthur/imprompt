@@ -14,6 +14,8 @@ import PresetsTab from "./tabs/PresetsTab";
 import GatilhoTab from "./tabs/GatilhoTab";
 import GeralTab from "./tabs/GeralTab";
 import ConnectionStatus from "./ConnectionStatus";
+import { setLocale } from "./i18n";
+import { useT } from "./i18n/useT";
 
 type Tab = "inicio" | "historico" | "motor" | "presets" | "gatilho" | "geral";
 const TABS: Tab[] = ["inicio", "historico", "presets", "motor", "gatilho", "geral"];
@@ -130,6 +132,10 @@ function WindowControls() {
 }
 
 export default function App() {
+  // Assina o locale: re-renderiza a janela inteira quando o idioma troca (toggle
+  // na aba Geral). Ainda não traduzimos as strings de App aqui — isso vem nas
+  // tasks de extração; por ora só precisamos da reatividade da subscription.
+  useT();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [autostart, setAutostart] = useState(false);
@@ -195,7 +201,9 @@ export default function App() {
   // Carrega tudo do backend ao abrir.
   useEffect(() => {
     loadPresets();
-    invoke<Settings>("get_settings").then(setSettings).catch(console.error);
+    invoke<Settings>("get_settings")
+      .then((s) => { setLocale(s.locale); setSettings(s); })
+      .catch(console.error);
     // Estado real do autostart vem do plugin (fonte da verdade), não das settings.
     isEnabled().then(setAutostart).catch(console.error);
     // macOS: avisa se faltar permissão de Acessibilidade (sempre true fora do macOS).

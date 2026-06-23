@@ -9,6 +9,8 @@ import { blockContextMenu } from "./noContextMenu";
 import type { CSSProperties } from "react";
 import type { Preset, Settings } from "./types";
 import { presetHue } from "./presetColor";
+import { setLocale } from "./i18n";
+import { useT } from "./i18n/useT";
 import "./fonts";
 import "./styles.css";
 
@@ -19,6 +21,10 @@ const FALLBACK_PRESET = "estruturar";
 const appWindow = getCurrentWindow();
 
 function Palette() {
+  // Assina o locale: re-renderiza o popup ao trocar de idioma (applySettings →
+  // setLocale). As strings do popup ainda não estão traduzidas (vem em task de
+  // extração); por ora só precisamos da reatividade.
+  useT();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [captured, setCaptured] = useState("");
   const [presetId, setPresetId] = useState(FALLBACK_PRESET);
@@ -55,7 +61,11 @@ function Palette() {
   // (ver auditoria BUG-4). NÃO re-semeia presetId (preserva a escolha da sessão).
   const applySettings = useCallback(async () => {
     try {
-      const s = await invoke<Pick<Settings, "output" | "api_model">>("get_settings");
+      const s = await invoke<Pick<Settings, "output" | "api_model" | "locale">>("get_settings");
+      // Aplica o idioma ANTES dos rótulos: a janela do popup é reusada entre
+      // gatilhos (não remonta), então sem reaplicar aqui o popup ficaria preso
+      // no idioma da 1ª abertura mesmo após o usuário trocar nas Preferências.
+      setLocale(s.locale);
       setOutNote(s.output === "replace" ? "vai substituir o texto" : "vai copiar pra área de transferência");
       setBadge(`API · ${s.api_model || "(modelo não definido)"}`);
     } catch (e) {
