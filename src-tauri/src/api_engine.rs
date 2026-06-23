@@ -535,12 +535,12 @@ mod tests {
         let all = presets::default_presets();
         let cases = [
             (
-                "estruturar",
-                "me ajuda a escrever um email pra remarcar uma reunião com um cliente",
+                "corrigir",
+                "me faz um resumo desse texto ai mas nao muito grande pra eu manda pro chefe",
             ),
             (
-                "codigo",
-                "faz uma função que remove duplicados de uma lista",
+                "ingles",
+                "cria uma função python `soma_lista` que soma uma lista de números",
             ),
         ];
         for (pid, input) in cases {

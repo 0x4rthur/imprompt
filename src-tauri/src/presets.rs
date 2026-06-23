@@ -3,29 +3,27 @@
 //! Cada preset é só um SYSTEM PROMPT. O modelo é o mesmo; o que muda é a
 //! instrução. Adicionar um preset = adicionar uma entrada aqui. Sem retreino.
 //!
-//! ── Princípios (validados por pesquisa de engenharia de prompt) ──────────────
-//!  1) UTILIDADE POR TOKEN: o que dilui (listas de proibição) sai; o que ensina
-//!     (o exemplo) fica. Instrução enxuta — o exemplo carrega o peso.
-//!  2) UM exemplo por preset, REPRESENTATIVO da tarefa. Em modelo pequeno, o
-//!     exemplo ajuda muito mais que em modelo grande (ganhos de ~5-10%+ vs ~1%).
-//!     Exagerar no nº de exemplos PIORA ("few-shot dilemma"); um exemplo atípico
-//!     pode derrubar abaixo do zero-shot — por isso cada exemplo é um caso típico.
-//!  3) CONTEÚDO FIXO PRIMEIRO (base + preset), texto do usuário por último: deixa
-//!     o prefixo cacheável (prompt/prefix caching) — o custo do exemplo é pago
-//!     uma vez, não a cada chamada.
-//!  4) Formato do exemplo com "→": o modelo não copia isso como rótulo na saída.
+//! ── Princípios (engenharia de prompt + estudo 2026) ──────────────────────────
+//!  1) A INSTRUÇÃO enxuta e positiva carrega o trabalho. O exemplo few-shot é
+//!     OPCIONAL e por preset (campos `example_input`/`example_output`; vazios =
+//!     zero-shot, mesmo com `use_examples` ligado).
+//!  2) FEW-SHOT SÓ onde ANCORA uma regra sutil sem impor molde — tarefas que
+//!     PRESERVAM estrutura: `corrigir` (manter tom/comprimento) e `ingles` (não
+//!     traduzir código). Tarefas que GERAM estrutura (`estruturar`, `codigo`) e o
+//!     `frontend` rodam ZERO-SHOT: com modelos modernos via API, um exemplo FIXO
+//!     vira um molde que o modelo COPIA (over-constraining) — trava formato,
+//!     comprimento e domínio no caso do exemplo, contra a própria diretiva. (O ganho
+//!     do few-shot era grande nos modelos <1B locais, já removidos; aqui é marginal
+//!     ou negativo nas tarefas geradoras.)
+//!  3) CONTEÚDO FIXO PRIMEIRO (base + diretiva), texto do usuário por último: deixa
+//!     o prefixo cacheável; o custo do exemplo (quando há) é pago uma vez.
+//!  4) O exemplo vai como TURNOS de conversa (user=entrada, assistant=saída), nunca
+//!     concatenado no system — assim não vaza pra saída.
 //!
-//! Quando um preset escorregar, AJUSTE O EXEMPLO (não volte a empilhar regras).
-//! E o caminho definitivo de velocidade é fine-tuning: ele "absorve" os exemplos,
-//! aí dá pra removê-los do prompt (mais rápido E preciso).
-//!
-//! ATUAL: o engine usa FEW-SHOT por TURNOS de conversa (configurável via
-//! `use_examples`, default on). Antes rodávamos zero-shot porque o exemplo, quando
-//! CONCATENADO no system prompt, vazava pra saída nos modelos minúsculos (<1B) —
-//! que já foram removidos. Com os modelos atuais (modelos via API, ex.: gpt-4o-mini) e
-//! o exemplo montado como turnos (user=entrada, assistant=saída) em vez de texto
-//! solto no system, ele AJUDA e não vaza. Por isso cada preset guarda a entrada e
-//! a saída SEPARADAS (`example_input`/`example_output`), pra montar os turnos.
+//! O toggle `use_examples` (default on) liga/desliga o few-shot GLOBALMENTE; quem
+//! define se um preset usa exemplo é ter (ou não) os campos preenchidos. Quando um
+//! preset escorregar, prefira AJUSTAR A INSTRUÇÃO; só adicione exemplo se ele ancorar
+//! uma regra que a instrução não descreve bem em palavras.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -86,37 +84,49 @@ pub fn default_presets() -> Vec<Preset> {
         Preset {
             id: "estruturar".into(),
             label: "Estruturar".into(),
-            instruction: "Dê estrutura clara ao prompt: defina papel, contexto, tarefa e formato de \
-saída, em ordem lógica.".into(),
-            example_input: "me ajuda a escrever um email de cobrança pra um cliente atrasado".into(),
-            example_output: "Papel: assistente de cobrança cordial. Contexto: cliente com pagamento atrasado. \
-Tarefa: escreva um e-mail lembrando do valor e da data e oferecendo ajuda. \
-Tom: firme e respeitoso. Saída: somente o e-mail.".into(),
+            instruction: "Reescreva o prompt enviado com estrutura clara e lógica: papel, contexto, \
+tarefa e formato de saída, nessa ordem. Inclua apenas as seções que o conteúdo sustenta — não force \
+seções vazias nem invente conteúdo novo; torne explícito o que já existe, sem ampliar. Não responda \
+ao prompt — apenas reestruture-o e devolva só a versão reestruturada, sem comentários.".into(),
+            // Zero-shot: 'Estruturar' GERA estrutura e varia muito com o input — um exemplo fixo
+            // viraria um molde rígido (over-constraining), contra a própria diretiva acima ("inclua
+            // só as seções que o conteúdo sustenta"). Nos modelos atuais via API a instrução basta.
+            example_input: String::new(),
+            example_output: String::new(),
         },
         Preset {
             id: "codigo".into(),
             label: "Prompt de código".into(),
-            instruction: "Transforme em uma tarefa de engenharia precisa: o que construir, restrições, \
-casos de borda, tecnologia quando indicada, e o formato exato da saída.".into(),
-            example_input: "faz um código que ordena uma lista".into(),
-            example_output: "Escreva uma função em Python que ordena uma lista de inteiros em ordem crescente. \
-Restrições: não usar sorted(); tratar lista vazia; O(n log n). Saída: apenas o código, com um comentário breve.".into(),
+            instruction: "Transforme o prompt enviado em uma especificação de engenharia precisa, não \
+no código em si: o que construir, restrições, casos de borda, tecnologia (quando indicada), formato \
+exato da saída e critérios de aceite verificáveis. Mantenha o escopo do pedido, sem adicionar \
+funcionalidades não solicitadas. Não implemente nem responda — produza apenas a especificação, sem \
+comentários.".into(),
+            // Zero-shot: o molde de 6 rótulos de UM caso (web/CRUD) engessava script pequeno, SQL,
+            // regex etc. — o modelo inventava conteúdo pra preencher rótulos, contra a regra "sem
+            // adicionar o não pedido". A instrução guia melhor sem o exemplo travando o formato.
+            example_input: String::new(),
+            example_output: String::new(),
         },
         Preset {
             id: "corrigir".into(),
             label: "Corrigir & clarear".into(),
-            instruction: "Corrija gramática, ortografia e ambiguidade, deixando a intenção inequívoca. \
-Mantenha o tamanho e o tom do original (não expanda).".into(),
-            example_input: "qero q vc escreva um resumo sobre os planeta do sistema solar pq tenho prova".into(),
-            example_output: "Quero que você escreva um resumo sobre os planetas do sistema solar, porque tenho prova.".into(),
+            instruction: "Corrija gramática, ortografia e ambiguidade do prompt enviado, tornando a \
+intenção inequívoca sem alterar o significado. Faça o mínimo de edições e preserve o comprimento e o \
+tom do original — não expanda nem reescreva o que já está claro. Não responda ao prompt — apenas \
+corrija-o e devolva só a versão corrigida, sem comentários.".into(),
+            example_input: "me faz um resumo desse texto ai mas nao muito grande pra eu manda pro meu chefe amanha".into(),
+            example_output: "Me faz um resumo desse texto aí, mas não muito grande, pra eu mandar pro meu chefe amanhã.".into(),
         },
         Preset {
             id: "ingles".into(),
             label: "Traduzir p/ EN".into(),
-            instruction: "Reescreva o prompt em inglês claro e idiomático para uma IA, preservando 100% \
-da intenção. Devolva apenas a versão em inglês.".into(),
-            example_input: "escreve um email formal pedindo reembolso de um produto com defeito".into(),
-            example_output: "Write a formal email requesting a refund for a defective product, clearly stating the issue and the desired resolution.".into(),
+            instruction: "Traduza o prompt enviado para inglês claro e idiomático, otimizado para uma \
+IA, preservando 100% da intenção, da especificidade e da estrutura do original. Mantenha intactos os \
+trechos que não se traduzem (código, nomes próprios, termos técnicos canônicos, texto entre aspas). \
+Não responda ao prompt — apenas traduza-o e devolva apenas a versão em inglês.".into(),
+            example_input: "Crie uma função Python chamada `calcular_total` que some uma lista de preços.".into(),
+            example_output: "Write a Python function named `calcular_total` that sums a list of prices.".into(),
         },
         Preset {
             id: "frontend".into(),
@@ -372,23 +382,26 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn presets_expose_examples_except_frontend() {
+    fn examples_only_on_structure_preserving_presets() {
+        // Few-shot só em tarefas que PRESERVAM estrutura (ancoram uma regra sutil):
+        // corrigir e ingles. As que GERAM estrutura (estruturar, codigo) e o frontend
+        // são zero-shot — o exemplo fixo engessaria (ver doc no topo do arquivo).
+        let com_exemplo: Vec<String> = default_presets()
+            .into_iter()
+            .filter(|p| p.has_example())
+            .map(|p| p.id)
+            .collect();
+        assert_eq!(
+            com_exemplo,
+            vec!["corrigir".to_string(), "ingles".to_string()]
+        );
+        // Nenhum preset embute o exemplo na própria diretiva.
         for p in default_presets() {
-            if p.id == "frontend" {
-                assert!(!p.has_example(), "frontend não tem exemplo (zero-shot)");
-            } else {
-                assert!(
-                    p.has_example(),
-                    "preset '{}' deveria ter exemplo few-shot",
-                    p.id
-                );
-                // O exemplo NÃO pode mais estar embutido na diretiva.
-                assert!(
-                    !p.instruction.contains("Exemplo:"),
-                    "'{}' ainda embute o exemplo",
-                    p.id
-                );
-            }
+            assert!(
+                !p.instruction.contains("Exemplo:"),
+                "'{}' embute o exemplo na diretiva",
+                p.id
+            );
         }
     }
 
@@ -397,7 +410,7 @@ mod tests {
         let p = find_preset(&default_presets(), "estruturar");
         let sys = p.system_prompt();
         assert!(sys.starts_with("Você transforma")); // base
-        assert!(sys.contains("Dê estrutura clara")); // diretiva
+        assert!(sys.contains("estrutura clara")); // diretiva
         assert!(!sys.contains("cobrança")); // o exemplo NÃO entra no system prompt
     }
 

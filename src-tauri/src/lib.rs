@@ -95,8 +95,13 @@ pub fn run() {
             //    encerra o app de verdade. (Saímos da config e criamos aqui pra
             //    ter o menu.)
             let prefs_i = MenuItem::with_id(app, "prefs", "Preferências", true, None::<&str>)?;
-            let undo_i =
-                MenuItem::with_id(app, "undo", "↩ Desfazer último imprompt", true, None::<&str>)?;
+            let undo_i = MenuItem::with_id(
+                app,
+                "undo",
+                "↩ Desfazer último imprompt",
+                true,
+                None::<&str>,
+            )?;
             let update_i =
                 MenuItem::with_id(app, "update", "Verificar atualizações", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
