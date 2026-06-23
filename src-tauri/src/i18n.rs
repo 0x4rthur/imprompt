@@ -31,7 +31,7 @@ pub fn key_with_args(key: &str, args: &[&str]) -> String {
 /// (key, en, pt-BR)
 const ENTRIES: &[(&str, &str, &str)] = &[
     // ── tray ────────────────────────────────────────────────────────────────
-    ("tray.prefs", "Preferences", "Preferências"),
+    ("tray.prefs", "Open", "Abrir"),
     (
         "tray.undo",
         "↩ Undo last imprompt",
