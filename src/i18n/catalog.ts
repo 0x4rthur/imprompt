@@ -219,6 +219,49 @@ const en = {
   "historico.empty": "No imprompts in this session. Your imprompts show up here — and aren't saved to disk.",
   "historico.aria.original": "original",
   "historico.aria.result": "result",
+
+  // ── Popup (palette) ──
+  // Modo de saída (rótulo da loc-note + title do botão Aplicar).
+  "popup.output.replace": "will replace the text",
+  "popup.output.clipboard": "will copy to the clipboard",
+  // Badge da API (modelo).
+  "popup.badge.api": "API · {model}",
+  "popup.badge.noModel": "(no model set)",
+  // Erro genérico de fallback (quando o backend não manda mensagem própria).
+  "popup.error.fallback": "Couldn't finish the imprompt. Check the API setup in Preferences.",
+  // Cabeçalho do popup (a marca "Imprompt" fica fora do catálogo).
+  "popup.head.sub": "Captured text",
+  // Citação capturada (vazia / recolher / expandir).
+  "popup.capture.empty": "(nothing captured — select some text)",
+  "popup.capture.collapse": "Collapse",
+  "popup.capture.expand": "Expand",
+  // Presets (label + aria do grupo).
+  "popup.presets.label": "Preset",
+  // aria-label do diálogo.
+  "popup.dialog.aria": "Make an imprompt",
+  // Nota da ação quando não há nada capturado.
+  "popup.note.selectAgain": "Select some text and fire the shortcut again",
+  // Resultado.
+  "popup.result.error": "Error",
+  "popup.result.title": "Result",
+  // Botões do resultado (+ titles).
+  "popup.action.apply": "Apply",
+  "popup.action.copy": "Copy",
+  "popup.action.copy.title": "Copy to the clipboard",
+  "popup.action.redo": "Redo",
+  "popup.action.redo.title": "Do it again",
+
+  // ── Aba Geral (GeralTab) ──
+  // Iniciar com o sistema (label + aria + botões).
+  "geral.autostart": "Start with the system",
+  "geral.autostart.no": "No",
+  "geral.autostart.yes": "Yes",
+  "geral.autostart.on.help":
+    "Imprompt opens with the system, already hidden in the tray, ready for Ctrl+C×2.",
+  "geral.autostart.off.help": "Open Imprompt manually whenever you want to use it.",
+  // Toggle de idioma.
+  "geral.language": "Language",
+  "geral.language.help": "Choose the interface language.",
 } as const;
 
 const ptBR: Record<keyof typeof en, string> = {
@@ -392,6 +435,37 @@ const ptBR: Record<keyof typeof en, string> = {
   "historico.empty": "Nenhum imprompt nesta sessão. Seus imprompts aparecem aqui — e não são salvos no disco.",
   "historico.aria.original": "original",
   "historico.aria.result": "resultado",
+
+  // ── Popup (palette) ──
+  "popup.output.replace": "vai substituir o texto",
+  "popup.output.clipboard": "vai copiar pra área de transferência",
+  "popup.badge.api": "API · {model}",
+  "popup.badge.noModel": "(modelo não definido)",
+  "popup.error.fallback": "Não consegui concluir o imprompt. Verifique a configuração da API nas Preferências.",
+  "popup.head.sub": "Texto capturado",
+  "popup.capture.empty": "(nada capturado — selecione um texto)",
+  "popup.capture.collapse": "Recolher",
+  "popup.capture.expand": "Expandir",
+  "popup.presets.label": "Preset",
+  "popup.dialog.aria": "Fazer um imprompt",
+  "popup.note.selectAgain": "Selecione um texto e dispare o atalho de novo",
+  "popup.result.error": "Erro",
+  "popup.result.title": "Resultado",
+  "popup.action.apply": "Aplicar",
+  "popup.action.copy": "Copiar",
+  "popup.action.copy.title": "Copiar para a área de transferência",
+  "popup.action.redo": "Refazer",
+  "popup.action.redo.title": "Fazer de novo",
+
+  // ── Aba Geral (GeralTab) ──
+  "geral.autostart": "Iniciar com o sistema",
+  "geral.autostart.no": "Não",
+  "geral.autostart.yes": "Sim",
+  "geral.autostart.on.help":
+    "O Imprompt abre junto com o sistema, já escondido na bandeja, pronto pro Ctrl+C×2.",
+  "geral.autostart.off.help": "Abra o Imprompt manualmente quando quiser usá-lo.",
+  "geral.language": "Idioma",
+  "geral.language.help": "Escolha o idioma da interface.",
 };
 
 export const CATALOG = { en, "pt-BR": ptBR } as const;

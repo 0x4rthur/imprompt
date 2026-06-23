@@ -388,7 +388,7 @@ export default function App() {
             {tab === "gatilho" && <GatilhoTab settings={settings} update={update} />}
 
             {tab === "geral" && (
-              <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} />
+              <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} />
             )}
 
           </div>

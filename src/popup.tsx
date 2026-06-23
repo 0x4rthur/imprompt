@@ -9,7 +9,7 @@ import { blockContextMenu } from "./noContextMenu";
 import type { CSSProperties } from "react";
 import type { Preset, Settings } from "./types";
 import { presetHue } from "./presetColor";
-import { setLocale } from "./i18n";
+import { setLocale, t } from "./i18n";
 import { useT } from "./i18n/useT";
 import "./fonts";
 import "./styles.css";
@@ -22,8 +22,8 @@ const appWindow = getCurrentWindow();
 
 function Palette() {
   // Assina o locale: re-renderiza o popup ao trocar de idioma (applySettings →
-  // setLocale). As strings do popup ainda não estão traduzidas (vem em task de
-  // extração); por ora só precisamos da reatividade.
+  // setLocale), pra os t() do JSX reavaliarem no novo idioma. Usamos o `t`
+  // importado direto (lê o locale corrente na hora da chamada).
   useT();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [captured, setCaptured] = useState("");
@@ -66,8 +66,8 @@ function Palette() {
       // gatilhos (não remonta), então sem reaplicar aqui o popup ficaria preso
       // no idioma da 1ª abertura mesmo após o usuário trocar nas Preferências.
       setLocale(s.locale);
-      setOutNote(s.output === "replace" ? "vai substituir o texto" : "vai copiar pra área de transferência");
-      setBadge(`API · ${s.api_model || "(modelo não definido)"}`);
+      setOutNote(t(s.output === "replace" ? "popup.output.replace" : "popup.output.clipboard"));
+      setBadge(t("popup.badge.api", { model: s.api_model || t("popup.badge.noModel") }));
     } catch (e) {
       console.error(e);
     }
@@ -156,7 +156,7 @@ function Palette() {
       setRefined(
         typeof e === "string" && e.trim()
           ? e
-          : "Não consegui concluir o imprompt. Verifique a configuração da API nas Preferências."
+          : t("popup.error.fallback")
       );
     } finally {
       setLoading(false);
@@ -243,27 +243,27 @@ function Palette() {
         className={"palette" + (closing ? " closing" : "")}
         role="dialog"
         aria-modal="true"
-        aria-label="Fazer um imprompt"
+        aria-label={t("popup.dialog.aria")}
         ref={paletteRef}
         tabIndex={-1}
       >
         <div className="palette-head" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
           <span className="ph-mark" aria-hidden="true"><BrandMark size={18} /></span>
           <span className="ph-title">Imprompt</span>
-          <span className="ph-sub">Texto capturado</span>
+          <span className="ph-sub">{t("popup.head.sub")}</span>
           <span className="ph-esc"><kbd>Esc</kbd></span>
         </div>
 
         <div
           className={"capture" + (expanded ? " exp" : "")}
           onClick={() => { if (captured.length > 180) setExpanded((v) => !v); }}
-          title={captured.length > 180 ? (expanded ? "Recolher" : "Expandir") : undefined}
+          title={captured.length > 180 ? (expanded ? t("popup.capture.collapse") : t("popup.capture.expand")) : undefined}
         >
-          {captured || "(nada capturado — selecione um texto)"}
+          {captured || t("popup.capture.empty")}
         </div>
 
-        <div className="presets-label">Preset</div>
-        <div className="presets" role="group" aria-label="Preset">
+        <div className="presets-label">{t("popup.presets.label")}</div>
+        <div className="presets" role="group" aria-label={t("popup.presets.label")}>
           {presets.map((p, i) => (
             <button
               key={p.id}
@@ -283,20 +283,20 @@ function Palette() {
             <span className="refine-label">{loading ? "Imprompting…" : "Imprompt"}</span>
             <kbd className="enter">Enter</kbd>
           </button>
-          <span className="loc-note">{captured.trim() ? outNote : "Selecione um texto e dispare o atalho de novo"}</span>
+          <span className="loc-note">{captured.trim() ? outNote : t("popup.note.selectAgain")}</span>
         </div>
 
         {refined != null && (
           <div className="result" ref={resultRef} aria-live="polite">
             <div className="result-head">
-              <span className="result-title">{error ? "Erro" : "Resultado"}</span>
+              <span className="result-title">{error ? t("popup.result.error") : t("popup.result.title")}</span>
               {!error && badge && <span className="result-badge">{badge}</span>}
             </div>
             <div className={"result-body" + (error ? " err" : "")} {...(error ? { role: "alert" } : {})}>{refined}</div>
             <div className="result-actions">
-              {!error && <button className="replace" title={outNote} onClick={apply}>Aplicar</button>}
-              {!error && <button className="copy" title="Copiar para a área de transferência" onClick={copy}>Copiar</button>}
-              <button className="redo" title="Fazer de novo" onClick={refine}>Refazer</button>
+              {!error && <button className="replace" title={outNote} onClick={apply}>{t("popup.action.apply")}</button>}
+              {!error && <button className="copy" title={t("popup.action.copy.title")} onClick={copy}>{t("popup.action.copy")}</button>}
+              <button className="redo" title={t("popup.action.redo.title")} onClick={refine}>{t("popup.action.redo")}</button>
             </div>
           </div>
         )}
