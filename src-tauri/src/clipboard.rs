@@ -27,7 +27,12 @@ pub enum OutputMode {
 /// lento — fazemos um poll curto com timeout, para o gatilho parar de "não
 /// disparar" de forma intermitente em vez de abortar mudo (ver auditoria BUG-2).
 pub fn read_selection() -> Result<String> {
-    let mut cb = Clipboard::new().map_err(|e| anyhow!("Sem acesso ao clipboard: {e}"))?;
+    let mut cb = Clipboard::new().map_err(|e| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.no_access",
+            &[&e.to_string()]
+        ))
+    })?;
     // Caminho rápido (caso comum): já há texto não-vazio.
     if let Ok(t) = cb.get_text() {
         let trimmed = t.trim();
@@ -46,7 +51,7 @@ pub fn read_selection() -> Result<String> {
             }
         }
         if std::time::Instant::now() >= deadline {
-            return Err(anyhow!("Nada de texto selecionado."));
+            return Err(anyhow!("err.clipboard.empty"));
         }
     }
 }
@@ -54,9 +59,18 @@ pub fn read_selection() -> Result<String> {
 /// Entrega o resultado conforme o modo escolhido.
 pub fn deliver(result: &str, mode: OutputMode) -> Result<()> {
     // Em qualquer modo, o resultado vai pro clipboard.
-    let mut cb = Clipboard::new().map_err(|e| anyhow!("Sem acesso ao clipboard: {e}"))?;
-    cb.set_text(result.to_string())
-        .map_err(|e| anyhow!("Falha ao escrever no clipboard: {e}"))?;
+    let mut cb = Clipboard::new().map_err(|e| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.no_access",
+            &[&e.to_string()]
+        ))
+    })?;
+    cb.set_text(result.to_string()).map_err(|e| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.write",
+            &[&e.to_string()]
+        ))
+    })?;
 
     if mode == OutputMode::Replace {
         // Substituir = colar por cima. Como o texto ainda está selecionado no
@@ -72,35 +86,59 @@ pub fn deliver(result: &str, mode: OutputMode) -> Result<()> {
 #[cfg(not(target_os = "macos"))]
 fn paste_over_selection() -> Result<()> {
     use enigo::{Direction, Enigo, Key, Keyboard, Settings};
+    // Falha de colar → chave i18n `err.clipboard.paste` com o detalhe técnico
+    // anexado (traduzida na borda via tr_msg).
+    let paste_err = |e: enigo::InputError| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.paste",
+            &[&e.to_string()]
+        ))
+    };
     std::thread::sleep(std::time::Duration::from_millis(60));
-    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| anyhow!("enigo: {e}"))?;
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.paste",
+            &[&e.to_string()]
+        ))
+    })?;
     enigo
         .key(Key::Control, Direction::Press)
-        .map_err(|e| anyhow!("enigo: {e}"))?;
+        .map_err(paste_err)?;
     // SEMPRE solta o Control, mesmo se o 'v' falhar — senão o modificador fica
     // logicamente preso até o próximo evento real de teclado. Avalia o erro do
     // colar SÓ depois de garantir o Release, e propaga (em vez de engolir com .ok)
     // pra que o caminho Instant notifique a falha em vez de mentir que colou.
     let pasted = enigo.key(Key::Unicode('v'), Direction::Click);
     let released = enigo.key(Key::Control, Direction::Release);
-    pasted.map_err(|e| anyhow!("Falha ao colar (Ctrl+V): {e}"))?;
-    released.map_err(|e| anyhow!("enigo: {e}"))?;
+    pasted.map_err(paste_err)?;
+    released.map_err(paste_err)?;
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
 fn paste_over_selection() -> Result<()> {
     use enigo::{Direction, Enigo, Key, Keyboard, Settings};
+    // Falha de colar → chave i18n `err.clipboard.paste_mac` com o detalhe técnico
+    // anexado (traduzida na borda via tr_msg).
+    let paste_err = |e: enigo::InputError| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.paste_mac",
+            &[&e.to_string()]
+        ))
+    };
     std::thread::sleep(std::time::Duration::from_millis(60));
-    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| anyhow!("enigo: {e}"))?;
-    enigo
-        .key(Key::Meta, Direction::Press)
-        .map_err(|e| anyhow!("enigo: {e}"))?; // Cmd no macOS
-                                              // SEMPRE solta o Cmd, mesmo se o 'v' falhar (ver versão não-macOS).
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| {
+        anyhow!(crate::i18n::key_with_args(
+            "err.clipboard.paste_mac",
+            &[&e.to_string()]
+        ))
+    })?;
+    enigo.key(Key::Meta, Direction::Press).map_err(paste_err)?; // Cmd no macOS
+                                                                // SEMPRE solta o Cmd, mesmo se o 'v' falhar (ver versão não-macOS).
     let pasted = enigo.key(Key::Unicode('v'), Direction::Click);
     let released = enigo.key(Key::Meta, Direction::Release);
-    pasted.map_err(|e| anyhow!("Falha ao colar (Cmd+V): {e}"))?;
-    released.map_err(|e| anyhow!("enigo: {e}"))?;
+    pasted.map_err(paste_err)?;
+    released.map_err(paste_err)?;
     Ok(())
 }
 

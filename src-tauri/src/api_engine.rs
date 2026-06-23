@@ -38,8 +38,9 @@ const BACKOFFS: [std::time::Duration; MAX_RETRIES] = [
 /// fazem todas as retentativas; um timeout cheio (~20s) não dispara outra.
 const TOTAL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(25);
 
-/// Mensagem única pra falha de transporte (timeout / sem conexão / DNS).
-const MSG_NETWORK: &str = "Sem resposta da API (rede?). Verifique a conexão.";
+/// Chave i18n pra falha de transporte (timeout / sem conexão / DNS). A tradução
+/// acontece na BORDA (comando/notify) via `i18n::tr_msg`.
+const MSG_NETWORK: &str = "err.api.network";
 
 pub struct ApiEngine {
     base_url: String,
@@ -53,31 +54,29 @@ pub struct ApiEngine {
 
 impl ApiEngine {
     pub fn new(base_url: &str, model: &str, api_key: &str) -> Result<Self> {
+        // Erros viram CHAVES i18n (traduzidas na borda via tr_msg). As mensagens
+        // NUNCA ecoam a chave — as chaves de URL falam só da URL.
         if api_key.trim().is_empty() {
-            return Err(anyhow!("Configure a chave da API nas Preferências."));
+            return Err(anyhow!("err.api.no_key"));
         }
         if model.trim().is_empty() {
-            return Err(anyhow!("Configure o modelo da API nas Preferências."));
+            return Err(anyhow!("err.api.no_model"));
         }
-        // Valida a base_url ANTES de criar o cliente. Mensagens NUNCA ecoam a chave
-        // (só falam da URL). Exige host; exige https — EXCETO localhost/127.0.0.1,
-        // onde http é legítimo (proxy/servidor local de modelos).
+        // Valida a base_url ANTES de criar o cliente. Exige host; exige https —
+        // EXCETO localhost/127.0.0.1, onde http é legítimo (proxy/servidor local).
         let trimmed_base = base_url.trim().trim_end_matches('/');
-        let parsed = url::Url::parse(trimmed_base)
-            .map_err(|_| anyhow!("URL base da API inválida nas Preferências."))?;
+        let parsed = url::Url::parse(trimmed_base).map_err(|_| anyhow!("err.api.bad_url"))?;
         let scheme = parsed.scheme();
         if scheme != "http" && scheme != "https" {
-            return Err(anyhow!("A URL base da API precisa começar com http(s)://."));
+            return Err(anyhow!("err.api.bad_url"));
         }
         let host = parsed
             .host_str()
-            .ok_or_else(|| anyhow!("A URL base da API precisa ter um host."))?;
+            .ok_or_else(|| anyhow!("err.api.no_host"))?;
         let is_local =
             host.eq_ignore_ascii_case("localhost") || host == "127.0.0.1" || host == "::1";
         if scheme == "http" && !is_local {
-            return Err(anyhow!(
-                "Use https na URL base da API (http só é permitido em localhost)."
-            ));
+            return Err(anyhow!("err.api.https_required"));
         }
         let client = reqwest::blocking::Client::builder()
             .timeout(REQUEST_TIMEOUT)
@@ -86,7 +85,12 @@ impl ApiEngine {
             // comprometido encadeie saltos carregando o header Authorization (SEC-3).
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .map_err(|e| anyhow!("Falha ao criar o cliente HTTP: {e}"))?;
+            .map_err(|e| {
+                anyhow!(crate::i18n::key_with_args(
+                    "err.api.client",
+                    &[&e.to_string()]
+                ))
+            })?;
         Ok(Self {
             // Sem barra no fim pra não virar "//chat/completions" (já trimada acima).
             base_url: trimmed_base.to_string(),
@@ -245,7 +249,10 @@ impl ApiEngine {
         let status = resp.status();
         if status.is_success() {
             let parsed: ChatResp = resp.json().map_err(|e| {
-                RefineError::Permanent(format!("Resposta da API em formato inesperado: {e}"))
+                RefineError::Permanent(crate::i18n::key_with_args(
+                    "err.api.bad_format",
+                    &[&e.to_string()],
+                ))
             })?;
             // Tokens reais, se a API mandou (prompt E completion).
             let usage =
@@ -261,9 +268,7 @@ impl ApiEngine {
                 .into_iter()
                 .next()
                 .map(|c| c.message.content)
-                .ok_or_else(|| {
-                    RefineError::Permanent("A API não devolveu nenhuma resposta.".to_string())
-                })?;
+                .ok_or_else(|| RefineError::Permanent("err.api.no_response".to_string()))?;
             // Limpeza compartilhada (engine::clean_output): tira cerca de markdown, preâmbulos etc.
             let cleaned = clean_output(&content);
             // Saída vazia APÓS a limpeza (ex.: modelo devolveu só uma cerca ``` ```,
@@ -272,9 +277,7 @@ impl ApiEngine {
             // usuário sem aviso (ver auditoria BUG-3) — vira erro permanente, que no
             // fluxo Instant cai em notify_error e no popup mostra a mensagem.
             if cleaned.trim().is_empty() {
-                return Err(RefineError::Permanent(
-                    "A API devolveu uma resposta vazia.".to_string(),
-                ));
+                return Err(RefineError::Permanent("err.api.empty".to_string()));
             }
             return Ok((cleaned, usage));
         }
@@ -305,18 +308,24 @@ impl RefineError {
     }
 }
 
-/// Mapeia um status HTTP de erro para mensagem clara + se é transitório.
-/// PURA → testável sem rede.
+/// Mapeia um status HTTP de erro para CHAVE i18n (+ args via ARG_SEP) e se é
+/// transitório. A tradução acontece na borda (`tr_msg`). O detalhe técnico da API
+/// (extraído do corpo) é anexado como arg `{1}` JÁ com espaço à esquerda (ou vazio),
+/// pra ficar "Erro temporário da API (503). model overloaded". PURA → testável.
 fn classify_status(code: u16, raw_body: &str) -> RefineError {
     let detail = extract_api_error_message(raw_body);
-    match code {
-        401 | 403 => RefineError::Permanent("Chave de API inválida ou sem permissão.".to_string()),
-        429 => RefineError::Transient("Limite de uso atingido. Tente em instantes.".to_string()),
-        500..=504 => RefineError::Transient(with_detail(
-            &format!("Erro temporário da API ({code})."),
-            &detail,
+    let detail_arg = with_detail("", &detail); // " detail" ou ""
+    let code = code.to_string();
+    match code.as_str() {
+        "401" | "403" => RefineError::Permanent("err.api.unauthorized".to_string()),
+        "429" => RefineError::Transient("err.api.rate_limit".to_string()),
+        "500" | "501" | "502" | "503" | "504" => RefineError::Transient(
+            crate::i18n::key_with_args("err.api.temporary", &[&code, &detail_arg]),
+        ),
+        _ => RefineError::Permanent(crate::i18n::key_with_args(
+            "err.api.status",
+            &[&code, &detail_arg],
         )),
-        _ => RefineError::Permanent(with_detail(&format!("API respondeu {code}."), &detail)),
     }
 }
 
@@ -365,6 +374,8 @@ mod tests {
     // Trava o comportamento que decide PARA ONDE a chave de API é enviada e confirma
     // que as mensagens de erro NUNCA ecoam a chave (auditoria TEST-2). new() não faz
     // request, então rodam offline.
+    // As mensagens de erro agora são CHAVES i18n (traduzidas na borda). Os testes
+    // verificam a CHAVE e confirmam que ela jamais ecoa a chave de API (SECRET).
     #[test]
     fn new_rejects_non_http_schemes() {
         for url in ["file:///etc/passwd", "javascript:alert(1)", "ftp://host/x"] {
@@ -372,7 +383,7 @@ mod tests {
                 .err()
                 .unwrap()
                 .to_string();
-            assert!(e.contains("http(s)"), "url={url} msg={e}");
+            assert_eq!(e, "err.api.bad_url", "url={url}");
             assert!(!e.contains("SECRET"), "erro vazou a chave: {e}");
         }
     }
@@ -383,7 +394,7 @@ mod tests {
             .err()
             .unwrap()
             .to_string();
-        assert!(e.contains("https"), "msg={e}");
+        assert_eq!(e, "err.api.https_required", "msg={e}");
         assert!(!e.contains("SECRET"), "erro vazou a chave: {e}");
     }
 
@@ -407,12 +418,14 @@ mod tests {
         }
     }
 
+    // classify_status agora devolve CHAVES i18n (+ args via ARG_SEP). Traduzimos a
+    // mensagem com `i18n::tr_msg` antes de checar o texto user-facing.
     #[test]
     fn maps_auth_errors_to_invalid_key_and_no_retry() {
         for code in [401u16, 403] {
             let e = classify_status(code, "");
             assert!(!e.is_transient(), "{code} não deve repetir");
-            assert_eq!(e.into_message(), "Chave de API inválida ou sem permissão.");
+            assert_eq!(e.into_message(), "err.api.unauthorized");
         }
     }
 
@@ -420,8 +433,9 @@ mod tests {
     fn maps_429_to_rate_limit_and_retries() {
         let e = classify_status(429, "");
         assert!(e.is_transient());
+        assert_eq!(e.into_message(), "err.api.rate_limit");
         assert_eq!(
-            e.into_message(),
+            crate::i18n::tr_msg("pt-BR", "err.api.rate_limit"),
             "Limite de uso atingido. Tente em instantes."
         );
     }
@@ -431,7 +445,9 @@ mod tests {
         for code in [500u16, 502, 503, 504] {
             let e = classify_status(code, "");
             assert!(e.is_transient(), "{code} deve repetir");
-            assert!(e.into_message().contains(&code.to_string()));
+            // O código entra no texto traduzido (arg {0}).
+            let m = crate::i18n::tr_msg("pt-BR", &e.into_message());
+            assert!(m.contains(&code.to_string()), "msg={m}");
         }
     }
 
@@ -439,9 +455,9 @@ mod tests {
     fn maps_generic_4xx_to_permanent_with_status_and_body() {
         let e = classify_status(400, r#"{"error":{"message":"model not found"}}"#);
         assert!(!e.is_transient());
-        let m = e.into_message();
-        assert!(m.contains("400"));
-        assert!(m.contains("model not found"));
+        let m = crate::i18n::tr_msg("en", &e.into_message());
+        assert!(m.contains("400"), "msg={m}");
+        assert!(m.contains("model not found"), "msg={m}");
     }
 
     #[test]
@@ -496,10 +512,8 @@ mod tests {
             .err()
             .unwrap()
             .to_string();
-        assert!(
-            err.contains("inválida") || err.contains("permissão"),
-            "msg inesperada: {err}"
-        );
+        // refine() devolve a CHAVE crua (tradução é na borda).
+        assert_eq!(err, "err.api.unauthorized", "msg inesperada: {err}");
     }
 
     #[test]
@@ -517,10 +531,8 @@ mod tests {
             .err()
             .unwrap()
             .to_string();
-        assert!(
-            err.contains("rede") || err.contains("conexão"),
-            "msg inesperada: {err}"
-        );
+        // refine() devolve a CHAVE crua de rede (tradução é na borda).
+        assert_eq!(err, "err.api.network", "msg inesperada: {err}");
     }
 
     // ── A/B MANUAL: mesmo texto com few-shot ON vs OFF, nos presets pedidos.

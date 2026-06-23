@@ -176,7 +176,7 @@ pub fn estimate_tokens(text: &str) -> u64 {
 
 fn config_dir() -> Result<PathBuf> {
     let dir = dirs::config_dir()
-        .ok_or_else(|| anyhow!("Não achei a pasta de config do sistema."))?
+        .ok_or_else(|| anyhow!("err.config.no_dir"))?
         .join("imprompt");
     std::fs::create_dir_all(&dir).ok();
     Ok(dir)

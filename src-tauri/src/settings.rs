@@ -132,7 +132,7 @@ impl Settings {
     /// (No app real, prefira usar o `app_data_dir()` do Tauri.)
     fn path() -> Result<PathBuf> {
         let dir = dirs::config_dir()
-            .ok_or_else(|| anyhow!("Não achei a pasta de config do sistema."))?
+            .ok_or_else(|| anyhow!("err.config.no_dir"))?
             .join("imprompt");
         fs::create_dir_all(&dir).ok();
         Ok(dir.join("settings.json"))

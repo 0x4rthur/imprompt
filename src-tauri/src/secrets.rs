@@ -24,7 +24,12 @@ const USER: &str = "api_key";
 
 /// Abre a entrada do cofre pra (SERVICE, user).
 fn entry(user: &str) -> Result<Entry> {
-    Entry::new(SERVICE, user).map_err(|e| anyhow::anyhow!("Cofre de credenciais indisponível: {e}"))
+    Entry::new(SERVICE, user).map_err(|e| {
+        anyhow::anyhow!(crate::i18n::key_with_args(
+            "err.secret.vault_unavailable",
+            &[&e.to_string()]
+        ))
+    })
 }
 
 /// Grava no cofre. Valor vazio = apaga (idempotente). Nunca logamos `value`.
@@ -33,9 +38,12 @@ fn store(user: &str, value: &str) -> Result<()> {
     if value.is_empty() {
         return clear(user);
     }
-    entry(user)?
-        .set_password(value)
-        .map_err(|e| anyhow::anyhow!("Falha ao salvar a chave no cofre: {e}"))?;
+    entry(user)?.set_password(value).map_err(|e| {
+        anyhow::anyhow!(crate::i18n::key_with_args(
+            "err.secret.save",
+            &[&e.to_string()]
+        ))
+    })?;
     Ok(())
 }
 
@@ -61,7 +69,10 @@ fn clear(user: &str) -> Result<()> {
     match entry.delete_credential() {
         Ok(()) => Ok(()),
         Err(KeyringError::NoEntry) => Ok(()), // já não havia nada pra apagar
-        Err(e) => Err(anyhow::anyhow!("Falha ao apagar a chave do cofre: {e}")),
+        Err(e) => Err(anyhow::anyhow!(crate::i18n::key_with_args(
+            "err.secret.delete",
+            &[&e.to_string()]
+        ))),
     }
 }
 

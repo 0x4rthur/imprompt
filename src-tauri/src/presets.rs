@@ -231,7 +231,7 @@ pub fn find_preset(presets: &[Preset], id: &str) -> Preset {
 /// Caminho do arquivo de presets do usuário, ao lado do settings.json.
 fn user_presets_path() -> Result<PathBuf> {
     let dir = dirs::config_dir()
-        .ok_or_else(|| anyhow!("Não achei a pasta de config do sistema."))?
+        .ok_or_else(|| anyhow!("err.config.no_dir"))?
         .join("imprompt");
     std::fs::create_dir_all(&dir).ok();
     Ok(dir.join("presets_user.json"))
