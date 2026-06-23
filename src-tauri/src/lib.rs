@@ -55,6 +55,23 @@ impl commands::TrayRelabel for TrayItems {
     }
 }
 
+/// Mostra a janela principal e a traz pro PRIMEIRO PLANO de forma robusta no
+/// Windows. A janela é só ESCONDIDA ao fechar (close→hide), então `show()` a
+/// revela e `unminimize()` cobre o caso minimizado. O pulo do gato: um clique na
+/// BANDEJA deixa o foreground do Windows na Explorer (a shell), não no app, então
+/// `set_focus()` sozinho costuma só piscar a barra de tarefas em vez de trazer a
+/// janela pra frente (foreground-lock). Um pulso de always-on-top (TOPMOST) fura
+/// isso mexendo só no z-order — sem precisar de direito de foreground.
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_always_on_top(true);
+        let _ = w.set_always_on_top(false);
+        let _ = w.set_focus();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let loaded = Settings::load();
@@ -68,10 +85,9 @@ pub fn run() {
                 // Refina usando o motor (cliente de API) em cache da instância atual.
                 let h = app.clone();
                 std::thread::spawn(move || run_refine_flow(&h));
-            } else if let Some(w) = app.get_webview_window("main") {
+            } else {
                 // 2ª abertura normal → traz a janela de Preferências pra frente.
-                let _ = w.show();
-                let _ = w.set_focus();
+                show_main_window(app);
             }
         }))
         .plugin(tauri_plugin_shell::init())
@@ -172,19 +188,11 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        if let Some(w) = tray.app_handle().get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
+                        show_main_window(tray.app_handle());
                     }
                 })
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "prefs" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
+                    "prefs" => show_main_window(app),
                     "undo" => {
                         // Numa thread: o "colar" precisa do menu fechado e do foco
                         // de volta no app de origem.
@@ -194,10 +202,7 @@ pub fn run() {
                     "update" => {
                         // Mostra Preferências (onde o banner de update aparece) e
                         // checa sob demanda (explícito: avisa achando ou não).
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
+                        show_main_window(app);
                         spawn_update_check(app.clone(), true);
                     }
                     "quit" => app.exit(0),
@@ -488,7 +493,7 @@ fn undo_last_refine(app: &tauri::AppHandle) {
     let Some(original) = original else {
         notify(
             app,
-            i18n::tr(&loc, "notif.update.title"),
+            i18n::tr(&loc, "notif.undo.title"),
             i18n::tr(&loc, "notif.undo.none"),
         );
         return;
