@@ -445,6 +445,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none
 input[type=range]::-moz-range-thumb{width:16px; height:16px; border:0; border-radius:var(--rad-btn); background:var(--ink); cursor:pointer}
 
 .foot{text-align:left; color:var(--stone); font-size:12.5px; margin-top:20px; line-height:1.6}
+
+/* Suporte / doação (aba Sobre). O ícone hand-heart anima no hover do botão. */
+.support{border-top:1px solid var(--line); margin-top:24px; padding-top:20px}
+.support-title{font-size:13.5px; font-weight:500; color:var(--ink); letter-spacing:.01em; margin:0 0 6px}
+.support-desc{font-size:12.5px; color:var(--stone); line-height:1.5; margin:0 0 14px}
+.donate{display:inline-flex; align-items:center; gap:9px; cursor:pointer; border:0; color:var(--on-ink); background:var(--ink); font-size:13px; font-weight:500; border-radius:var(--rad-btn); padding:9px 16px 9px 14px; transition:filter .16s}
+.donate:hover{filter:brightness(1.18)}
+.hh-heart{transform-box:fill-box; transform-origin:center}
+.donate:hover .hh-heart{animation:hh-pulse .55s ease-in-out}
+.donate:hover .hh-hand{animation:hh-bob .55s ease-in-out}
+@keyframes hh-pulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.32)}}
+@keyframes hh-bob{0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)}}
+@media (prefers-reduced-motion: reduce){ .donate:hover .hh-heart, .donate:hover .hh-hand{animation:none} }
 *:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:2px}
 
 /* ── Estados de erro / feedback inline ───────────────────────────────────── */

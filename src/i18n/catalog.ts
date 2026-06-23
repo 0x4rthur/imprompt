@@ -262,6 +262,9 @@ const en = {
   // Toggle de idioma.
   "geral.language": "Language",
   "geral.language.help": "Choose the interface language.",
+  "geral.support.title": "Support Imprompt",
+  "geral.support.desc": "Open-source and free. If it helps you, you can support the project.",
+  "geral.support.button": "Donate",
 } as const;
 
 const ptBR: Record<keyof typeof en, string> = {
@@ -466,6 +469,9 @@ const ptBR: Record<keyof typeof en, string> = {
   "geral.autostart.off.help": "Abra o Imprompt manualmente quando quiser usá-lo.",
   "geral.language": "Idioma",
   "geral.language.help": "Escolha o idioma da interface.",
+  "geral.support.title": "Apoiar o Imprompt",
+  "geral.support.desc": "Open-source e gratuito. Se ele te ajuda, você pode apoiar o projeto.",
+  "geral.support.button": "Doar",
 };
 
 export const CATALOG = { en, "pt-BR": ptBR } as const;

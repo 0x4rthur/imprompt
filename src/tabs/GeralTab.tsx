@@ -1,10 +1,17 @@
 // GeralTab.tsx — aba "Geral": iniciar com o sistema (autostart) + idioma da UI.
 // O estado real do autostart é a fonte da verdade do plugin; vive no App.
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import type { Settings } from "../types";
 import { setLocale } from "../i18n";
 import { useT } from "../i18n/useT";
+import HandHeartIcon from "../HandHeartIcon";
+
+// Link de pagamento da Stripe (doação), aberto no navegador via `open_url`.
+// ATENÇÃO: hoje é um link de TESTE (test_…) — não cobra de verdade. Troque pelo
+// de PRODUÇÃO (https://buy.stripe.com/… sem "test_") pra receber doações reais.
+const DONATE_URL = "https://buy.stripe.com/test_4gM7sK4Tz23E0JAbUl93y00";
 
 type Props = {
   autostart: boolean;
@@ -48,6 +55,16 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
                   onClick={() => { setLocale("pt-BR"); update({ locale: "pt-BR" }); }}>Português</button>
         </div>
         <p className="help">{t("geral.language.help")}</p>
+      </div>
+
+      {/* Apoiar o projeto — doação via Stripe (abre no navegador). */}
+      <div className="support">
+        <p className="support-title">{t("geral.support.title")}</p>
+        <p className="support-desc">{t("geral.support.desc")}</p>
+        <button className="donate" onClick={() => { invoke("open_url", { url: DONATE_URL }).catch(console.error); }}>
+          <HandHeartIcon size={18} />
+          {t("geral.support.button")}
+        </button>
       </div>
 
       {version && <p className="foot">Imprompt v{version}</p>}
