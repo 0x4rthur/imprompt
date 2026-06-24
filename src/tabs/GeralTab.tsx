@@ -9,9 +9,8 @@ import { useT } from "../i18n/useT";
 import HandHeartIcon from "../HandHeartIcon";
 
 // Link de pagamento da Stripe (doação), aberto no navegador via `open_url`.
-// ATENÇÃO: hoje é um link de TESTE (test_…) — não cobra de verdade. Troque pelo
-// de PRODUÇÃO (https://buy.stripe.com/… sem "test_") pra receber doações reais.
-const DONATE_URL = "https://buy.stripe.com/test_4gM7sK4Tz23E0JAbUl93y00";
+// Link de PRODUÇÃO — recebe doações reais.
+const DONATE_URL = "https://donate.stripe.com/4gM7sK4Tz23E0JAbUl93y00";
 
 type Props = {
   autostart: boolean;
