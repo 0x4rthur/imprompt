@@ -1,165 +1,148 @@
 # Imprompt
 
-**Melhore qualquer prompt sem sair do lugar. Rápido, via API, sem trocar de janela.**
+**Refine any prompt in place — fast, API-powered, without leaving your window.**
 
-Selecione um texto em qualquer aplicativo, dê um **duplo Ctrl+C**, e o Imprompt
-reescreve/aprimora o seu prompt na hora — substituindo no lugar ou deixando
-pronto pra colar. O refino roda numa **API de LLM** no formato OpenAI (OpenAI,
-OpenRouter, DeepSeek, Gemini e compatíveis): você escolhe o provedor e o modelo.
+Select text in any app, hit **Ctrl+C twice**, and Imprompt rewrites it into a clearer,
+stronger prompt right where you are — replacing the selection or leaving it on your
+clipboard. Refinement runs on an **OpenAI-format LLM API** (OpenAI, OpenRouter, DeepSeek,
+Gemini, and compatibles): you pick the provider and model.
 
-Inspirado na arquitetura do [Handy](https://github.com/cjpais/Handy) (o app
-open-source de transcrição), trocando o modelo de fala-pra-texto por um **LLM**
-dedicado a melhorar prompts.
+Imprompt is a small, fast desktop app built with **Tauri 2** (Rust + React). The interface
+is bilingual — **English / Português**.
 
 ---
 
-## Como funciona (visão geral)
+## How it works
 
 ```
-   Você seleciona texto  →  Ctrl+C (copia)  →  Ctrl+C (ativa, dentro de ~400ms)
-                                                        │
-                                                        ▼
-                              ┌──────────────────────────────────────────┐
-                              │  Imprompt (rodando em segundo plano)       │
-                              │                                            │
-                              │  1. lê o texto do clipboard                │
-                              │  2. mostra a janelinha "Refinando…"      │
-                              │  3. refina com o preset escolhido          │
-                              │     (chamada à API do provedor)            │
-                              │  4. entrega: substitui no lugar OU clipboard│
-                              └──────────────────────────────────────────┘
+  Select text  →  Ctrl+C (copy)  →  Ctrl+C again (within ~400 ms)
+                                           │
+                                           ▼
+                       ┌──────────────────────────────────────────┐
+                       │  Imprompt (running in the system tray)     │
+                       │    1. reads the selected text              │
+                       │    2. shows a tiny "Imprompting…" badge     │
+                       │    3. refines it with the chosen preset    │
+                       │       (a call to your LLM provider)        │
+                       │    4. replaces the selection OR copies it  │
+                       └──────────────────────────────────────────┘
 ```
 
-Dois modos (configuráveis nas Preferências):
+**Two modes** (configurable in the *Shortcut* tab):
 
-- **Instantâneo (padrão):** usa o seu preset padrão na hora, sem popup. Mais rápido.
-- **Popup:** abre uma janelinha pra você escolher o preset a cada ativação.
+- **Instant (default)** — uses your default preset immediately, no popup. Fastest.
+- **Popup** — opens a small window to pick the preset on each trigger.
 
-E o resultado pode **substituir o texto** automaticamente ou ir **pro clipboard**
-(você dá Ctrl+V onde quiser).
-
----
-
-## Decisões de arquitetura
-
-| Decisão | Escolha | Por quê |
-|---|---|---|
-| Casca do app | **Tauri 2** (Rust + React) | Leve, multiplataforma, mesma do Handy |
-| Motor de IA | **API externa** (compatível com OpenAI) | Qualidade e velocidade muito melhores, sem o peso de um modelo na máquina |
-| Provedores | OpenAI, OpenRouter, DeepSeek, Gemini… | Só trocar a **Base URL** e o **modelo** |
-| Chave de API | **Cofre de credenciais do SO** | Windows Credential Manager / macOS Keychain / Linux Secret Service — nunca em texto puro no disco |
-| Gatilho | **Ctrl+C×2 com debounce** | O 1º Ctrl+C é o copy normal; o 2º (rápido) ativa. Não quebra o copy do sistema |
-| Presets | **System prompts** | Adicionar preset = adicionar texto. Sem retreino |
-
-### Por que só API (e não um modelo local)?
-
-A ideia original previa um modelo local embutido (llama.cpp). Mas, **pelos testes,
-rodar um modelo local não compensava para este app**: a qualidade e a latência num
-modelo pequeno o suficiente pra rodar na máquina do usuário ficavam aquém do que a
-tarefa exige, e o app inchava (vários GB de modelo, build nativo pesado, GPU/CUDA).
-
-A API entrega qualidade e velocidade muito superiores por **centavos por refino**.
-O trade-off consciente é que o texto selecionado **sai da máquina** para o provedor
-que você configurar — a UI deixa isso explícito. A chave de API fica no **cofre de
-credenciais do sistema**, nunca em texto puro.
+The result can **replace the selected text** automatically or go to the **clipboard**
+(paste it wherever you want).
 
 ---
 
-## Estrutura do projeto
+## Features
 
-```
-imprompt/
-├── README.md                    ← você está aqui
-├── package.json                 ← deps do frontend (React + Vite + Tauri CLI)
-├── vite.config.ts               ← multi-página: main / loader / popup
-├── index.html                   ← janela de Preferências
-├── loader.html                  ← micro-janela "Refinando…" (sem bordas)
-├── popup.html                   ← janela do modo popup
-├── src/
-│   ├── main.tsx                 ← entry React
-│   ├── App.tsx                  ← UI de Preferências (abas, presets, modos)
-│   ├── popup.tsx                ← janela do modo popup
-│   ├── ConnectionStatus.tsx     ← saúde da conexão com o provedor de API
-│   ├── tabs/                    ← abas: Início, Motor (API), Presets, Gatilho, Geral
-│   └── styles.css               ← design tokens (tema ink + warm/cool)
-└── src-tauri/
-    ├── Cargo.toml               ← deps Rust (tauri, reqwest, rdev, arboard, enigo, keyring…)
-    ├── tauri.conf.json          ← config das janelas, tray, bundle
-    ├── build.rs
-    └── src/
-        ├── main.rs              ← ponto de entrada do binário
-        ├── lib.rs               ← cola tudo: sobe o gatilho, roda o FLUXO
-        ├── api_engine.rs        ← ★ o motor: chama a API (formato OpenAI) e refina
-        ├── engine.rs            ← ★ trait Engine + clean_output (saneamento da saída)
-        ├── presets.rs           ← ★ os presets + montagem do system prompt
-        ├── hotkey.rs            ← ★ detector de Ctrl+C×2 com debounce
-        ├── clipboard.rs         ← captura a seleção + cola de volta
-        ├── secrets.rs           ← chave de API no cofre de credenciais do SO
-        ├── usage.rs             ← contador de uso/custo da API (por mês)
-        ├── settings.rs          ← preferências + persistência em JSON
-        └── commands.rs          ← comandos Tauri (ponte com a UI)
-```
-
-★ = os módulos com a lógica de verdade, que valem a leitura primeiro.
+- **In-place refinement** via Ctrl+C×2 — works in any app and doesn't break a normal copy
+  (the first Ctrl+C is the real copy; the second, quick one triggers Imprompt).
+- **Presets** — each is just a system prompt. Built-ins: *Structure*, *Code prompt*,
+  *Fix & clarify*, *Translate to English*, *Front-end*. Create, edit, duplicate, or restore your own.
+- **Any OpenAI-compatible provider** — just set the Base URL and the model.
+- **API key in the OS credential vault** — Windows Credential Manager / macOS Keychain /
+  Linux Secret Service — never stored in plain text on disk.
+- **Bilingual UI** — English (default) and Português, switchable in the *General* tab.
+- **System tray** — runs in the background: open the app, undo the last imprompt, check for
+  updates, quit.
+- Monthly **usage/cost counter**, session **history with undo**, optional **auto-start**, and
+  **signed auto-updates**.
 
 ---
 
-## O que já está pronto
+## Install
 
-- Motor de API (formato OpenAI) com timeout/deadline e mensagens de erro claras (`api_engine.rs`)
-- Saneamento da saída do modelo, com testes (`engine.rs`)
-- Detector de Ctrl+C×2 com debounce, com testes (`hotkey.rs`)
-- Os presets e a montagem do system prompt (`presets.rs`)
-- Captura de clipboard + colagem multiplataforma (`clipboard.rs`)
-- Chave de API no cofre do SO + teste de conexão (`secrets.rs`, `commands.rs`)
-- Contador de uso/custo do mês (`usage.rs`)
-- Persistência de preferências (`settings.rs`)
-- O FLUXO completo do gatilho à entrega, com histórico e "desfazer" (`lib.rs`)
-- UI de Preferências funcional (abas Início/Motor/Presets/Gatilho/Geral), ligada ao backend
-- Bandeja (tray), auto-start no boot e atualização automática assinada (ver `UPDATER.md`)
+Download the installer from the [Releases](https://github.com/0x4rthur/imprompt/releases) page
+(when available), or **build from source** (below). Windows is the primary target today;
+macOS and Linux build from the same source.
 
 ---
 
-## Como rodar
+## Build from source
 
-Pré-requisitos: [Rust](https://rustup.rs), [Node.js](https://nodejs.org) e as
-[dependências de sistema do Tauri](https://tauri.app/start/prerequisites/).
-(Não é mais necessário clang/CMake/CUDA — o app não compila nada em C++.)
+Prerequisites: [Rust](https://rustup.rs), [Node.js](https://nodejs.org), and the
+[Tauri 2 system dependencies](https://tauri.app/start/prerequisites/). No C/C++ toolchain or
+GPU stack is needed — the app doesn't compile any native model.
 
 ```bash
-# 1. instalar deps do frontend
+git clone https://github.com/0x4rthur/imprompt.git
+cd imprompt
 npm install
 
-# 2. rodar em modo dev (abre a janela de Preferências, recompila ao salvar)
+# run in dev (opens Preferences, hot-reloads the frontend)
 npm run tauri dev
 
-# 3. gerar o app instalável
+# build the installable app
 npm run tauri build
 ```
 
-### Configurar a API
+---
 
-Abra as **Preferências → aba Motor**, informe a **Base URL** (ex.:
-`https://api.openai.com/v1`), o **modelo** (ex.: `gpt-4o-mini`) e a **chave de API**,
-e clique em **"Aplicar e testar"**. A chave é guardada no cofre de credenciais do
-sistema; a Base URL e o modelo ficam no `settings.json`.
+## Usage
+
+1. Open **Preferences** (from the tray, or on first launch) → the **API** tab.
+2. Set the **Base URL** (e.g. `https://api.openai.com/v1`), the **model** (e.g. `gpt-4o-mini`),
+   and your **API key**, then click **Apply & test**.
+3. Pick a default preset, or switch the trigger to **Popup** mode in the **Shortcut** tab.
+4. In any app: select text → **Ctrl+C, Ctrl+C** → your refined prompt replaces the selection
+   (or lands on the clipboard).
+
+It costs a few cents per refine on small models, and the app tracks your monthly usage.
+
+> **Privacy:** the text you select is sent to the API provider you configure. The UI states
+> this explicitly. Your API key stays in the OS credential vault, never in plain text.
 
 ---
 
-## Próximos passos sugeridos
+## Why API-only (and not a bundled local model)?
 
-1. Presets customizáveis pelo usuário (já dá: é só persistir uma lista de `Preset`).
-2. Atalho configurável (hoje o Ctrl+C×2 e a janela de ~400ms estão fixos).
-3. Auto-start no boot com opção de iniciar escondido (igual o Handy: `--start-hidden`).
-4. Streaming da resposta da API no popup (mostrar o texto chegando token a token).
-
----
-
-## Licença
-
-Defina a sua.
+An earlier design embedded a local model (llama.cpp). In testing, a model small enough to run
+on a user's machine fell short on quality and latency, and bloated the app (multi-GB weights,
+heavy native build, GPU/CUDA). A hosted API delivers much better quality and speed for a few
+cents per refine — the conscious trade-off being that the selected text leaves the machine.
 
 ---
 
-*Construído usando o Handy como referência de arquitetura. Obrigado ao
-[@cjpais](https://github.com/cjpais) pelo trabalho open-source.*
+## Contributing
+
+Issues and PRs are welcome. Before opening a PR, run the project's checks:
+
+```bash
+# backend (Rust)
+cd src-tauri
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+
+# frontend (from the repo root)
+npm run typecheck
+npm run test        # i18n catalog parity
+npm run build
+```
+
+The core logic lives in `src-tauri/src/`: `api_engine.rs` (the engine), `presets.rs` (the
+prompts + system-prompt assembly), `hotkey.rs` (the Ctrl+C×2 detector), and `lib.rs` (the
+trigger → deliver flow). The frontend is in `src/` (React + a small custom i18n in `src/i18n/`).
+
+---
+
+## Support
+
+Imprompt is free and open-source. If it helps you, you can
+[support the project](https://donate.stripe.com/4gM7sK4Tz23E0JAbUl93y00) ♥
+
+---
+
+## License
+
+[MIT](LICENSE) © 0x4rthur
+
+---
+
+*Architecture inspired by [Handy](https://github.com/cjpais/Handy), the open-source
+transcription app — thanks to [@cjpais](https://github.com/cjpais).*
