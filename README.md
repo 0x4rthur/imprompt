@@ -129,6 +129,9 @@ The core logic lives in `src-tauri/src/`: `api_engine.rs` (the engine), `presets
 prompts + system-prompt assembly), `hotkey.rs` (the Ctrl+C×2 detector), and `lib.rs` (the
 trigger → deliver flow). The frontend is in `src/` (React + a small custom i18n in `src/i18n/`).
 
+Design notes for the major features live in [`docs/design/`](docs/design/), and the
+auto-update + release-signing guide is in [`docs/UPDATER.md`](docs/UPDATER.md).
+
 ---
 
 ## Support

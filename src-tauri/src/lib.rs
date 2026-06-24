@@ -99,7 +99,7 @@ pub fn run() {
         // não tem janela pra mostrar o erro.
         .plugin(tauri_plugin_notification::init())
         // Updater oficial (desktop): checa/baixa/instala releases assinados com a
-        // chave cuja pública está no tauri.conf.json (ver UPDATER.md).
+        // chave cuja pública está no tauri.conf.json (ver docs/UPDATER.md).
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::new(loaded))
         .invoke_handler(tauri::generate_handler![

@@ -32,7 +32,7 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-notification = "2"
 # Atualização automática (updater oficial do Tauri 2). Desktop-only, como os
 # plugins acima. A chave pública fica no tauri.conf.json; o release é assinado
-# com a privada (ver UPDATER.md).
+# com a privada (ver docs/UPDATER.md).
 tauri-plugin-updater = "2"
 
 # --- Gatilho global de teclado (Ctrl+C×2) — mesma escolha do Handy ---
