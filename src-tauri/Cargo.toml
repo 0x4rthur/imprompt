@@ -1,6 +1,6 @@
 [package]
 name = "imprompt"
-version = "0.1.0"
+version = "0.1.1"
 description = "Melhore qualquer prompt sem sair do lugar — via API, sem trocar de janela."
 authors = ["0x4rthur"]
 edition = "2021"

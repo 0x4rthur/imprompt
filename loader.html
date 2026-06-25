@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <title>Imprompt</title>
     <style>
-      /* Tema "Mono / Cream" (igual ao app); micro-janela transparente. */
-      html,body{margin:0; background:transparent; overflow:hidden}
+      /* Tema "Mono / Cream" (igual ao app); janela OPACA — sem transparência, pra
+         não revelar o desktop atrás (o "vidro"). A sombra é nativa da janela. */
+      html,body{margin:0; height:100%; overflow:hidden}
+      body{ background:#fcfcfd; border:1px solid rgba(24,24,27,.16); box-sizing:border-box }
       .imprompting{
-        display:inline-flex; align-items:center; gap:11px;
-        background:#fcfcfd; border:1px solid rgba(24,24,27,.16);
-        border-radius:5px; padding:11px 16px 11px 12px; margin:6px;
-        box-shadow:0 10px 30px rgba(24,24,27,.18);
+        display:flex; align-items:center; justify-content:center; gap:11px;
+        height:100%; box-sizing:border-box; padding:0 16px;
         font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
       }
       .glyph{line-height:0; display:inline-flex}

@@ -374,26 +374,33 @@ fn run_refine_flow(app: &tauri::AppHandle) {
 /// quando o refino acaba. É o indicador de processamento durante o refino.
 fn show_loader(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("loader") {
-        // Já existe (reuso entre ativações): só mostra. Loga falha em vez de
-        // engolir — se a janelinha não aparecer, o usuário fica sem feedback.
+        // Já existe (reuso entre ativações): re-ancora perto do cursor e mostra.
+        // Loga falha em vez de engolir — sem a janelinha o usuário fica sem feedback.
+        position_loader(app, &win);
         if let Err(e) = win.show() {
             eprintln!("[loader] falha ao mostrar a janelinha: {e}");
         }
         return;
     }
-    // 1ª vez: constrói a micro-janela. Loga falha de build (build silencioso
-    // deixaria o refino rodando sem nenhum indicador visível).
-    if let Err(e) = WebviewWindowBuilder::new(app, "loader", WebviewUrl::App("loader.html".into()))
+    // 1ª vez: constrói a micro-janela OPACA (sombra nativa, SEM transparência —
+    // janela transparente revela o desktop atrás, que é o efeito "vidro"). Constrói
+    // oculta, posiciona perto do cursor e só então mostra (sem flash no canto).
+    match WebviewWindowBuilder::new(app, "loader", WebviewUrl::App("loader.html".into()))
         .title("Imprompt")
-        .inner_size(190.0, 56.0)
+        .inner_size(210.0, 46.0)
         .decorations(false)
         .always_on_top(true)
         .resizable(false)
         .skip_taskbar(true)
-        .transparent(true)
+        .shadow(true)
+        .visible(false)
         .build()
     {
-        eprintln!("[loader] falha ao criar a janelinha: {e}");
+        Ok(win) => {
+            position_loader(app, &win);
+            let _ = win.show();
+        }
+        Err(e) => eprintln!("[loader] falha ao criar a janelinha: {e}"),
     }
 }
 
@@ -570,6 +577,51 @@ fn position_popup(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
     let max_y = (p.y + s.height as i32 - h - margin).max(min_y);
     let x = (pcx - w / 2).clamp(min_x, max_x);
     let y = (pcy - h / 2).clamp(min_y, max_y);
+    let _ = win.set_position(PhysicalPosition::new(x, y));
+}
+
+/// Posiciona a micro-janela do loader logo abaixo/à direita do cursor (estilo
+/// tooltip), com clamp na área do monitor sob o cursor pra caber inteira. Ao
+/// contrário do popup, o loader é pequeno e NÃO puxa pro centro — fica colado
+/// onde o texto foi copiado. Coordenadas FÍSICAS. Chamado a CADA exibição.
+fn position_loader(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
+    let cursor = match app.cursor_position() {
+        Ok(c) => c,
+        Err(_) => {
+            let _ = win.center();
+            return;
+        }
+    };
+    let (cx, cy) = (cursor.x as i32, cursor.y as i32);
+    let (w, h) = (210i32, 46i32);
+    let mon = app
+        .available_monitors()
+        .ok()
+        .and_then(|ms| {
+            ms.into_iter().find(|m| {
+                let p = m.position();
+                let s = m.size();
+                cx >= p.x && cx < p.x + s.width as i32 && cy >= p.y && cy < p.y + s.height as i32
+            })
+        })
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let m = match mon {
+        Some(m) => m,
+        None => {
+            let _ = win.center();
+            return;
+        }
+    };
+    let p = m.position();
+    let s = m.size();
+    let margin = 12;
+    // Offset pra não cobrir o ponteiro; clamp pra não vazar da tela.
+    let min_x = p.x + margin;
+    let min_y = p.y + margin;
+    let max_x = (p.x + s.width as i32 - w - margin).max(min_x);
+    let max_y = (p.y + s.height as i32 - h - margin).max(min_y);
+    let x = (cx + 16).clamp(min_x, max_x);
+    let y = (cy + 20).clamp(min_y, max_y);
     let _ = win.set_position(PhysicalPosition::new(x, y));
 }
 
