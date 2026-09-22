@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Imprompt",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "app.imprompt",
   "build": {
     "frontendDist": "../dist",
@@ -35,7 +35,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "createUpdaterArtifacts": false,
     "icon": [
       "icons/32x32.png",

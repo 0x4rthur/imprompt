@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-09-22",
+  "providers": [
+    {
+      "id": "openai", "label": "OpenAI", "base": "https://api.openai.com/v1", "model": "gpt-5.6-luna",
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "models": [
+        { "id": "gpt-5.6-luna", "name": "GPT-5.6 Luna", "category": "balanced", "input_per_1m": 0.2, "output_per_1m": 1.2, "description": { "en": "Our starting choice for everyday rewriting, translation and prompts.", "pt-BR": "Nossa escolha inicial para revisão, tradução e prompts do dia a dia." } },
+        { "id": "gpt-5-nano", "name": "GPT-5 Nano", "category": "economy", "input_per_1m": 0.05, "output_per_1m": 0.4, "description": { "en": "Lowest token price in this OpenAI selection. Start with short, straightforward tasks.", "pt-BR": "Menor preço por token nesta seleção da OpenAI. Comece por tarefas curtas e simples." } },
+        { "id": "gpt-4.1-nano", "name": "GPT-4.1 Nano", "category": "fast", "input_per_1m": 0.1, "output_per_1m": 0.4, "description": { "en": "Small, non-reasoning alternative for quick corrections and simple transformations.", "pt-BR": "Alternativa pequena, sem etapa de raciocínio, para correções rápidas e transformações simples." } },
+        { "id": "gpt-5.6-terra", "name": "GPT-5.6 Terra", "category": "advanced", "input_per_1m": 2, "output_per_1m": 12, "description": { "en": "For more demanding instructions and code prompts when a small model falls short.", "pt-BR": "Para instruções mais exigentes e prompts de código quando um modelo pequeno não atende." } }
+      ]
+    },
+    {
+      "id": "anthropic", "label": "Anthropic", "base": "https://api.anthropic.com/v1", "model": "claude-haiku-4-5",
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "models": [
+        { "id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "category": "economy", "input_per_1m": 1, "output_per_1m": 5, "description": { "en": "Lowest-cost current Claude option for everyday text work.", "pt-BR": "Opção atual de menor custo do Claude para trabalhar com textos do dia a dia." } },
+        { "id": "claude-sonnet-5", "name": "Claude Sonnet 5", "category": "balanced", "input_per_1m": 2, "output_per_1m": 10, "description": { "en": "An upgrade for nuanced writing and code, with a lower token price than Sonnet 4.6.", "pt-BR": "Uma opção para escrita com nuances e código, com preço por token menor que o Sonnet 4.6." } }
+      ]
+    },
+    {
+      "id": "openrouter", "label": "OpenRouter", "base": "https://openrouter.ai/api/v1", "model": "openai/gpt-5.6-luna",
+      "pricingUrl": "https://openrouter.ai/models",
+      "note": { "en": "Starting rates from OpenRouter's public catalog; routing and provider availability can change the final cost.", "pt-BR": "Preços a partir do catálogo público do OpenRouter; roteamento e disponibilidade dos provedores podem alterar o custo final." },
+      "models": [
+        { "id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna", "category": "balanced", "input_per_1m": 0.2, "output_per_1m": 1.2, "description": { "en": "A starting choice for everyday writing through OpenRouter.", "pt-BR": "Uma escolha inicial para escrita do dia a dia pelo OpenRouter." } },
+        { "id": "openai/gpt-oss-20b", "name": "GPT OSS 20B", "category": "economy", "input_per_1m": 0.018, "output_per_1m": 0.09, "description": { "en": "Lowest token price in this selection. Try it on simple edits before demanding work.", "pt-BR": "Menor preço por token nesta seleção. Experimente em edições simples antes de tarefas exigentes." } },
+        { "id": "qwen/qwen3.5-flash-02-23", "name": "Qwen 3.5 Flash", "category": "economy", "input_per_1m": 0.065, "output_per_1m": 0.26, "description": { "en": "An inexpensive alternative for comparing results on your own texts.", "pt-BR": "Alternativa econômica para comparar os resultados nos seus próprios textos." } },
+        { "id": "deepseek/deepseek-v4.1-flash", "name": "DeepSeek V4.1 Flash", "category": "balanced", "input_per_1m": 0.15, "output_per_1m": 0.6, "description": { "en": "A current DeepSeek option with OpenRouter's own routing and rates.", "pt-BR": "Opção atual da DeepSeek com roteamento e preços próprios do OpenRouter." } }
+      ]
+    },
+    {
+      "id": "deepseek", "label": "DeepSeek", "base": "https://api.deepseek.com/v1", "model": "deepseek-flash",
+      "pricingUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "note": { "en": "Peak rates shown. Off-peak input and output are 50% cheaper; the usage estimate uses peak rates.", "pt-BR": "Preços de pico. Fora do pico, entrada e saída custam 50% menos; a estimativa de uso considera o pico." },
+      "models": [
+        { "id": "deepseek-flash", "name": "DeepSeek V4.1 Flash", "category": "economy", "input_per_1m": 0.3, "output_per_1m": 1.2, "description": { "en": "The economical current DeepSeek choice for text and everyday code prompts.", "pt-BR": "A opção atual econômica da DeepSeek para textos e prompts de código do dia a dia." } },
+        { "id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro", "category": "advanced", "input_per_1m": 1.32, "output_per_1m": 3.96, "description": { "en": "For more demanding reasoning and instructions when Flash is not enough.", "pt-BR": "Para raciocínio e instruções mais exigentes quando o Flash não for suficiente." } }
+      ]
+    },
+    {
+      "id": "gemini", "label": "Gemini", "base": "https://generativelanguage.googleapis.com/v1beta/openai", "model": "gemini-3.5-flash-lite",
+      "pricingUrl": "https://ai.google.dev/gemini-api/docs/pricing",
+      "note": { "en": "Paid-tier text rates. Free-tier quotas depend on your account. Gemini 2.5 is restricted to previous users.", "pt-BR": "Preços de texto do plano pago. As cotas gratuitas dependem da conta. O Gemini 2.5 está restrito a usuários anteriores." },
+      "models": [
+        { "id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash-Lite", "category": "balanced", "input_per_1m": 0.3, "output_per_1m": 2.5, "description": { "en": "Current lightweight generation for translation and frequent text work.", "pt-BR": "Geração leve atual para tradução e trabalho frequente com textos." } },
+        { "id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash-Lite", "category": "economy", "input_per_1m": 0.25, "output_per_1m": 1.5, "description": { "en": "Cheaper previous generation, still available. Earliest announced retirement: May 7, 2027.", "pt-BR": "Geração anterior mais barata, ainda disponível. Retirada anunciada para, no mínimo, 7 de maio de 2027." } },
+        { "id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash", "category": "advanced", "input_per_1m": 0.75, "output_per_1m": 3.75,
+          "future_price": { "effective_from": "2027-01-01", "input_per_1m": 1.5, "output_per_1m": 7.5 },
+          "description": { "en": "For complex code and instructions. Promotional rates end December 31, 2026; prices then double.", "pt-BR": "Para código e instruções complexas. A promoção termina em 31 de dezembro de 2026; depois, os preços dobram." } }
+      ]
+    },
+    {
+      "id": "xai", "label": "xAI", "base": "https://api.x.ai/v1", "model": "grok-4.3",
+      "pricingUrl": "https://docs.x.ai/developers/pricing",
+      "note": { "en": "Rates for prompts below 200k tokens. Earlier Grok Fast models were retired; their aliases may redirect at different prices.", "pt-BR": "Preços para prompts abaixo de 200 mil tokens. Modelos Grok Fast antigos foram retirados; seus aliases podem redirecionar com outros preços." },
+      "models": [
+        { "id": "grok-4.3", "name": "Grok 4.3", "category": "balanced", "input_per_1m": 1.25, "output_per_1m": 2.5, "description": { "en": "Lower-cost general-purpose Grok for everyday text work.", "pt-BR": "Grok de uso geral com menor custo para trabalhar com textos do dia a dia." } },
+        { "id": "grok-build-0.1", "name": "Grok Build 0.1", "category": "code", "input_per_1m": 1, "output_per_1m": 2, "description": { "en": "A cheaper code-focused option; compare it on your code prompts.", "pt-BR": "Opção mais barata voltada a código; compare os resultados nos seus prompts de programação." } },
+        { "id": "grok-4.7", "name": "Grok 4.7", "category": "advanced", "input_per_1m": 2, "output_per_1m": 6, "description": { "en": "The latest general-purpose Grok for more demanding tasks, at a higher cost.", "pt-BR": "O Grok de uso geral mais recente para tarefas mais exigentes, com custo maior." } }
+      ]
+    }
+  ]
+}

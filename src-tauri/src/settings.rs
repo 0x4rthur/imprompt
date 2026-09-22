@@ -32,7 +32,7 @@ fn default_api_base() -> String {
     "https://api.openai.com/v1".into()
 }
 fn default_api_model() -> String {
-    "gpt-4o-mini".into()
+    crate::model_catalog::default_model()
 }
 fn default_use_examples() -> bool {
     true
@@ -78,6 +78,10 @@ pub struct Settings {
     /// Modelo da API (ex.: gpt-4o-mini).
     #[serde(default = "default_api_model")]
     pub api_model: String,
+    #[serde(default)]
+    pub api_format: crate::api_endpoint::ApiFormat,
+    #[serde(default)]
+    pub api_custom: bool,
     /// Usar exemplos few-shot (turnos do preset) no refino. Default on; a UI expõe
     /// um toggle pra A/B testar. `serde(default)` mantém settings.json antigos válidos.
     #[serde(default = "default_use_examples")]
@@ -118,6 +122,8 @@ impl Default for Settings {
             autostart: false,
             api_base_url: default_api_base(),
             api_model: default_api_model(),
+            api_format: crate::api_endpoint::ApiFormat::Auto,
+            api_custom: false,
             use_examples: default_use_examples(),
             trigger_modifier: default_trigger_modifier(),
             trigger_key: default_trigger_key(),
@@ -153,7 +159,7 @@ impl Settings {
         let settings: Settings = serde_json::from_str(&json).unwrap_or_default();
 
         if let Some(legacy_key) = extract_legacy_api_key(&json) {
-            if crate::secrets::save_api_key(&legacy_key).is_ok() {
+            if crate::secrets::save_api_key(&settings.api_base_url, &legacy_key).is_ok() {
                 // Reescreve o JSON já SEM o campo api_key (o struct não o tem mais).
                 if let Err(e) = settings.save() {
                     // A chave já está no cofre, mas a reescrita falhou: ela continua
@@ -168,6 +174,8 @@ impl Settings {
             // Não logamos a chave em nenhum caso.
         }
 
+        // Migration never sends the old shared credential to another provider.
+        let _ = crate::secrets::migrate_legacy_key(&settings.api_base_url);
         settings
     }
 

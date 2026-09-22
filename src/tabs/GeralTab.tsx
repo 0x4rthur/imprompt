@@ -7,6 +7,8 @@ import type { Settings } from "../types";
 import { setLocale } from "../i18n";
 import { useT } from "../i18n/useT";
 import HandHeartIcon from "../HandHeartIcon";
+import UpdateStatus from "../UpdateStatus";
+import type { AppUpdater } from "../useAppUpdater";
 
 // Link de pagamento da Stripe (doação), aberto no navegador via `open_url`.
 // Link de PRODUÇÃO — recebe doações reais.
@@ -18,9 +20,10 @@ type Props = {
   autostartErr: string;
   settings: Settings;
   update: (patch: Partial<Settings>) => Promise<void>;
+  updater: AppUpdater;
 };
 
-export default function GeralTab({ autostart, toggleAutostart, autostartErr, settings, update }: Props) {
+export default function GeralTab({ autostart, toggleAutostart, autostartErr, settings, update, updater }: Props) {
   const { t } = useT();
   const [version, setVersion] = useState("");
 
@@ -31,6 +34,15 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
 
   return (
     <section className="card">
+      <div className="field">
+        <label>{t("app.update.section")}</label>
+        <p className="help">{version ? t("app.update.installed", { version }) : "Imprompt"}</p>
+        <UpdateStatus updater={updater} />
+        <div className="api-row">
+          <button className="btn-dl" disabled={updater.checking || updater.installing} onClick={updater.check}>{t("app.update.check")}</button>
+          {updater.version && <button className="btn-dl primary" disabled={updater.checking || updater.installing} onClick={updater.install}>{t("app.update.btn")}</button>}
+        </div>
+      </div>
       {/* Iniciar com o sistema (autostart) */}
       <div className="field">
         <label>{t("geral.autostart")}</label>

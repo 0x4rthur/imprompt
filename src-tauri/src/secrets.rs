@@ -6,7 +6,7 @@
 //!   - macOS    → Keychain
 //!   - Linux    → Secret Service (GNOME Keyring / KWallet)
 //!
-//! Tudo fica sob service `"imprompt"` / user `"api_key"`. A chave só existe em
+//! Cada endpoint tem sua própria entrada sob service `"imprompt"`. A chave só existe em
 //! memória pelo tempo de uma operação; NUNCA é logada (nem em erro, nem em debug):
 //! os erros da `keyring` falam só da operação no cofre, não do valor.
 
@@ -48,19 +48,21 @@ fn store(user: &str, value: &str) -> Result<()> {
 }
 
 /// Lê do cofre. `None` se não houver nada salvo (ou o cofre falhar).
-fn read(user: &str) -> Option<String> {
-    let entry = entry(user).ok()?;
+fn read_checked(user: &str) -> Result<Option<String>> {
+    let entry = entry(user)?;
     match entry.get_password() {
-        Ok(v) if !v.trim().is_empty() => Some(v),
-        Ok(_) | Err(KeyringError::NoEntry) => None, // sem chave salva: caso esperado
-        Err(e) => {
-            // Falha transitória do cofre (bloqueado / Secret Service indisponível /
-            // Credential Manager inacessível). NUNCA logamos o valor — só a operação.
-            // Não tratamos como "sem chave" silenciosamente (diagnóstico enganoso).
-            eprintln!("[secrets] cofre indisponível ao ler a chave: {e}");
-            None
-        }
+        Ok(v) if !v.trim().is_empty() => Ok(Some(v)),
+        Ok(_) | Err(KeyringError::NoEntry) => Ok(None),
+        Err(_) => Err(anyhow::anyhow!(crate::i18n::key_with_args(
+            "err.secret.vault_unavailable",
+            &["read failed"],
+        ))),
     }
+}
+
+#[cfg(test)]
+fn read(user: &str) -> Option<String> {
+    read_checked(user).ok().flatten()
 }
 
 /// Apaga do cofre. "Não existe" conta como sucesso (idempotente).
@@ -79,21 +81,37 @@ fn clear(user: &str) -> Result<()> {
 // ── API pública (a chave da API externa) ─────────────────────────────────────
 
 /// Grava a chave da API no cofre do SO. Chave vazia = apaga (idempotente).
-pub fn save_api_key(key: &str) -> Result<()> {
-    store(USER, key)
+fn account(base_url: &str) -> Result<String> {
+    let endpoint =
+        crate::api_endpoint::Endpoint::parse(base_url, crate::api_endpoint::ApiFormat::Auto)?;
+    Ok(format!("api_key:{}", endpoint.base))
+}
+
+pub fn save_api_key(base_url: &str, key: &str) -> Result<()> {
+    store(&account(base_url)?, key)
 }
 
 /// Lê a chave da API do cofre — nunca propaga o valor por outro canal.
-pub fn load_api_key() -> Option<String> {
-    read(USER)
+pub fn load_api_key(base_url: &str) -> Result<Option<String>> {
+    read_checked(&account(base_url)?)
 }
 
-/// Apaga a chave da API do cofre. Faz parte da API pública do módulo (pedida no
-/// escopo); hoje a remoção pela UI passa por `save_api_key("")`, então mantemos
-/// esta função disponível sem warning de código morto.
-#[allow(dead_code)]
-pub fn delete_api_key() -> Result<()> {
-    clear(USER)
+/// Bind the old shared key only to the endpoint selected before this upgrade.
+/// A durable marker prevents rebinding if deleting the legacy entry fails.
+pub fn migrate_legacy_key(base_url: &str) -> Result<()> {
+    let target = account(base_url)?;
+    let owner = read_checked("legacy_api_key_owner")?;
+    if owner.as_ref().is_some_and(|owner| owner != &target) {
+        return Ok(());
+    }
+    if let Some(key) = read_checked(USER)? {
+        store("legacy_api_key_owner", &target)?;
+        if read_checked(&target)?.is_none() {
+            store(&target, &key)?;
+        }
+        clear(USER)?;
+    }
+    Ok(())
 }
 
 /// Mascara a chave pra exibir na UI sem vazar o valor (ex.: "sk-…AB12").
@@ -120,6 +138,31 @@ mod tests {
     // Valores de teste — user dedicado pra NÃO tocar na chave real do app ("api_key").
     const SELFTEST_USER: &str = "selftest";
     const SENTINEL: &str = "sk-selftest-DO-NOT-USE-9999";
+
+    #[test]
+    fn credentials_are_scoped_to_the_canonical_endpoint() {
+        use super::account;
+        assert_eq!(
+            account(" https://api.openai.com/v1/ ").unwrap(),
+            account("https://api.openai.com/v1/chat/completions").unwrap()
+        );
+        assert_eq!(
+            account("https://api.openai.com").unwrap(),
+            account("https://api.openai.com/v1/responses").unwrap()
+        );
+        assert_ne!(
+            account("https://api.openai.com/v1").unwrap(),
+            account("https://openrouter.ai/api/v1").unwrap()
+        );
+        assert_ne!(
+            account("https://proxy.example/team-a/v1").unwrap(),
+            account("https://proxy.example/team-b/v1").unwrap()
+        );
+        assert_ne!(
+            account("http://localhost:1234/v1").unwrap(),
+            account("http://localhost:11434/v1").unwrap()
+        );
+    }
 
     // ── Testes de integração que tocam o COFRE REAL do SO ──────────────────────
     // Marcados `#[ignore]` → não rodam no `cargo test` normal nem em CI sem cofre.

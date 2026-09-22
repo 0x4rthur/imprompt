@@ -2,26 +2,25 @@
 //!
 //! Implementa a `trait Engine` (única implementação hoje), então o resto do app
 //! fala com a trait e não precisa saber que por baixo é uma chamada HTTP. Um único
-//! cliente cobre OpenAI, OpenRouter, DeepSeek, Gemini etc.: basta trocar a
-//! `base_url` e o `model`.
+//! cliente cobre Chat Completions, Responses e Anthropic Messages.
 //!
 //! IMPORTANTE: usa `reqwest::blocking`, que NÃO pode rodar dentro do runtime
 //! async do tokio (entra em pane). Por isso `refine` só é chamado de uma
 //! `std::thread` real (o `refine_text` e o fluxo do gatilho fazem isso). O
-//! `ApiEngine::new` só constrói o cliente (não faz request), então pode ser
-//! criado em qualquer thread.
+//! A construção e destruição do cliente também ficam fora do runtime async.
 
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use serde_json::{json, Value};
 
+use crate::api_endpoint::{ApiFormat, Endpoint};
 use crate::engine::{clean_output, Engine};
 use crate::usage::{estimate_tokens, UsageTracker};
 
-/// Timeout por requisição. Refino é curto; 20s cobre folgado e evita travar o
-/// gatilho quando a API some.
-const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+/// Reasoning models can need longer even for a short refinement.
+const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(90);
 
 /// Quantas RETENTATIVAS após a 1ª falha transitória (total = 1 + MAX_RETRIES).
 const MAX_RETRIES: usize = 2;
@@ -33,17 +32,16 @@ const BACKOFFS: [std::time::Duration; MAX_RETRIES] = [
 ];
 
 /// Teto GLOBAL de latência da cadeia de tentativas. Não iniciamos uma nova
-/// tentativa se ela puder estourar isto — blinda o pior caso (timeouts repetidos
-/// ~3×20s) sem deixar o usuário esperando ~1 min. Erros rápidos (429/5xx) ainda
-/// fazem todas as retentativas; um timeout cheio (~20s) não dispara outra.
-const TOTAL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(25);
+/// tentativa se ela puder estourar isto. Erros rápidos (429/5xx) ainda
+/// fazem todas as retentativas; um timeout cheio não dispara outra.
+const TOTAL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(95);
 
 /// Chave i18n pra falha de transporte (timeout / sem conexão / DNS). A tradução
 /// acontece na BORDA (comando/notify) via `i18n::tr_msg`.
 const MSG_NETWORK: &str = "err.api.network";
 
 pub struct ApiEngine {
-    base_url: String,
+    endpoint: Endpoint,
     model: String,
     api_key: String,
     client: reqwest::blocking::Client,
@@ -53,33 +51,29 @@ pub struct ApiEngine {
 }
 
 impl ApiEngine {
+    #[cfg(test)]
     pub fn new(base_url: &str, model: &str, api_key: &str) -> Result<Self> {
+        Self::with_format(base_url, model, api_key, ApiFormat::Auto)
+    }
+
+    pub fn with_format(
+        base_url: &str,
+        model: &str,
+        api_key: &str,
+        format: ApiFormat,
+    ) -> Result<Self> {
         // Erros viram CHAVES i18n (traduzidas na borda via tr_msg). As mensagens
         // NUNCA ecoam a chave — as chaves de URL falam só da URL.
-        if api_key.trim().is_empty() {
+        let endpoint = Endpoint::parse(base_url, format)?;
+        if api_key.trim().is_empty() && !endpoint.local {
             return Err(anyhow!("err.api.no_key"));
         }
         if model.trim().is_empty() {
             return Err(anyhow!("err.api.no_model"));
         }
-        // Valida a base_url ANTES de criar o cliente. Exige host; exige https —
-        // EXCETO localhost/127.0.0.1, onde http é legítimo (proxy/servidor local).
-        let trimmed_base = base_url.trim().trim_end_matches('/');
-        let parsed = url::Url::parse(trimmed_base).map_err(|_| anyhow!("err.api.bad_url"))?;
-        let scheme = parsed.scheme();
-        if scheme != "http" && scheme != "https" {
-            return Err(anyhow!("err.api.bad_url"));
-        }
-        let host = parsed
-            .host_str()
-            .ok_or_else(|| anyhow!("err.api.no_host"))?;
-        let is_local =
-            host.eq_ignore_ascii_case("localhost") || host == "127.0.0.1" || host == "::1";
-        if scheme == "http" && !is_local {
-            return Err(anyhow!("err.api.https_required"));
-        }
         let client = reqwest::blocking::Client::builder()
             .timeout(REQUEST_TIMEOUT)
+            .connect_timeout(std::time::Duration::from_secs(10))
             // Sem redirects: um POST /chat/completions de API OpenAI-compatível
             // responde 200 direto. Não seguir redirects evita que um endpoint
             // comprometido encadeie saltos carregando o header Authorization (SEC-3).
@@ -92,8 +86,7 @@ impl ApiEngine {
                 ))
             })?;
         Ok(Self {
-            // Sem barra no fim pra não virar "//chat/completions" (já trimada acima).
-            base_url: trimmed_base.to_string(),
+            endpoint,
             model: model.trim().to_string(),
             api_key: api_key.trim().to_string(),
             client,
@@ -111,37 +104,27 @@ impl ApiEngine {
 
 // ── Tipos do payload (Chat Completions, formato OpenAI) ─────────────────────
 #[derive(Serialize)]
-struct ChatReq<'a> {
-    model: &'a str,
-    messages: Vec<ChatMsg<'a>>,
-    temperature: f32,
-}
-#[derive(Serialize)]
 struct ChatMsg<'a> {
     role: &'a str,
     content: &'a str,
 }
-#[derive(Deserialize)]
-struct ChatResp {
-    choices: Vec<Choice>,
-    /// Contagem de tokens (formato OpenAI). Opcional: alguns provedores omitem.
-    #[serde(default)]
-    usage: Option<ApiUsage>,
-}
-#[derive(Deserialize)]
-struct Choice {
-    message: RespMsg,
-}
-#[derive(Deserialize)]
-struct RespMsg {
-    content: String,
-}
-#[derive(Deserialize)]
-struct ApiUsage {
-    #[serde(default)]
-    prompt_tokens: Option<u64>,
-    #[serde(default)]
-    completion_tokens: Option<u64>,
+
+type Completion = (String, Option<(u64, u64)>);
+
+fn request_body(model: &str, format: ApiFormat, messages: &[ChatMsg<'_>]) -> Value {
+    // Optional sampling parameters are intentionally omitted: reasoning models
+    // and custom deployments have different capabilities and safe defaults.
+    match format {
+        ApiFormat::Anthropic => json!({
+            "model": model, "system": messages[0].content,
+            "messages": &messages[1..], "max_tokens": 8192,
+        }),
+        ApiFormat::Responses => json!({
+            "model": model, "instructions": messages[0].content,
+            "input": &messages[1..], "store": false,
+        }),
+        _ => json!({ "model": model, "messages": messages }),
+    }
 }
 
 impl Engine for ApiEngine {
@@ -176,23 +159,17 @@ impl Engine for ApiEngine {
             role: "user",
             content: user_text,
         });
-        let body = ChatReq {
-            model: &self.model,
-            messages,
-            // Baixo: refino deve ser fiel e estável, não criativo.
-            temperature: 0.3,
-        };
-        let url = format!("{}/chat/completions", self.base_url);
+        let body = request_body(&self.model, self.endpoint.format, &messages);
 
         // 1 tentativa + até MAX_RETRIES retentativas; só repete em erro transitório
         // E enquanto couber no teto global de latência (TOTAL_DEADLINE).
         let start = std::time::Instant::now();
         let mut attempt = 0usize;
         loop {
-            match self.try_once(&url, &body) {
+            match self.try_once(&body) {
                 Ok((text, usage)) => {
                     // Contabiliza o refino (só se este motor tiver tracker = API).
-                    self.record_usage(&body, &text, usage);
+                    self.record_usage(&messages, &text, usage);
                     return Ok(text);
                 }
                 Err(err) => {
@@ -211,13 +188,12 @@ impl Engine for ApiEngine {
 impl ApiEngine {
     /// Contabiliza UM refino no tracker (se houver). Usa os tokens do `usage` da
     /// resposta; se ausente, estima por ~4 chars/token a partir do prompt e da saída.
-    fn record_usage(&self, body: &ChatReq, output: &str, usage: Option<(u64, u64)>) {
+    fn record_usage(&self, messages: &[ChatMsg<'_>], output: &str, usage: Option<(u64, u64)>) {
         let Some(tracker) = &self.usage_tracker else {
             return;
         };
         let (prompt, completion) = usage.unwrap_or_else(|| {
-            let prompt_text: String = body
-                .messages
+            let prompt_text: String = messages
                 .iter()
                 .map(|m| m.content)
                 .collect::<Vec<_>>()
@@ -229,67 +205,130 @@ impl ApiEngine {
 
     /// UMA tentativa. Devolve `(texto, Option<(prompt_tokens, completion_tokens)>)`
     /// no sucesso; classifica falha em transitória (vale retry) ou permanente.
-    fn try_once(
-        &self,
-        url: &str,
-        body: &ChatReq,
-    ) -> std::result::Result<(String, Option<(u64, u64)>), RefineError> {
-        let resp = self
-            .client
-            .post(url)
-            .bearer_auth(&self.api_key)
-            .json(body)
-            .send()
-            .map_err(|_| {
-                // Falha de transporte (timeout, conexão recusada, DNS): transitória.
-                // Não interpolamos o erro (nem vaza a chave, nem confunde o usuário).
-                RefineError::Transient(MSG_NETWORK.to_string())
-            })?;
+    fn try_once(&self, body: &Value) -> std::result::Result<Completion, RefineError> {
+        let mut request = self.client.post(&self.endpoint.url);
+        if !self.api_key.is_empty() {
+            request = if self.endpoint.format == ApiFormat::Anthropic {
+                request.header("x-api-key", &self.api_key)
+            } else {
+                request.bearer_auth(&self.api_key)
+            };
+        }
+        if self.endpoint.format == ApiFormat::Anthropic {
+            request = request.header("anthropic-version", "2023-06-01");
+        }
+        let resp = request.json(body).send().map_err(|_| {
+            // Falha de transporte (timeout, conexão recusada, DNS): transitória.
+            // Não interpolamos o erro (nem vaza a chave, nem confunde o usuário).
+            RefineError::Transient(MSG_NETWORK.to_string())
+        })?;
 
         let status = resp.status();
         if status.is_success() {
-            let parsed: ChatResp = resp.json().map_err(|e| {
+            let parsed: Value = resp.json().map_err(|_| {
                 RefineError::Permanent(crate::i18n::key_with_args(
                     "err.api.bad_format",
-                    &[&e.to_string()],
+                    &["expected JSON"],
                 ))
             })?;
-            // Tokens reais, se a API mandou (prompt E completion).
-            let usage =
-                parsed
-                    .usage
-                    .as_ref()
-                    .and_then(|u| match (u.prompt_tokens, u.completion_tokens) {
-                        (Some(p), Some(c)) => Some((p, c)),
-                        _ => None,
-                    });
-            let content = parsed
-                .choices
-                .into_iter()
-                .next()
-                .map(|c| c.message.content)
-                .ok_or_else(|| RefineError::Permanent("err.api.no_response".to_string()))?;
-            // Limpeza compartilhada (engine::clean_output): tira cerca de markdown, preâmbulos etc.
-            let cleaned = clean_output(&content);
-            // Saída vazia APÓS a limpeza (ex.: modelo devolveu só uma cerca ``` ```,
-            // ou só um preâmbulo conversacional que foi cortado). Sem este guard, o
-            // modo Substituir colaria "" por cima da seleção, APAGANDO o texto do
-            // usuário sem aviso (ver auditoria BUG-3) — vira erro permanente, que no
-            // fluxo Instant cai em notify_error e no popup mostra a mensagem.
-            if cleaned.trim().is_empty() {
-                return Err(RefineError::Permanent("err.api.empty".to_string()));
-            }
-            return Ok((cleaned, usage));
+            return parse_response(self.endpoint.format, &parsed)
+                .map_err(|err| err.redact(&self.api_key));
         }
 
         let code = status.as_u16();
         let raw_body = resp.text().unwrap_or_default();
-        Err(classify_status(code, &raw_body))
+        Err(classify_status(code, &raw_body).redact(&self.api_key))
     }
+}
+
+fn text_content(value: &Value) -> String {
+    if let Some(text) = value.as_str() {
+        return text.to_string();
+    }
+    value
+        .as_array()
+        .map(|blocks| {
+            blocks
+                .iter()
+                .filter_map(|block| match block["type"].as_str() {
+                    Some("text" | "output_text") => block["text"].as_str(),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("")
+        })
+        .unwrap_or_default()
+}
+
+fn parse_response(
+    format: ApiFormat,
+    value: &Value,
+) -> std::result::Result<Completion, RefineError> {
+    if !value["error"].is_null() {
+        let code = value["error"]["code"]
+            .as_u64()
+            .and_then(|code| u16::try_from(code).ok())
+            .unwrap_or(400);
+        return Err(classify_status(code, &value.to_string()));
+    }
+    let (content, input_tokens, output_tokens) = match format {
+        ApiFormat::Anthropic => {
+            if value["stop_reason"] == "max_tokens" {
+                return Err(RefineError::Permanent("err.api.truncated".into()));
+            }
+            (
+                text_content(&value["content"]),
+                "input_tokens",
+                "output_tokens",
+            )
+        }
+        ApiFormat::Responses => {
+            if matches!(
+                value["status"].as_str(),
+                Some("incomplete" | "failed" | "cancelled")
+            ) {
+                return Err(RefineError::Permanent("err.api.truncated".into()));
+            }
+            let output = value["output"]
+                .as_array()
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter(|item| item["type"] == "message" && item["role"] == "assistant")
+                        .map(|item| text_content(&item["content"]))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .unwrap_or_default();
+            (output, "input_tokens", "output_tokens")
+        }
+        _ => {
+            let choice = value["choices"]
+                .get(0)
+                .ok_or_else(|| RefineError::Permanent("err.api.no_response".into()))?;
+            if choice["finish_reason"] == "length" {
+                return Err(RefineError::Permanent("err.api.truncated".into()));
+            }
+            (
+                text_content(&choice["message"]["content"]),
+                "prompt_tokens",
+                "completion_tokens",
+            )
+        }
+    };
+    let cleaned = clean_output(&content);
+    if cleaned.trim().is_empty() {
+        return Err(RefineError::Permanent("err.api.empty".into()));
+    }
+    let usage = value["usage"][input_tokens]
+        .as_u64()
+        .zip(value["usage"][output_tokens].as_u64());
+    Ok((cleaned, usage))
 }
 
 /// Resultado de uma tentativa que falhou: a mensagem pronta pra UI + se vale
 /// tentar de novo.
+#[derive(Debug)]
 enum RefineError {
     /// Pode tentar de novo (429, 5xx 500–504, timeout/conexão).
     Transient(String),
@@ -298,6 +337,22 @@ enum RefineError {
 }
 
 impl RefineError {
+    fn redact(self, key: &str) -> Self {
+        // Redact before shortening; otherwise truncation can expose a prefix
+        // of a credential echoed by a custom provider.
+        let sanitize = |msg: String| {
+            let msg = if key.is_empty() {
+                msg
+            } else {
+                msg.replace(key, "[redacted]")
+            };
+            msg.chars().take(600).collect()
+        };
+        match self {
+            Self::Transient(msg) => Self::Transient(sanitize(msg)),
+            Self::Permanent(msg) => Self::Permanent(sanitize(msg)),
+        }
+    }
     fn is_transient(&self) -> bool {
         matches!(self, RefineError::Transient(_))
     }
@@ -319,7 +374,7 @@ fn classify_status(code: u16, raw_body: &str) -> RefineError {
     match code.as_str() {
         "401" | "403" => RefineError::Permanent("err.api.unauthorized".to_string()),
         "429" => RefineError::Transient("err.api.rate_limit".to_string()),
-        "500" | "501" | "502" | "503" | "504" => RefineError::Transient(
+        "408" | "500" | "502" | "503" | "504" | "529" => RefineError::Transient(
             crate::i18n::key_with_args("err.api.temporary", &[&code, &detail_arg]),
         ),
         _ => RefineError::Permanent(crate::i18n::key_with_args(
@@ -345,7 +400,7 @@ fn extract_api_error_message(raw_body: &str) -> String {
             return msg.trim().to_string();
         }
     }
-    body.chars().take(200).collect()
+    body.to_string()
 }
 
 /// Concatena base + detalhe (se houver).
@@ -369,6 +424,262 @@ fn should_retry(attempt: usize, elapsed: std::time::Duration, transient: bool) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Real HTTP transport against loopback only. Never reads the user's vault.
+    fn server(responses: Vec<(u16, String)>) -> (String, std::thread::JoinHandle<Vec<String>>) {
+        use std::io::{BufRead, BufReader, Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}/v1", listener.local_addr().unwrap());
+        listener.set_nonblocking(true).unwrap();
+        let handle = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for (status, body) in responses {
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error)
+                            if error.kind() == std::io::ErrorKind::WouldBlock
+                                && std::time::Instant::now() < deadline =>
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(5))
+                        }
+                        Err(error) => panic!("mock server: {error}"),
+                    }
+                };
+                // Windows accepts can inherit the listener's nonblocking mode.
+                // Read the complete request with bounded blocking IO.
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .unwrap();
+                let mut reader = BufReader::new(&mut stream);
+                let mut headers = String::new();
+                let mut size = 0;
+                loop {
+                    let mut line = String::new();
+                    assert!(reader.read_line(&mut line).unwrap() > 0);
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some(value) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                        size = value.trim().parse::<usize>().unwrap();
+                    }
+                    headers.push_str(&line);
+                }
+                let mut payload = vec![0; size];
+                reader.read_exact(&mut payload).unwrap();
+                requests.push(format!(
+                    "{headers}\r\n{}",
+                    String::from_utf8(payload).unwrap()
+                ));
+                write!(stream, "HTTP/1.1 {status} Mock\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+            requests
+        });
+        (base, handle)
+    }
+
+    #[test]
+    fn reasoning_and_custom_models_do_not_receive_unsupported_sampling_parameters() {
+        for model in [
+            "gpt-5.6-luna",
+            "o4-mini",
+            "deepseek-reasoner",
+            "gemini-2.5-pro",
+            "grok-4",
+            "org/custom-model",
+        ] {
+            let (base, server) = server(vec![(
+                200,
+                r#"{"choices":[{"message":{"content":"Refined text"}}]}"#.into(),
+            )]);
+            let engine =
+                ApiEngine::new(&format!("{base}/chat/completions/"), model, "test-key").unwrap();
+            assert_eq!(
+                engine
+                    .refine(
+                        "system",
+                        Some(("example input", "example output")),
+                        "original"
+                    )
+                    .unwrap(),
+                "Refined text"
+            );
+            let requests = server.join().unwrap();
+            assert!(requests[0].starts_with("POST /v1/chat/completions HTTP/1.1"));
+            let body: Value =
+                serde_json::from_str(requests[0].split_once("\r\n\r\n").unwrap().1).unwrap();
+            assert_eq!(body["model"], model);
+            assert_eq!(body["messages"][2]["role"], "assistant");
+            assert_eq!(body["messages"][3]["content"], "original");
+            assert!(body.get("temperature").is_none());
+            assert!(body.get("max_tokens").is_none());
+        }
+    }
+
+    #[test]
+    fn anthropic_uses_native_auth_system_prompt_and_text_blocks() {
+        let (base, server) = server(vec![(200, r#"{"content":[{"type":"thinking","thinking":"private"},{"type":"text","text":"Refined"},{"type":"text","text":" text"}],"stop_reason":"end_turn","usage":{"input_tokens":12,"output_tokens":3}}"#.into())]);
+        let engine =
+            ApiEngine::with_format(&base, "claude-custom", "test-key", ApiFormat::Anthropic)
+                .unwrap();
+        assert_eq!(
+            engine
+                .refine("system", Some(("in", "out")), "text")
+                .unwrap(),
+            "Refined text"
+        );
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("POST /v1/messages HTTP/1.1"));
+        assert!(requests[0].contains("x-api-key: test-key"));
+        assert!(requests[0].contains("anthropic-version: 2023-06-01"));
+        assert!(!requests[0].contains("authorization:"));
+        let body: Value =
+            serde_json::from_str(requests[0].split_once("\r\n\r\n").unwrap().1).unwrap();
+        assert_eq!(body["system"], "system");
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["messages"][1]["role"], "assistant");
+        assert_eq!(body["messages"][2]["content"], "text");
+        assert!(body["max_tokens"].as_u64().unwrap() > 0);
+        assert!(body.get("temperature").is_none());
+    }
+
+    #[test]
+    fn responses_endpoint_and_local_server_without_a_key() {
+        let (base, server) = server(vec![(200, r#"{"status":"completed","output":[{"type":"reasoning","summary":[]},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Refined text"}]}],"usage":{"input_tokens":8,"output_tokens":5}}"#.into())]);
+        let engine = ApiEngine::new(&format!("{base}/responses"), "custom", "").unwrap();
+        assert_eq!(
+            engine.refine("system", None, "text").unwrap(),
+            "Refined text"
+        );
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("POST /v1/responses HTTP/1.1"));
+        assert!(!requests[0].contains("authorization:"));
+        let body: Value =
+            serde_json::from_str(requests[0].split_once("\r\n\r\n").unwrap().1).unwrap();
+        assert_eq!(body["instructions"], "system");
+        assert_eq!(body["input"][0]["content"], "text");
+        assert_eq!(body["store"], false);
+    }
+
+    #[test]
+    fn never_delivers_empty_reasoning_refusal_or_truncated_output() {
+        for (format, response, error) in [
+            (
+                ApiFormat::ChatCompletions,
+                json!({"choices":[{"message":{"content":null,"reasoning_content":"private"}}]}),
+                "err.api.empty",
+            ),
+            (
+                ApiFormat::ChatCompletions,
+                json!({"choices":[{"message":{"content":null,"refusal":"no"}}]}),
+                "err.api.empty",
+            ),
+            (
+                ApiFormat::ChatCompletions,
+                json!({"choices":[{"message":{"content":"partial"},"finish_reason":"length"}]}),
+                "err.api.truncated",
+            ),
+            (
+                ApiFormat::Responses,
+                json!({"status":"incomplete","output":[]}),
+                "err.api.truncated",
+            ),
+            (
+                ApiFormat::Anthropic,
+                json!({"content":[{"type":"text","text":"partial"}],"stop_reason":"max_tokens"}),
+                "err.api.truncated",
+            ),
+        ] {
+            assert_eq!(
+                parse_response(format, &response)
+                    .unwrap_err()
+                    .into_message(),
+                error
+            );
+        }
+    }
+
+    #[test]
+    fn parses_text_blocks_and_usage_for_each_wire_format() {
+        for (format, response) in [
+            (
+                ApiFormat::ChatCompletions,
+                json!({"choices":[{"message":{"content":[{"type":"text","text":"Hello"}]}}],"usage":{"prompt_tokens":12,"completion_tokens":3}}),
+            ),
+            (
+                ApiFormat::Anthropic,
+                json!({"content":[{"type":"text","text":"Hello"}],"usage":{"input_tokens":12,"output_tokens":3}}),
+            ),
+            (
+                ApiFormat::Responses,
+                json!({"output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"}]}],"usage":{"input_tokens":12,"output_tokens":3}}),
+            ),
+        ] {
+            assert_eq!(
+                parse_response(format, &response).unwrap(),
+                ("Hello".into(), Some((12, 3)))
+            );
+        }
+    }
+
+    #[test]
+    fn retries_provider_overload_but_not_invalid_configuration() {
+        let (base, server) = server(vec![
+            (529, r#"{"error":{"message":"overloaded"}}"#.into()),
+            (200, r#"{"choices":[{"message":{"content":"OK"}}]}"#.into()),
+        ]);
+        assert_eq!(
+            ApiEngine::new(&base, "custom", "key")
+                .unwrap()
+                .refine("sys", None, "ping")
+                .unwrap(),
+            "OK"
+        );
+        assert_eq!(server.join().unwrap().len(), 2);
+        let (base, server) = self::server(vec![(
+            400,
+            r#"{"error":{"message":"bad model test-secret"}}"#.into(),
+        )]);
+        let error = ApiEngine::new(&base, "custom", "test-secret")
+            .unwrap()
+            .refine("sys", None, "ping")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("bad model [redacted]"));
+        assert!(!error.contains("test-secret"));
+        assert_eq!(server.join().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn handles_provider_errors_inside_a_successful_http_response() {
+        let error = parse_response(
+            ApiFormat::ChatCompletions,
+            &json!({"error":{"code":503,"message":"provider unavailable"}}),
+        )
+        .unwrap_err();
+        assert!(error.is_transient());
+        assert!(error.into_message().contains("provider unavailable"));
+    }
+
+    #[test]
+    fn redacts_credentials_before_shortening_provider_errors() {
+        let key = "sk-long-test-credential-1234567890";
+        for message in [
+            format!("{} {key}", "x".repeat(480)),
+            format!("{} {key}", "x".repeat(190)),
+        ] {
+            for body in [
+                message.clone(),
+                json!({"error":{"message":message}}).to_string(),
+            ] {
+                let error = classify_status(400, &body).redact(key).into_message();
+                assert!(!error.contains("sk-long-test"));
+                assert!(error.contains("[redacted]"));
+            }
+        }
+    }
 
     // ── Validação de segurança da base_url em ApiEngine::new (sem rede) ──────────
     // Trava o comportamento que decide PARA ONDE a chave de API é enviada e confirma
@@ -490,9 +801,8 @@ mod tests {
 
     #[test]
     fn should_retry_stops_when_budget_would_blow() {
-        use std::time::Duration;
-        // Após um timeout cheio (~20s), iniciar outra tentativa estouraria o teto.
-        assert!(!should_retry(0, Duration::from_secs(20), true));
+        // A full timeout leaves no budget for another request.
+        assert!(!should_retry(0, REQUEST_TIMEOUT, true));
     }
 
     // ── Integração: forçam erros REAIS de rede → #[ignore]. Rodar com:
@@ -542,7 +852,9 @@ mod tests {
     #[ignore]
     fn ab_examples_on_off() {
         use crate::presets;
-        let key = crate::secrets::load_api_key().expect("precisa de uma chave no cofre pro A/B");
+        let key = crate::secrets::load_api_key("https://api.openai.com/v1")
+            .unwrap()
+            .expect("precisa de uma chave no cofre pro A/B");
         let eng = ApiEngine::new("https://api.openai.com/v1", "gpt-4o-mini", &key).unwrap();
         // A/B com os inputs PT → usa o catálogo pt-BR (label/exemplos no idioma).
         let all = presets::default_presets("pt-BR");
@@ -576,7 +888,9 @@ mod tests {
     #[ignore]
     fn it_counts_and_persists_api_usage() {
         use crate::usage::UsageTracker;
-        let key = crate::secrets::load_api_key().expect("precisa de chave no cofre");
+        let key = crate::secrets::load_api_key("https://api.openai.com/v1")
+            .unwrap()
+            .expect("precisa de chave no cofre");
         let tracker = std::sync::Arc::new(UsageTracker::load());
         let before = tracker.summary().refinements;
         let eng = ApiEngine::new("https://api.openai.com/v1", "gpt-4o-mini", &key)

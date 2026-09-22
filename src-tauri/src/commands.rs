@@ -58,6 +58,8 @@ pub struct AppState {
     /// Versão de uma atualização disponível (a UI puxa via `get_pending_update`,
     /// cobrindo o caso do evento ter sido emitido antes da janela montar).
     pub pending_update: Mutex<Option<String>>,
+    /// Serializes background/manual checks and installation.
+    pub update_operation: tokio::sync::Mutex<()>,
     /// Contador de uso/custo dos refinos via API. Compartilhado com o `ApiEngine`
     /// via `Arc`.
     pub usage: Arc<crate::usage::UsageTracker>,
@@ -92,6 +94,7 @@ impl AppState {
             captured: Mutex::new(String::new()),
             history: Mutex::new(Vec::new()),
             pending_update: Mutex::new(None),
+            update_operation: tokio::sync::Mutex::new(()),
             usage: Arc::new(crate::usage::UsageTracker::load()),
             trigger,
             tray_items: Mutex::new(None),
@@ -273,6 +276,10 @@ pub fn get_settings(state: State<AppState>) -> Settings {
 /// Salva settings novas (e persiste no disco).
 #[tauri::command]
 pub fn set_settings(state: State<AppState>, new_settings: Settings) -> Result<(), String> {
+    // Same lock order as lazy loading and credential changes. No stale client
+    // can be installed after this configuration is committed.
+    let mut engine = lock(&state.engine);
+    let mut current = lock(&state.settings);
     new_settings
         .save()
         .map_err(|e| crate::i18n::tr_msg(&new_settings.locale, &e.to_string()))?;
@@ -285,14 +292,20 @@ pub fn set_settings(state: State<AppState>, new_settings: Settings) -> Result<()
     // Re-rotula a bandeja AO VIVO se o idioma mudou (sem reconstruir o menu nem
     // reiniciar o app). `relabel` chama `set_text` na main thread — set_settings é
     // um comando, já invocado lá.
-    let locale_changed = lock(&state.settings).locale != new_settings.locale;
+    let locale_changed = current.locale != new_settings.locale;
     if locale_changed {
         let loc = new_settings.locale.clone();
         if let Some(items) = lock(&state.tray_items).as_ref() {
             items.relabel(&loc);
         }
     }
-    *lock(&state.settings) = new_settings;
+    if current.api_base_url != new_settings.api_base_url
+        || current.api_model != new_settings.api_model
+        || current.api_format != new_settings.api_format
+    {
+        *engine = None;
+    }
+    *current = new_settings;
     Ok(())
 }
 
@@ -306,9 +319,10 @@ pub fn build_engine(
     use crate::api_engine::ApiEngine;
 
     // A chave vem do cofre do SO (secrets.rs), não mais do settings.json.
-    let api_key = crate::secrets::load_api_key().unwrap_or_default();
+    let api_key = crate::secrets::load_api_key(&s.api_base_url)?.unwrap_or_default();
     // Liga o contador de uso/custo (ver usage.rs).
-    let api = ApiEngine::new(&s.api_base_url, &s.api_model, &api_key)?.with_usage_tracker(usage);
+    let api = ApiEngine::with_format(&s.api_base_url, &s.api_model, &api_key, s.api_format)?
+        .with_usage_tracker(usage);
     Ok(Arc::new(api))
 }
 
@@ -320,14 +334,16 @@ pub fn ensure_engine_loaded(app: &tauri::AppHandle) -> anyhow::Result<Arc<dyn En
     let state = app.state::<AppState>();
 
     // Atalho: já carregado → só clona o handle sob lock curto.
-    if let Some(engine) = lock(&state.engine).as_ref().cloned() {
+    let mut cached = lock(&state.engine);
+    if let Some(engine) = cached.as_ref().cloned() {
         return Ok(engine);
     }
 
-    // Cache-miss: clona settings/tracker sob lock curto e constrói FORA do lock.
+    // Hold the cache lock through construction to serialize with config/key
+    // changes. No HTTP is performed while holding this lock.
     let (s, usage) = (lock(&state.settings).clone(), state.usage.clone());
     let engine = build_engine(&s, usage)?;
-    *lock(&state.engine) = Some(engine.clone());
+    *cached = Some(engine.clone());
     Ok(engine)
 }
 
@@ -377,13 +393,14 @@ pub async fn refine_text(
 
 /// Testa a conexão com a API (valida chave/modelo/base_url) fazendo um refino
 /// mínimo. Devolve "Conexão OK." ou a mensagem de erro da API. Roda numa
-/// std::thread (reqwest::blocking). A chave vem do COFRE — a UI deve salvá-la
-/// (set_api_key) ANTES de testar.
+/// std::thread (reqwest::blocking). Tests the saved endpoint credential;
+/// candidate credentials use apply_api_configuration instead.
 #[tauri::command]
 pub async fn test_api_connection(
     state: State<'_, AppState>,
     base_url: String,
     model: String,
+    format: Option<crate::api_endpoint::ApiFormat>,
 ) -> Result<String, String> {
     // Locale lido na borda (State não cruza pra thread). Erros internos sobem como
     // CHAVES i18n e são traduzidos aqui via tr_msg.
@@ -392,9 +409,12 @@ pub async fn test_api_connection(
     std::thread::spawn(move || {
         use crate::api_engine::ApiEngine;
         let result = (|| -> Result<(), String> {
-            let api_key =
-                crate::secrets::load_api_key().ok_or_else(|| "err.test.no_key".to_string())?;
-            let eng = ApiEngine::new(&base_url, &model, &api_key).map_err(|e| e.to_string())?;
+            let api_key = crate::secrets::load_api_key(&base_url)
+                .map_err(|e| e.to_string())?
+                .unwrap_or_default();
+            let eng =
+                ApiEngine::with_format(&base_url, &model, &api_key, format.unwrap_or_default())
+                    .map_err(|e| e.to_string())?;
             // Ping mínimo: zero-shot (sem exemplo) — só valida credencial/modelo.
             eng.refine("Responda apenas com a palavra OK.", None, "ping")
                 .map(|_| ())
@@ -420,23 +440,89 @@ pub struct ApiKeyStatus {
 
 /// Salva (ou apaga, se vier vazia) a chave da API no cofre do SO.
 #[tauri::command]
-pub fn set_api_key(state: State<AppState>, key: String) -> Result<(), String> {
-    crate::secrets::save_api_key(&key).map_err(|e| i18n_err(&state, &e.to_string()))
+pub fn set_api_key(state: State<AppState>, base_url: String, key: String) -> Result<(), String> {
+    let mut engine = lock(&state.engine);
+    crate::secrets::save_api_key(&base_url, &key).map_err(|e| i18n_err(&state, &e.to_string()))?;
+    *engine = None;
+    Ok(())
 }
 
 /// Diz se há uma chave salva e devolve uma forma mascarada pra UI. O valor real
 /// nunca cruza essa fronteira.
 #[tauri::command]
-pub fn get_api_key_status() -> ApiKeyStatus {
-    match crate::secrets::load_api_key() {
-        Some(k) => ApiKeyStatus {
-            saved: true,
-            masked: crate::secrets::mask(&k),
+pub fn get_api_key_status(
+    state: State<AppState>,
+    base_url: String,
+) -> Result<ApiKeyStatus, String> {
+    Ok(
+        match crate::secrets::load_api_key(&base_url)
+            .map_err(|e| i18n_err(&state, &e.to_string()))?
+        {
+            Some(k) => ApiKeyStatus {
+                saved: true,
+                masked: crate::secrets::mask(&k),
+            },
+            None => ApiKeyStatus {
+                saved: false,
+                masked: String::new(),
+            },
         },
-        None => ApiKeyStatus {
-            saved: false,
-            masked: String::new(),
-        },
+    )
+}
+
+/// Test a candidate before replacing the active configuration or its credential.
+/// Vault access, HTTP and blocking-client destruction all stay off the async runtime.
+#[tauri::command]
+pub async fn apply_api_configuration(
+    app: tauri::AppHandle,
+    base_url: String,
+    model: String,
+    format: crate::api_endpoint::ApiFormat,
+    custom: bool,
+    key: Option<String>,
+) -> Result<Settings, String> {
+    let locale = lock(&app.state::<AppState>().settings).locale.clone();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        let result = (|| -> anyhow::Result<Settings> {
+            let base_url = base_url.trim().to_string();
+            let model = model.trim().to_string();
+            let previous_key = crate::secrets::load_api_key(&base_url)?;
+            let new_key = key.as_deref().map(str::trim).filter(|key| !key.is_empty());
+            let api_key = new_key.or(previous_key.as_deref()).unwrap_or_default();
+            let candidate =
+                crate::api_engine::ApiEngine::with_format(&base_url, &model, api_key, format)?;
+            candidate.refine("Reply with only OK.", None, "ping")?;
+            let state = app.state::<AppState>();
+            let mut engine = lock(&state.engine);
+            let mut settings = lock(&state.settings);
+            let mut next = settings.clone();
+            next.api_base_url = base_url.clone();
+            next.api_model = model;
+            next.api_format = format;
+            next.api_custom = custom;
+            if let Some(key) = new_key {
+                crate::secrets::save_api_key(&base_url, key)?;
+            }
+            if let Err(error) = next.save() {
+                if new_key.is_some() {
+                    crate::secrets::save_api_key(
+                        &base_url,
+                        previous_key.as_deref().unwrap_or_default(),
+                    )?;
+                }
+                return Err(error);
+            }
+            *settings = next.clone();
+            // Only production refinements count toward usage.
+            *engine = Some(Arc::new(candidate.with_usage_tracker(state.usage.clone())));
+            Ok(next)
+        })();
+        let _ = tx.send(result.map_err(|error| error.to_string()));
+    });
+    match rx.await {
+        Ok(result) => result.map_err(|error| crate::i18n::tr_msg(&locale, &error)),
+        Err(_) => Err(crate::i18n::tr_msg(&locale, "err.test.interrupted")),
     }
 }
 
@@ -562,15 +648,55 @@ pub fn get_pending_update(state: State<AppState>) -> Option<String> {
     lock(&state.pending_update).clone()
 }
 
+#[tauri::command]
+pub async fn check_for_updates(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let state = app.state::<AppState>();
+    let _operation = state.update_operation.lock().await;
+    let locale = lock(&state.settings).locale.clone();
+    let checked = app
+        .updater_builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|error| error.to_string())?
+        .check()
+        .await
+        .map_err(|error| {
+            crate::i18n::tr_msg(
+                &locale,
+                &crate::i18n::key_with_args("err.update.failed", &[&error.to_string()]),
+            )
+        })?;
+    let version = checked.map(|update| update.version);
+    *lock(&state.pending_update) = version.clone();
+    if let Some(version) = &version {
+        let _ = app.emit("update-available", version);
+    } else {
+        let _ = app.emit("update-none", ());
+    }
+    Ok(version)
+}
+
+#[derive(Clone, Serialize)]
+struct UpdateProgress {
+    phase: &'static str,
+    downloaded: u64,
+    total: Option<u64>,
+}
+
 /// Baixa e instala a atualização disponível e REINICIA o app. Re-checa pra obter
 /// um handle fresco do update (o objeto do check anterior não é guardável). Em
 /// sucesso o app reinicia (a chamada não retorna); em falha, devolve o erro.
 #[tauri::command]
 pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_updater::UpdaterExt;
-    let locale = lock(&app.state::<AppState>().settings).locale.clone();
+    let state = app.state::<AppState>();
+    let _operation = state.update_operation.lock().await;
+    let locale = lock(&state.settings).locale.clone();
     let checked = app
-        .updater()
+        .updater_builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
         .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?
         .check()
         .await
@@ -594,9 +720,35 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     };
 
-    update
-        .download_and_install(|_chunk, _total| {}, || {})
+    let mut downloaded = 0u64;
+    let bytes = update
+        .download(
+            |chunk, total| {
+                downloaded = downloaded.saturating_add(chunk as u64);
+                let _ = app.emit(
+                    "update-progress",
+                    UpdateProgress {
+                        phase: "downloading",
+                        downloaded,
+                        total,
+                    },
+                );
+            },
+            || {},
+        )
         .await
+        .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?;
+    // download() verifies the signature before returning any installable bytes.
+    let _ = app.emit(
+        "update-progress",
+        UpdateProgress {
+            phase: "installing",
+            downloaded,
+            total: Some(downloaded),
+        },
+    );
+    update
+        .install(bytes)
         .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?;
     app.restart();
 }

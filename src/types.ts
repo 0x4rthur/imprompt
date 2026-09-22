@@ -20,6 +20,8 @@ export type PresetDraft = {
   example_output: string;
 };
 
+export type ApiFormat = "auto" | "chat_completions" | "responses" | "anthropic";
+
 export type Settings = {
   default_preset: string;
   mode: "instant" | "popup";
@@ -27,6 +29,8 @@ export type Settings = {
   autostart: boolean;
   api_base_url: string;
   api_model: string;
+  api_format: ApiFormat;
+  api_custom: boolean;
   use_examples: boolean;
   trigger_modifier: "ctrl" | "alt" | "shift";
   trigger_key: string;

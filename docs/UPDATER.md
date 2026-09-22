@@ -9,10 +9,13 @@ O Imprompt usa o **`tauri-plugin-updater`** oficial. Em resumo:
    com a **chave pública** do `tauri.conf.json`, instala e reinicia.
 
 Comportamento no app:
-- **Startup:** checagem silenciosa. Se houver versão nova, aparece uma notificação
+- **Startup e a cada seis horas:** checagem silenciosa. Se houver versão nova, aparece uma notificação
   e o banner "Atualização disponível" na janela de Preferências.
 - **Bandeja → "Verificar atualizações":** checa sob demanda (avisa achando ou não)
   e abre as Preferências, onde o banner oferece **Baixar e reiniciar**.
+- **Sobre → Atualizações:** mostra a versão instalada, permite verificar sob demanda,
+  baixar e instalar. O progresso e os erros aparecem no painel; falhas permitem
+  tentar novamente. A assinatura é validada antes da instalação.
 
 ---
 
@@ -76,7 +79,7 @@ no mesmo lugar apontado pela `url` (ex.: anexos do release do GitHub).
 ## 3. Fluxo de release (passa a existir)
 
 1. **Bump da versão** em `src-tauri/tauri.conf.json` (`version`), e
-   idealmente em `package.json` e `src-tauri/Cargo.toml`.
+   em `package.json` e `src-tauri/Cargo.toml`, incluindo ambos os lockfiles.
 2. **Exporte a chave de assinatura** (PowerShell):
    ```powershell
    $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content "C:\Users\arthu\.tauri\imprompt-updater.key" -Raw
@@ -85,9 +88,9 @@ no mesmo lugar apontado pela `url` (ex.: anexos do release do GitHub).
    (`.env` NÃO funciona pra isso — tem que ser variável de ambiente do processo.)
 3. **Build:**
    ```powershell
-   npm run tauri build
+   npm run tauri build -- --config src-tauri/tauri.release.conf.json
    ```
-   Como `bundle.createUpdaterArtifacts = true`, isso gera o instalador **e** o
+   A configuração de release ativa `bundle.createUpdaterArtifacts = true` e gera o instalador **e** o
    `.sig` em `src-tauri/target/release/bundle/` (ex.: `nsis/Imprompt_<v>_x64-setup.exe`
    e `..._setup.exe.sig`).
 4. **Monte o `latest.json`** com a nova `version`, a `url` do instalador e a
@@ -98,6 +101,13 @@ no mesmo lugar apontado pela `url` (ex.: anexos do release do GitHub).
 
 Os apps instalados detectam a nova versão na próxima checagem (startup ou bandeja).
 
+A configuração padrão mantém a assinatura desativada para builds locais de
+desenvolvimento. Use o arquivo `tauri.release.conf.json` e a chave existente para
+distribuir atualizações compatíveis. Não troque a chave pública entre releases.
+Mantenha também `package-lock.json` e `src-tauri/Cargo.lock` com a mesma versão.
+Crie o release inicialmente como rascunho, anexe instalador, `.sig`, `latest.json`
+e checksums, confira assinatura e CI, e só então publique como release mais recente.
+
 ---
 
 ## 4. Testar em DEV (mock local)
@@ -105,7 +115,7 @@ Os apps instalados detectam a nova versão na próxima checagem (startup ou band
 Em dev não há release real, mas dá pra exercitar o **fluxo de checagem/oferta**:
 
 1. Crie um `latest.json` local com uma versão **maior** que a atual (a do
-   `tauri.conf.json`, hoje `0.1.0`):
+   `tauri.conf.json`):
    ```json
    {
      "version": "9.9.9",

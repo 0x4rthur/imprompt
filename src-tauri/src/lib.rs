@@ -5,12 +5,14 @@
 //! - Quando o gatilho dispara, executa o FLUXO: captura → refina → entrega,
 //!   mostrando a janelinha "Refinando…" durante o processamento.
 
+mod api_endpoint;
 mod api_engine;
 mod clipboard;
 mod commands;
 mod engine;
 mod hotkey;
 mod i18n;
+mod model_catalog;
 mod presets;
 mod secrets;
 mod settings;
@@ -112,6 +114,7 @@ pub fn run() {
             commands::set_settings,
             commands::refine_text,
             commands::test_api_connection,
+            commands::apply_api_configuration,
             commands::set_api_key,
             commands::get_api_key_status,
             commands::deliver_result,
@@ -121,6 +124,7 @@ pub fn run() {
             commands::open_accessibility_settings,
             commands::open_url,
             commands::get_pending_update,
+            commands::check_for_updates,
             commands::install_update,
             commands::get_usage,
             commands::get_usage_history,
@@ -274,6 +278,14 @@ pub fn run() {
             // 5) Checagem de atualização no startup — SILENCIOSA: só avisa (e mostra
             //    o banner) se ACHAR algo; erro de rede/endpoint é ignorado.
             spawn_update_check(handle.clone(), false);
+            // Continue checking while the tray app stays open for days.
+            let update_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(6 * 60 * 60)).await;
+                    spawn_update_check(update_handle.clone(), false);
+                }
+            });
 
             Ok(())
         })
@@ -439,33 +451,21 @@ fn notify_error(app: &tauri::AppHandle, message: &str) {
 /// get_pending_update, que cobre a janela ainda não montada).
 fn spawn_update_check(app: tauri::AppHandle, explicit: bool) {
     tauri::async_runtime::spawn(async move {
-        use tauri_plugin_updater::UpdaterExt;
-        let checked = match app.updater() {
-            Ok(updater) => updater.check().await,
-            Err(e) => Err(e),
-        };
+        let previous = lock(&app.state::<AppState>().pending_update).clone();
+        let checked = commands::check_for_updates(app.clone()).await;
         let loc = current_locale(&app);
         match checked {
-            Ok(Some(update)) => {
-                let version = update.version.clone();
-                {
-                    let state: tauri::State<AppState> = app.state();
-                    *lock(&state.pending_update) = Some(version.clone());
+            Ok(Some(version)) => {
+                if explicit || previous.as_ref() != Some(&version) {
+                    notify(
+                        &app,
+                        i18n::tr(&loc, "notif.update.title"),
+                        &i18n::tr_args(&loc, "notif.update.available", &[&version]),
+                    );
                 }
-                let _ = app.emit("update-available", version.clone());
-                notify(
-                    &app,
-                    i18n::tr(&loc, "notif.update.title"),
-                    &i18n::tr_args(&loc, "notif.update.available", &[&version]),
-                );
             }
             Ok(None) => {
-                {
-                    let state: tauri::State<AppState> = app.state();
-                    *lock(&state.pending_update) = None;
-                }
                 if explicit {
-                    let _ = app.emit("update-none", ());
                     notify(
                         &app,
                         i18n::tr(&loc, "notif.update.title"),

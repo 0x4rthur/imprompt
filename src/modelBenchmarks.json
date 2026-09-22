@@ -1,0 +1,121 @@
+{
+  "checkedAt": "2026-09-22",
+  "aliases": {
+    "openai/gpt-5.6-luna": "gpt-5.6-luna",
+    "deepseek/deepseek-v4.1-flash": "deepseek-flash"
+  },
+  "models": {
+    "gpt-5.6-luna": {
+      "score": 25,
+      "tokensPerSecond": 137.6,
+      "variant": "GPT-5.6 Luna (medium)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gpt-5-6-luna-medium"
+    },
+    "gpt-5-nano": {
+      "score": 12,
+      "tokensPerSecond": 154.5,
+      "variant": "GPT-5 nano (medium)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gpt-5-nano-medium"
+    },
+    "gpt-4.1-nano": {
+      "score": 8,
+      "tokensPerSecond": 175.9,
+      "variant": "GPT-4.1 nano",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gpt-4-1-nano"
+    },
+    "gpt-5.6-terra": {
+      "score": 30,
+      "tokensPerSecond": 87.2,
+      "variant": "GPT-5.6 Terra (medium)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gpt-5-6-terra-medium"
+    },
+    "claude-haiku-4-5": {
+      "score": 15,
+      "tokensPerSecond": 88,
+      "variant": "Claude 4.5 Haiku (Non-reasoning)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/claude-4-5-haiku"
+    },
+    "claude-sonnet-5": {
+      "score": 38,
+      "tokensPerSecond": 83.8,
+      "variant": "Claude Sonnet 5 (max)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/claude-sonnet-5"
+    },
+    "openai/gpt-oss-20b": {
+      "score": 9,
+      "tokensPerSecond": 171,
+      "variant": "gpt-oss-20b (high)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gpt-oss-20b"
+    },
+    "deepseek-flash": {
+      "score": 39,
+      "tokensPerSecond": 220.8,
+      "variant": "DeepSeek V4.1 Flash (max)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/deepseek-v4-1-flash"
+    },
+    "deepseek-v4-pro": {
+      "score": 36,
+      "tokensPerSecond": 70.8,
+      "variant": "DeepSeek V4 Pro 0813 (max)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/deepseek-v4-pro"
+    },
+    "gemini-3.5-flash-lite": {
+      "score": 22,
+      "tokensPerSecond": 383.6,
+      "variant": "Gemini 3.5 Flash-Lite",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gemini-3-5-flash-lite"
+    },
+    "gemini-3.1-flash-lite": {
+      "score": 16,
+      "tokensPerSecond": 339.8,
+      "variant": "Gemini 3.1 Flash-Lite",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gemini-3-1-flash-lite-preview"
+    },
+    "gemini-3.8-flash": {
+      "score": 41,
+      "tokensPerSecond": 328.8,
+      "variant": "Gemini 3.8 Flash (high)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/gemini-3-8-flash"
+    },
+    "grok-4.3": {
+      "score": 25,
+      "tokensPerSecond": 109.9,
+      "variant": "Grok 4.3 (high)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/grok-4-3"
+    },
+    "grok-build-0.1": {
+      "score": 27,
+      "tokensPerSecond": 50.2,
+      "variant": "Grok Build 0.1 0616",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/grok-build-0-1-06-16"
+    },
+    "grok-4.7": {
+      "score": 46,
+      "tokensPerSecond": 38.8,
+      "variant": "Grok 4.7 (xhigh)",
+      "indexVersion": "v4.3.2",
+      "source": "https://artificialanalysis.ai/models/grok-4-7"
+    },
+    "qwen/qwen3.5-flash-02-23": {
+      "score": null,
+      "tokensPerSecond": null,
+      "variant": "Qwen 3.5 Flash 02-23",
+      "indexVersion": null,
+      "source": null
+    }
+  }
+}

@@ -44,7 +44,8 @@ The result can **replace the selected text** automatically or go to the **clipbo
   (the first Ctrl+C is the real copy; the second, quick one triggers Imprompt).
 - **Presets** — each is just a system prompt. Built-ins: *Structure*, *Code prompt*,
   *Fix & clarify*, *Translate to English*, *Front-end*. Create, edit, duplicate, or restore your own.
-- **Any OpenAI-compatible provider** — just set the Base URL and the model.
+- **OpenAI-compatible and Anthropic providers** — Chat Completions, Responses,
+  and native Anthropic Messages, including custom model IDs and local servers.
 - **API key in the OS credential vault** — Windows Credential Manager / macOS Keychain /
   Linux Secret Service — never stored in plain text on disk.
 - **Bilingual UI** — English (default) and Português, switchable in the *General* tab.
@@ -86,13 +87,41 @@ npm run tauri build
 ## Usage
 
 1. Open **Preferences** (from the tray, or on first launch) → the **API** tab.
-2. Set the **Base URL** (e.g. `https://api.openai.com/v1`), the **model** (e.g. `gpt-4o-mini`),
-   and your **API key**, then click **Apply & test**.
+2. Set the **Base URL** (e.g. `https://api.openai.com/v1`), the **model** (e.g. `gpt-5.6-luna`),
+   and your **API key**, then click **Apply & test**. The new setup is saved only
+   after the test succeeds; failed tests leave the active configuration intact.
 3. Pick a default preset, or switch the trigger to **Popup** mode in the **Shortcut** tab.
 4. In any app: select text → **Ctrl+C, Ctrl+C** → your refined prompt replaces the selection
    (or lands on the clipboard).
 
-It costs a few cents per refine on small models, and the app tracks your monthly usage.
+Cost depends on the model and text length, and the app estimates your monthly usage.
+The API tab includes curated economical models for all six providers, input/output
+prices, usage suggestions, and source links (checked September 22, 2026). The cost
+example and quality/speed/cost indicators follow the selected model; published
+benchmarks include sources and reference variants, and missing data is labeled.
+See the [model catalog notes](docs/MODEL_CATALOG.md) for recommendations, pricing
+conditions, and local price overrides. Existing saved model IDs remain unchanged.
+
+**About → Updates** displays the installed version and checks for a newer release.
+Choose **Download and restart** to download, verify and install it within the app.
+Background checks run at startup and every six hours. See [updater details](docs/UPDATER.md).
+
+Each endpoint has its own credential in the system vault. Existing installations
+migrate their previous shared key to the previously selected endpoint only. Switching
+providers does not send that key to the new provider. API drafts survive navigation
+between tabs, and switching providers preserves model drafts during the session.
+
+For a custom server, choose **Custom** and select its API format (or leave it on
+**Automatic**). Both base URLs and complete `/chat/completions`, `/responses`, or
+`/messages` URLs are accepted. Localhost servers may omit an API key; remote servers
+require HTTPS and a key. Model IDs are sent as entered, without a model allowlist or
+forced sampling parameters. Availability still depends on the provider/account.
+Connection tests make a small generation request and may incur provider charges.
+
+Protocol references: [OpenAI models](https://developers.openai.com/api/docs/models/gpt-5.6-luna),
+[Anthropic Messages](https://platform.claude.com/docs/en/api/messages/create),
+[Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), and
+[OpenRouter](https://openrouter.ai/docs/api_reference/overview).
 
 > **Privacy:** the text you select is sent to the API provider you configure. The UI states
 > this explicitly. Your API key stays in the OS credential vault, never in plain text.
@@ -121,7 +150,7 @@ cargo test
 
 # frontend (from the repo root)
 npm run typecheck
-npm run test        # i18n catalog parity
+npm run test        # connections, model data, updater and i18n
 npm run build
 ```
 

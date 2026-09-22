@@ -1,6 +1,6 @@
 [package]
 name = "imprompt"
-version = "0.1.1"
+version = "0.1.2"
 description = "Melhore qualquer prompt sem sair do lugar — via API, sem trocar de janela."
 authors = ["0x4rthur"]
 edition = "2021"
@@ -48,7 +48,7 @@ enigo = "0.2"
 # fluxo do gatilho), porque reqwest::blocking não pode rodar dentro do tokio.
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 # `sync`: oneshot pra ponte thread→async no refine_text (UI não trava mais).
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 
 # --- Serialização das settings / catálogo ---
 serde = { version = "1", features = ["derive"] }

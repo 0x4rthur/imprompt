@@ -80,6 +80,11 @@ const ENTRIES: &[(&str, &str, &str)] = &[
     ),
     // ── err.api.* (motor de API) ─────────────────────────────────────────────
     (
+        "err.api.truncated",
+        "The model did not finish its response. Try a shorter text or another model.",
+        "O modelo não concluiu a resposta. Tente um texto menor ou outro modelo.",
+    ),
+    (
         "err.api.no_key",
         "Set the API key in Preferences.",
         "Configure a chave da API nas Preferências.",

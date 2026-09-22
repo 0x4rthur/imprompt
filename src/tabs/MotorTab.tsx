@@ -1,66 +1,19 @@
-// MotorTab.tsx — aba "API": provedor (auto-detectado pela chave), modelo, chave,
+// MotorTab.tsx — aba "API": provedor, modelo, chave,
 // teste de conexão e uso/custo do mês. Estado da API (api*) é local desta aba.
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { ApiKeyStatus, Settings } from "../types";
+import type { ApiFormat, ApiKeyStatus, Settings } from "../types";
+import type { ApiConfig } from "../connection";
 import { ApiProviderIcon } from "../ApiProviderIcon";
 import { t as translate } from "../i18n";
 import { useT } from "../i18n/useT";
 import { Trans } from "../i18n/Trans";
+import { CATALOG_CHECKED_AT, CATEGORY_KEYS, PROVIDERS, exampleRefinementCost, formatModelPrice, formatRefinementCost, modelPrice } from "../modelCatalog";
+import type { Provider } from "../modelCatalog";
+import ModelBenchmark from "../ModelBenchmark";
 
-// Provedores conhecidos (formato OpenAI). Escolher um (ou ter a chave detectada)
-// pré-preenche Base URL + modelo e oferece os modelos recomendados na lista.
-// "Personalizado" libera a Base URL pra um endpoint próprio. A chave é UMA só.
-type Provider = { id: string; label: string; base: string; model: string; host: string; models: string[] };
-const PROVIDERS: Provider[] = [
-  { id: "openai", label: "OpenAI", base: "https://api.openai.com/v1", model: "gpt-4o-mini", host: "api.openai.com", models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "o4-mini"] },
-  { id: "anthropic", label: "Anthropic", base: "https://api.anthropic.com/v1", model: "claude-haiku-4-5", host: "api.anthropic.com", models: ["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-8"] },
-  { id: "openrouter", label: "OpenRouter", base: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini", host: "openrouter.ai", models: ["openai/gpt-4o-mini", "anthropic/claude-sonnet-4.6", "google/gemini-2.5-flash", "deepseek/deepseek-chat"] },
-  { id: "deepseek", label: "DeepSeek", base: "https://api.deepseek.com/v1", model: "deepseek-chat", host: "api.deepseek.com", models: ["deepseek-chat", "deepseek-reasoner"] },
-  { id: "gemini", label: "Gemini", base: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash", host: "generativelanguage.googleapis.com", models: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"] },
-  { id: "xai", label: "xAI", base: "https://api.x.ai/v1", model: "grok-4", host: "api.x.ai", models: ["grok-4", "grok-3", "grok-code-fast-1"] },
-];
 const CUSTOM = "custom";
 const MODEL_CUSTOM = "__custom__";
-
-// Mini-benchmark por modelo. Eixos 1-3; o CUSTO já vem normalizado "barato = 3"
-// (mais pontos = melhor em todos). Scores relativos/qualitativos (curadoria, não
-// medição padronizada); `conf` = confiança do dado (metadado interno, não exibido).
-type ModelBench = { q: number; s: number; c: number; conf: "high" | "medium" | "low" };
-const BENCH: Record<string, ModelBench> = {
-  "gpt-4o-mini": { q: 2, s: 3, c: 3, conf: "high" },
-  "gpt-4o": { q: 3, s: 2, c: 2, conf: "high" },
-  "gpt-4.1-mini": { q: 2, s: 3, c: 3, conf: "medium" },
-  "o4-mini": { q: 3, s: 1, c: 2, conf: "medium" },
-  "claude-haiku-4-5": { q: 2, s: 3, c: 2, conf: "medium" },
-  "claude-sonnet-4-6": { q: 3, s: 2, c: 1, conf: "medium" },
-  "claude-opus-4-8": { q: 3, s: 1, c: 1, conf: "medium" },
-  "deepseek-chat": { q: 2, s: 2, c: 3, conf: "medium" },
-  "deepseek-reasoner": { q: 3, s: 1, c: 3, conf: "medium" },
-  "gemini-2.5-flash": { q: 2, s: 3, c: 3, conf: "low" },
-  "gemini-2.5-pro": { q: 3, s: 2, c: 2, conf: "low" },
-  "gemini-2.5-flash-lite": { q: 1, s: 3, c: 3, conf: "low" },
-  "grok-4": { q: 3, s: 2, c: 1, conf: "low" },
-  "grok-3": { q: 2, s: 2, c: 2, conf: "low" },
-  "grok-code-fast-1": { q: 2, s: 3, c: 2, conf: "low" },
-  // OpenRouter (modelos namespaced) — espelham o modelo de origem.
-  "openai/gpt-4o-mini": { q: 2, s: 3, c: 3, conf: "medium" },
-  "anthropic/claude-sonnet-4.6": { q: 3, s: 2, c: 1, conf: "medium" },
-  "google/gemini-2.5-flash": { q: 2, s: 3, c: 3, conf: "low" },
-  "deepseek/deepseek-chat": { q: 2, s: 2, c: 3, conf: "medium" },
-};
-// Rótulos do benchmark mapeiam o valor (1-3) para uma chave do catálogo; o texto
-// final é traduzido no render (QS_CAP = qualidade/velocidade; COST_CAP = custo).
-const QS_CAP: Record<number, "motor.cap.low" | "motor.cap.medium" | "motor.cap.high"> = {
-  1: "motor.cap.low",
-  2: "motor.cap.medium",
-  3: "motor.cap.high",
-};
-const COST_CAP: Record<number, "motor.cap.expensive" | "motor.cap.medium" | "motor.cap.cheap"> = {
-  1: "motor.cap.expensive",
-  2: "motor.cap.medium",
-  3: "motor.cap.cheap",
-};
 
 // Host de uma Base URL (ex.: "https://api.openai.com/v1" → "api.openai.com").
 function hostOf(url: string): string {
@@ -114,28 +67,38 @@ function PlugIcon() {
     </svg>
   );
 }
-// Três quadradinhos: `fill` = quantos preenchidos; `level` (1-3) = a COR (1 vermelho,
-// 2 amarelo, 3 verde). Separados porque no eixo CUSTO a quantidade (quão caro) é o
-// inverso da cor (barato=verde): barato → 1 quadrado verde; caro → 3 vermelhos.
-function Dots({ fill, level }: { fill: number; level: number }) {
+function ModelInfo({ provider, modelId }: { provider?: Provider; modelId: string }) {
+  const { t, locale } = useT();
+  const model = provider?.models.find((entry) => entry.id === modelId);
+  const [sourceError, setSourceError] = useState(false);
+  useEffect(() => setSourceError(false), [provider?.id]);
+  if (!model || !provider) return <><ModelBenchmark key={modelId} modelId={modelId.trim()} /><p className="api-hint">{t("motor.models.customHint")}</p></>;
+  const price = modelPrice(model);
+  const checkedDate = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(CATALOG_CHECKED_AT + "T00:00:00Z"));
   return (
-    <span className={"bench-dots lvl-" + level} aria-hidden="true">
-      {[1, 2, 3].map((i) => <span key={i} className={"bench-dot" + (i <= fill ? " on" : "")} />)}
-    </span>
-  );
-}
-// Mini-benchmark do modelo (qualidade/velocidade/custo). Sem dado → não renderiza.
-// Qualidade/velocidade: mais quadrados = melhor (cor segue o valor). Custo: mais
-// quadrados = mais caro (cor é o inverso — c é "barato=3", então level=c, fill=4-c).
-function BenchView({ model }: { model: string }) {
-  const { t } = useT();
-  const b = BENCH[model];
-  if (!b) return null;
-  return (
-    <div className="bench">
-      <div className="bench-axis" aria-label={t("motor.bench.quality.aria", { value: b.q })}><span>{t("motor.bench.quality")} · {t(QS_CAP[b.q])}</span><Dots fill={b.q} level={b.q} /></div>
-      <div className="bench-axis" aria-label={t("motor.bench.speed.aria", { value: b.s })}><span>{t("motor.bench.speed")} · {t(QS_CAP[b.s])}</span><Dots fill={b.s} level={b.s} /></div>
-      <div className="bench-axis" aria-label={t("motor.bench.cost.aria", { value: t(COST_CAP[b.c]) })}><span>{t("motor.bench.cost")} · {t(COST_CAP[b.c])}</span><Dots fill={4 - b.c} level={b.c} /></div>
+    <div className="model-info">
+      <div className="model-info-heading">
+        <strong>{model.name}</strong>
+        <span className="model-tag">{model.id === provider.model ? t("motor.models.recommended") : t(CATEGORY_KEYS[model.category])}</span>
+      </div>
+      <p>{model.description[locale]}</p>
+      <ModelBenchmark key={model.id} model={model} />
+      <dl className="model-prices">
+        <div><dt>{t("motor.models.input")}</dt><dd>{formatModelPrice(price.input_per_1m, locale)}</dd></div>
+        <div><dt>{t("motor.models.output")}</dt><dd>{formatModelPrice(price.output_per_1m, locale)}</dd></div>
+        <span>{t("motor.models.unit")}</span>
+      </dl>
+      <details className="model-price-details">
+        <summary>{t("motor.models.pricingDetails")}</summary>
+        <p>{t("motor.models.priceBasis")}</p>
+        {provider.note && <p>{provider.note[locale]}</p>}
+        <p>{t("motor.models.checked", { date: checkedDate })}</p>
+        <a href={provider.pricingUrl} onClick={(event) => {
+          event.preventDefault();
+          void invoke("open_url", { url: provider.pricingUrl }).then(() => setSourceError(false)).catch(() => setSourceError(true));
+        }}>{t("motor.models.source")} ↗</a>
+        {sourceError && <p role="alert">{t("motor.models.sourceError", { url: provider.pricingUrl })}</p>}
+      </details>
     </div>
   );
 }
@@ -143,7 +106,7 @@ function BenchView({ model }: { model: string }) {
 // Dropdown estilizado (não usa <select> nativo, que não casa com o tema mono/cream
 // e renderiza o popup pelo SO). Acessível: aria-haspopup/expanded, role listbox/option,
 // teclado (setas/Enter/Esc) e fecha ao clicar fora.
-type Opt = { value: string; label: string };
+type Opt = { value: string; label: string; detail?: string; badge?: string };
 function Dropdown({ value, options, onSelect, ariaLabel }: { value: string; options: Opt[]; onSelect: (v: string) => void; ariaLabel: string }) {
   const [open, setOpen] = useState(false);
   const [focusIdx, setFocusIdx] = useState(-1);
@@ -225,7 +188,8 @@ function Dropdown({ value, options, onSelect, ariaLabel }: { value: string; opti
               className={"dd-opt" + (o.value === value ? " sel" : "")}
               onClick={() => { onSelect(o.value); close(true); }}
             >
-              {o.label}
+              <span className="model-option-title">{o.label}{o.badge && <span className="model-tag">{o.badge}</span>}</span>
+              {o.detail && <span className="model-option-detail">{o.detail}</span>}
             </li>
           ))}
         </ul>
@@ -236,18 +200,19 @@ function Dropdown({ value, options, onSelect, ariaLabel }: { value: string; opti
 
 type Props = {
   settings: Settings;
-  update: (patch: Partial<Settings>) => Promise<void>;
+  apply: (config: ApiConfig, key: string) => Promise<void>;
 };
 
-export default function MotorTab({ settings, update }: Props) {
-  const { t } = useT();
+export default function MotorTab({ settings, apply }: Props) {
+  const { t, locale } = useT();
   // Config da API em estado local (evita gravar settings.json a cada tecla); só
   // persiste no "Aplicar e testar".
   // Inicializa já das settings (lazy) — evita um frame com apiBase vazio que
   // ativaria "Personalizado" por engano (flash na entrada da aba). settings é
   // garantido não-nulo aqui (App mostra "Carregando…" enquanto não chega).
   const [apiBase, setApiBase] = useState(() => settings.api_base_url || "https://api.openai.com/v1");
-  const [apiModel, setApiModel] = useState(() => settings.api_model || "gpt-4o-mini");
+  const [apiModel, setApiModel] = useState(() => settings.api_model || PROVIDERS[0].model);
+  const [apiFormat, setApiFormat] = useState<ApiFormat>(() => settings.api_format ?? "auto");
   const [apiKey, setApiKey] = useState("");
   const [apiBusy, setApiBusy] = useState(false);
   // Resultado do teste: null (nada ainda), {ok:true} (conectado) ou {ok:false,msg}.
@@ -257,22 +222,32 @@ export default function MotorTab({ settings, update }: Props) {
   const [keyMasked, setKeyMasked] = useState("");
   // "Endpoint próprio" forçado pelo usuário (libera a Base URL mesmo que o host
   // ainda case com um provedor conhecido).
-  const [customMode, setCustomMode] = useState(false);
+  const [customMode, setCustomMode] = useState(() => settings.api_custom ?? false);
   // Modelo em modo "digitar id próprio" (em vez de escolher da lista).
   const [modelCustom, setModelCustom] = useState(false);
   const baseRef = useRef<HTMLInputElement>(null);
   const modelRef = useRef<HTMLInputElement>(null);
+  const keyGeneration = useRef(0);
+  const drafts = useRef(new Map<string, { base: string; model: string; format: ApiFormat; modelCustom: boolean }>());
 
   // Lê do backend se há uma chave salva no cofre (e a versão mascarada).
-  function refreshKeyStatus() {
-    return invoke<ApiKeyStatus>("get_api_key_status")
-      .then((s) => { setKeySaved(s.saved); setKeyMasked(s.masked); })
-      .catch(console.error);
+  async function refreshKeyStatus() {
+    const generation = ++keyGeneration.current;
+    setKeySaved(false);
+    setKeyMasked("");
+    try {
+      const status = await invoke<ApiKeyStatus>("get_api_key_status", { baseUrl: apiBase.trim() });
+      if (generation === keyGeneration.current) { setKeySaved(status.saved); setKeyMasked(status.masked); }
+    } catch {
+      // The connection test reports vault/URL errors; never show an old key.
+    }
   }
 
   useEffect(() => {
-    refreshKeyStatus();
-  }, []);
+    setApiKey("");
+    void refreshKeyStatus();
+    return () => { keyGeneration.current += 1; };
+  }, [apiBase]);
 
   // Re-sincroniza os campos quando as settings mudam POR FORA (ex.: "Aplicar"
   // reverteu por falha de save, ou outra origem alterou a config). NÃO recria o
@@ -281,43 +256,51 @@ export default function MotorTab({ settings, update }: Props) {
   // local (digitar/escolher pílula) settings não muda, então não atropela o usuário.
   useEffect(() => {
     setApiBase(settings.api_base_url || "https://api.openai.com/v1");
-    setApiModel(settings.api_model || "gpt-4o-mini");
-  }, [settings.api_base_url, settings.api_model]);
+    setApiModel(settings.api_model || PROVIDERS[0].model);
+    setApiFormat(settings.api_format ?? "auto");
+    setCustomMode(settings.api_custom ?? false);
+  }, [settings.api_base_url, settings.api_model, settings.api_format, settings.api_custom]);
 
   // Provedor ativo: "custom" se o usuário forçou OU o host não casa com nenhum
   // conhecido; senão, o provedor cujo host bate com a Base URL.
-  const matched = PROVIDERS.find((p) => hostOf(apiBase) === p.host);
+  const matched = PROVIDERS.find((p) => apiBase.trim().replace(/\/+$/, "") === p.base);
   const activeProvider = customMode || !matched ? CUSTOM : matched.id;
   const isCustom = activeProvider === CUSTOM;
-  const recModels = PROVIDERS.find((p) => p.id === activeProvider)?.models ?? [];
-  const modelInList = recModels.includes(apiModel);
+  const provider = PROVIDERS.find((p) => p.id === activeProvider);
+  const recModels = provider?.models ?? [];
+  const modelInList = recModels.some((m) => m.id === apiModel);
   // Mostra o input de id de modelo: provedor custom (sem lista), modo "Personalizado…",
   // ou modelo salvo que não está entre os recomendados.
   const showModelInput = isCustom || modelCustom || (recModels.length > 0 && !modelInList);
 
   const modelOptions: Opt[] = [
-    ...recModels.map((m) => ({ value: m, label: m })),
+    ...recModels.map((m) => {
+      const price = modelPrice(m);
+      return {
+        value: m.id, label: m.id,
+        badge: m.id === provider?.model ? t("motor.models.recommended") : t(CATEGORY_KEYS[m.category]),
+        detail: t("motor.models.optionPrice", { input: formatModelPrice(price.input_per_1m, locale), output: formatModelPrice(price.output_per_1m, locale) }),
+      };
+    }),
     { value: MODEL_CUSTOM, label: t("motor.model.customOption") },
   ];
   const modelDropValue = modelCustom || !modelInList ? MODEL_CUSTOM : apiModel;
 
   // Seleciona um provedor conhecido: pré-preenche tudo e sai dos modos custom.
-  function selectProvider(p: Provider) {
-    setCustomMode(false);
-    setModelCustom(false);
-    setApiBase(p.base);
-    setApiModel(p.model);
-    setResult(null);
-  }
-
   function onProviderSelect(v: string) {
+    if (v === activeProvider || apiBusy) return;
+    drafts.current.set(activeProvider, { base: apiBase, model: apiModel, format: apiFormat, modelCustom });
+    const draft = drafts.current.get(v);
+    const provider = PROVIDERS.find((p) => p.id === v);
+    setApiKey("");
+    setResult(null);
+    setModelCustom(draft?.modelCustom ?? false);
+    setApiFormat(draft?.format ?? "auto");
+    setCustomMode(v === CUSTOM);
+    setApiBase(draft?.base ?? provider?.base ?? apiBase);
+    setApiModel(draft?.model ?? provider?.model ?? apiModel);
     if (v === CUSTOM) {
-      setCustomMode(true);
-      setResult(null);
       requestAnimationFrame(() => baseRef.current?.focus()); // foca a Base URL pra digitar
-    } else {
-      const p = PROVIDERS.find((x) => x.id === v);
-      if (p) selectProvider(p);
     }
   }
 
@@ -333,36 +316,13 @@ export default function MotorTab({ settings, update }: Props) {
     }
   }
 
-  // AUTO-SELEÇÃO pela chave: detecta o provedor pelo PREFIXO (colado/digitado) e
-  // troca sozinho. Ordem do mais específico ao genérico (sk-ant-/sk-or- também
-  // começam com "sk", então o "sk-" puro casa por último). Respeita "Personalizado"
-  // e não tira o usuário do DeepSeek com "sk-" (ambíguo com OpenAI).
-  function maybeAutoSelectProvider(key: string) {
-    if (customMode) return; // escolha explícita de endpoint próprio tem prioridade
-    const k = key.trim();
-    let detected: string | null = null;
-    if (k.startsWith("sk-or-")) detected = "openrouter";
-    else if (k.startsWith("sk-ant-")) detected = "anthropic";
-    else if (k.startsWith("xai-")) detected = "xai";
-    else if (k.startsWith("AIza")) detected = "gemini";
-    else if (k.startsWith("sk-")) detected = "openai";
-    if (!detected || detected === activeProvider) return;
-    if (detected === "openai" && activeProvider === "deepseek") return; // sk- ambíguo
-    const prov = PROVIDERS.find((p) => p.id === detected);
-    if (prov) selectProvider(prov);
-  }
-
   // Salva a config (settings), guarda a chave no COFRE e testa a conexão de verdade.
   async function applyApi() {
+    if (apiBusy) return;
     setApiBusy(true);
     setResult(null);
     try {
-      await update({ api_base_url: apiBase, api_model: apiModel });
-      // Só grava a chave se o usuário digitou uma (trimada) — nunca grava vazio/espaços.
-      if (apiKey.trim()) {
-        await invoke("set_api_key", { key: apiKey.trim() });
-      }
-      await invoke<string>("test_api_connection", { baseUrl: apiBase, model: apiModel });
+      await apply({ baseUrl: apiBase.trim(), model: apiModel.trim(), format: apiFormat, custom: isCustom }, apiKey);
       setResult({ ok: true, msg: "" });
       await refreshKeyStatus();
       setApiKey(""); // não mantém a chave digitada na memória da UI
@@ -382,7 +342,7 @@ export default function MotorTab({ settings, update }: Props) {
       <div className="field">
         <label>{t("motor.connection")}</label>
 
-        <div className="api-cfg">
+        <fieldset className="api-cfg api-fields" disabled={apiBusy}>
           <div>
             <span className="api-label">{t("motor.provider")}</span>
             <div className="prov-grid" role="group" aria-label={t("motor.provider")}>
@@ -390,11 +350,12 @@ export default function MotorTab({ settings, update }: Props) {
                 <button
                   key={p.id}
                   type="button"
+                  aria-label={p.label}
                   aria-pressed={activeProvider === p.id}
                   className={"prov-pill" + (activeProvider === p.id ? " on" : "")}
                   onClick={() => onProviderSelect(p.id)}
                 >
-                  <ApiProviderIcon host={p.host} size={17} />
+                  <ApiProviderIcon host={hostOf(p.base)} size={17} />
                   <span>{p.label}</span>
                 </button>
               ))}
@@ -410,6 +371,18 @@ export default function MotorTab({ settings, update }: Props) {
               </button>
             </div>
           </div>
+
+          {isCustom && (
+            <div>
+              <label className="api-label" htmlFor="api-format">{t("motor.format")}</label>
+              <select id="api-format" value={apiFormat} onChange={(e) => { setApiFormat(e.target.value as ApiFormat); setResult(null); }}>
+                <option value="auto">{t("motor.format.auto")}</option>
+                <option value="chat_completions">OpenAI Chat Completions</option>
+                <option value="responses">OpenAI Responses</option>
+                <option value="anthropic">Anthropic Messages</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="api-label" htmlFor="api-base">{t("motor.baseUrl")}</label>
@@ -444,7 +417,7 @@ export default function MotorTab({ settings, update }: Props) {
                 autoComplete="off"
               />
             )}
-            <BenchView model={apiModel} />
+            <ModelInfo provider={provider} modelId={apiModel} />
           </div>
 
           <div>
@@ -453,11 +426,12 @@ export default function MotorTab({ settings, update }: Props) {
               id="api-key"
               type="password"
               value={apiKey}
-              onChange={(e) => { setApiKey(e.target.value); setResult(null); maybeAutoSelectProvider(e.target.value); }}
+              onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
               placeholder={keySaved ? t("motor.apiKey.placeholderChange") : "sk-…"}
               spellCheck={false}
-              autoComplete="off"
+              autoComplete="new-password"
             />
+            <span className="api-hint">{t("motor.apiKey.scope")}</span>
             {keySaved && (
               <span className="api-saved">
                 <LockIcon /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
@@ -476,13 +450,19 @@ export default function MotorTab({ settings, update }: Props) {
           {!apiBusy && result && !result.ok && (
             <div className="field-err">{result.msg}</div>
           )}
-        </div>
+        </fieldset>
 
         {/* Indicador de privacidade: segue o provedor que está sendo configurado. */}
         <div className="privacy warn">
           <ArrowOutIcon /> <Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} />
         </div>
 
+        <p className="help" data-testid="model-cost-note">{(() => {
+          const model = recModels.find((entry) => entry.id === apiModel);
+          return model
+            ? t("motor.cost.example", { model: model.name, cost: formatRefinementCost(exampleRefinementCost(model), locale) })
+            : t("motor.cost.unknown", { model: apiModel || "—" });
+        })()}</p>
         <p className="help">{t("motor.help")}</p>
         <details className="help-more">
           <summary>{t("motor.more.summary")}</summary>

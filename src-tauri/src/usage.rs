@@ -6,8 +6,8 @@
 //! entram no contador. Agrega POR MÊS em `usage.json` na pasta de config.
 //!
 //! Custo: usa os tokens do campo `usage` da resposta quando disponíveis; senão
-//! estima por ~4 chars/token. Os preços por modelo vêm de `prices.json` (criado
-//! com defaults na 1ª vez, editável) — é a "tabela de preço configurável".
+//! estima por ~4 chars/token. Usa o catálogo compartilhado com a UI, com
+//! substituições opcionais em `prices.json`. Custos são estimativas, sem cache.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -203,8 +203,7 @@ fn save_usage(data: &UsageData) -> Result<()> {
     Ok(())
 }
 
-/// Preços default (US$ / 1M tokens), por modelo. Valores APROXIMADOS de referência
-/// (jun/2026) pros provedores fixos do app; o usuário ajusta editando prices.json.
+/// Preços de referência legados, complementados pelo catálogo atual da UI.
 fn default_prices() -> HashMap<String, ModelPrice> {
     let mut m = HashMap::new();
     let mut ins = |id: &str, input: f64, output: f64| {
@@ -224,7 +223,7 @@ fn default_prices() -> HashMap<String, ModelPrice> {
     // Anthropic (Claude)
     ins("claude-haiku-4-5", 1.00, 5.00);
     ins("claude-sonnet-4-6", 3.00, 15.00);
-    ins("claude-opus-4-8", 15.00, 75.00);
+    ins("claude-opus-4-8", 5.00, 25.00);
     // DeepSeek
     ins("deepseek-chat", 0.28, 1.10);
     ins("deepseek-reasoner", 0.55, 2.19);
@@ -234,8 +233,8 @@ fn default_prices() -> HashMap<String, ModelPrice> {
     ins("gemini-2.5-flash-lite", 0.10, 0.40);
     // xAI (Grok)
     ins("grok-4", 3.00, 15.00);
-    ins("grok-3", 3.00, 15.00);
-    ins("grok-code-fast-1", 0.20, 1.50);
+    ins("grok-3", 1.25, 2.50);
+    ins("grok-code-fast-1", 1.00, 2.00);
     // OpenRouter (modelos namespaced) — espelham o preço do modelo de origem.
     ins("openai/gpt-4o-mini", 0.15, 0.60);
     ins("anthropic/claude-sonnet-4.6", 3.00, 15.00);
@@ -243,26 +242,39 @@ fn default_prices() -> HashMap<String, ModelPrice> {
     ins("deepseek/deepseek-chat", 0.28, 1.10);
     // Fallback pra modelos não listados (mesma fonte do fallback de price_for).
     m.insert("default".into(), DEFAULT_PRICE);
+    m.extend(crate::model_catalog::prices());
     m
 }
 
-/// Carrega prices.json; na 1ª vez grava os defaults (assim fica visível/editável).
+/// Merge partial user overrides without losing newly added catalog prices.
+fn merge_price_overrides(json: &str) -> HashMap<String, ModelPrice> {
+    let mut prices = default_prices();
+    if let Ok(overrides) = serde_json::from_str::<HashMap<String, ModelPrice>>(json) {
+        prices.extend(overrides.into_iter().filter(|(_, price)| {
+            price.input_per_1m.is_finite()
+                && price.input_per_1m >= 0.0
+                && price.output_per_1m.is_finite()
+                && price.output_per_1m >= 0.0
+        }));
+    }
+    prices
+}
+
+/// Carrega substituições de prices.json; nunca sobrescreve edições existentes.
 fn load_or_init_prices() -> HashMap<String, ModelPrice> {
     if let Ok(path) = prices_path() {
         match std::fs::read_to_string(&path) {
             // Arquivo existe: se o usuário introduziu JSON inválido, usa os defaults
             // só EM MEMÓRIA — NÃO regrava o prices.json por cima das edições dele
             // (antes, um parse falho sobrescrevia o arquivo a cada refino — PERF-2).
-            Ok(json) => serde_json::from_str::<HashMap<String, ModelPrice>>(&json)
-                .unwrap_or_else(|_| default_prices()),
-            // Arquivo ausente (1ª vez): grava os defaults pra ficar visível/editável.
-            Err(_) => {
-                let defaults = default_prices();
-                if let Ok(json) = serde_json::to_string_pretty(&defaults) {
-                    let _ = std::fs::write(&path, json);
-                }
-                defaults
+            Ok(json) => merge_price_overrides(&json),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                // Only overrides belong on disk: saving catalog defaults here
+                // would freeze rates across app updates and promotions.
+                let _ = std::fs::write(&path, "{}\n");
+                default_prices()
             }
+            Err(_) => default_prices(),
         }
     } else {
         default_prices()
@@ -313,6 +325,31 @@ fn year_month(epoch_secs: i64) -> (i64, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_price_files_keep_overrides_and_gain_new_models() {
+        let prices = merge_price_overrides(
+            r#"{
+            "gpt-4o-mini":{"input_per_1m":0.12,"output_per_1m":0.5},
+            "my-custom-model":{"input_per_1m":0.01,"output_per_1m":0.02},
+            "default":{"input_per_1m":0.4,"output_per_1m":1.0}
+        }"#,
+        );
+        assert_eq!(prices["gpt-4o-mini"].input_per_1m, 0.12);
+        assert_eq!(prices["my-custom-model"].output_per_1m, 0.02);
+        assert_eq!(prices["default"].input_per_1m, 0.4);
+        assert_eq!(prices["gpt-5.6-luna"].input_per_1m, 0.2);
+        assert_eq!(prices["claude-sonnet-5"].output_per_1m, 10.0);
+        assert_eq!(prices["deepseek-flash"].output_per_1m, 1.2);
+    }
+
+    #[test]
+    fn invalid_or_negative_overrides_do_not_poison_the_catalog() {
+        assert!(merge_price_overrides("{invalid").contains_key("gpt-5.6-luna"));
+        let prices =
+            merge_price_overrides(r#"{"gpt-5.6-luna":{"input_per_1m":-1,"output_per_1m":0}}"#);
+        assert_eq!(prices["gpt-5.6-luna"].input_per_1m, 0.2);
+    }
 
     #[test]
     fn year_month_known_dates() {

@@ -301,27 +301,16 @@ body{margin:0; background:var(--cream); color:var(--ink); font-family:var(--mono
   .nav-item:hover .ico-info .info-dot, .nav-item:hover .ico-info .info-line{animation:none}
 }
 
-/* Aparições suaves (hint da Base URL, benchmark) + troca suave dos pontinhos. */
-.api-hint, .bench{animation:fade-soft .25s ease-out}
-.bench-dot{transition:background .2s ease-in-out, border-color .2s ease-in-out}
+/* Aparições suaves das dicas e informações do modelo. */
+.api-hint, .model-info{animation:fade-soft .25s ease-out}
 @keyframes fade-soft{from{opacity:0; transform:translateY(2px)}to{opacity:1; transform:translateY(0)}}
 
 @media (prefers-reduced-motion: reduce){
   .prov-pill, .prov-dot, .ico path, .ico-gemini, .ico-openrouter, .ico-plug path{transition:none}
   .prov-pill:hover, .prov-pill.on:hover{transform:none}
   .prov-pill:hover .ico-openai .oai-draw, .prov-pill:hover .ico-xai path, .prov-pill:hover .ico-deepseek{animation:none}
-  .api-hint, .bench{animation:none}
+  .api-hint, .model-info{animation:none}
 }
-
-/* Mini-benchmark do modelo — 3 pontinhos por eixo (barato=3, mais=melhor). */
-.bench{display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px; margin-top:11px}
-.bench-axis{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--dim)}
-.bench-dots{display:flex; gap:4px}
-.bench-dot{width:8px; height:8px; border-radius:2.5px; border:1px solid var(--line-2)}
-/* Cor por nível: 1 (baixo/lento/caro)=vermelho · 2 (médio)=amarelo · 3 (alto/rápido/barato)=verde. */
-.bench-dots.lvl-1 .bench-dot.on{background:var(--danger); border-color:var(--danger)}
-.bench-dots.lvl-2 .bench-dot.on{background:var(--amber); border-color:var(--amber)}
-.bench-dots.lvl-3 .bench-dot.on{background:var(--mint); border-color:var(--mint)}
 
 /* ── Dashboard (aba Início) — barras horizontais, alto contraste ── */
 /* Faixa fina do atalho — utilitário no topo, não billboard. */
@@ -523,3 +512,35 @@ kbd{font-family:var(--mono); font-size:11.5px; line-height:1; color:var(--stone)
 .copy,.redo{cursor:pointer; background:transparent; border:1px solid var(--line-2); color:var(--body); font-size:12.5px; border-radius:var(--rad-btn); padding:8px 16px}
 .copy:hover,.redo:hover{border-color:var(--ink); color:var(--ink)}
 @media (prefers-reduced-motion: reduce){ .palette, .palette.closing, .result{animation:none} }
+/* Keep form layout unchanged while disabling all inputs during a probe. */
+.api-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.api-fields select { width: 100%; font: inherit; color: inherit; background: transparent; border: 1px solid var(--border, #ccc); padding: 10px 12px; border-radius: 4px; }
+
+/* Source-backed model options and pricing. */
+.model-option-title{display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:normal;overflow-wrap:anywhere}
+.model-option-detail{display:block;margin-top:4px;font-size:11px;font-weight:400;color:var(--dim);white-space:normal}
+.model-tag{display:inline-block;flex-shrink:0;font-size:10px;font-weight:500;border:1px solid var(--line);border-radius:4px;padding:2px 6px;color:var(--mint-fg);background:var(--surface-soft)}
+.model-info{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:var(--rad-btn);font-size:12px;line-height:1.5}
+.model-info-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.model-info p{margin:7px 0;color:var(--dim)}
+.model-prices{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;margin:10px 0 0}
+.model-prices div{display:flex;gap:8px;align-items:baseline}
+.model-prices dt{color:var(--dim);font-size:11px}
+.model-prices dd{margin:0;font-weight:600}
+.model-prices>span{color:var(--dim);font-size:10px}
+.model-price-details{margin-top:10px;font-size:11px;color:var(--dim)}
+.model-price-details summary{cursor:pointer}
+.model-price-details a{color:var(--mint-fg);overflow-wrap:anywhere}
+@media(max-width:600px){.model-option-title{align-items:flex-start;flex-direction:column}.model-tag{max-width:100%;white-space:normal}}
+
+.bench{display:flex;flex-wrap:wrap;gap:12px 22px;margin:10px 0}
+.bench-axis{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--dim)}
+.bench-axis small{font-size:10px}
+.bench-dots{display:flex;gap:4px}
+.bench-dot{width:8px;height:8px;border-radius:2px;border:1px solid var(--line-2)}
+.bench-dots.lvl-1 .bench-dot.on{background:var(--danger);border-color:var(--danger)}
+.bench-dots.lvl-2 .bench-dot.on{background:var(--amber);border-color:var(--amber)}
+.bench-dots.lvl-3 .bench-dot.on{background:var(--mint);border-color:var(--mint)}
+.model-benchmark{margin:10px 0}
+.update-status{font-size:12px;color:var(--dim);margin-bottom:12px}
+.update-status progress{display:block;width:100%;height:8px;accent-color:var(--mint-fg)}

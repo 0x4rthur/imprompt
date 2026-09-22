@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import BrandMark from "./BrandMark";
@@ -14,9 +13,12 @@ import PresetsTab from "./tabs/PresetsTab";
 import GatilhoTab from "./tabs/GatilhoTab";
 import GeralTab from "./tabs/GeralTab";
 import ConnectionStatus from "./ConnectionStatus";
+import { connection, type ApiConfig } from "./connection";
 import { setLocale } from "./i18n";
 import type { Key } from "./i18n/catalog";
 import { useT } from "./i18n/useT";
+import { useAppUpdater } from "./useAppUpdater";
+import UpdateStatus from "./UpdateStatus";
 
 type Tab = "inicio" | "historico" | "motor" | "presets" | "gatilho" | "geral";
 const TABS: Tab[] = ["inicio", "historico", "presets", "motor", "gatilho", "geral"];
@@ -139,15 +141,14 @@ export default function App() {
   const { t, locale } = useT();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const settingsRef = useRef<Settings | null>(null);
+  const settingsQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [autostart, setAutostart] = useState(false);
   const [autostartErr, setAutostartErr] = useState("");
   const [needsAccess, setNeedsAccess] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [history, setHistory] = useState<RefineRecord[]>([]);
-  // Atualização: versão disponível (null = nenhuma) + estado de instalação/erro.
-  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [installing, setInstalling] = useState(false);
-  const [updateErr, setUpdateErr] = useState("");
+  const updater = useAppUpdater();
   // Uso da API (mês corrente).
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   // Histórico de uso por mês (pro gráfico de gastos do dashboard).
@@ -180,18 +181,6 @@ export default function App() {
     if (t === "historico") loadHistory();
   }
 
-  // Baixa e instala a atualização — em sucesso o app reinicia (a chamada não retorna).
-  async function installUpdate() {
-    setInstalling(true);
-    setUpdateErr("");
-    try {
-      await invoke("install_update");
-    } catch (e) {
-      setInstalling(false);
-      setUpdateErr(String(e));
-    }
-  }
-
   // Menu de contexto do WebView2 desativado + barra de rolagem custom (overlay).
   useEffect(() => {
     const offCtx = blockContextMenu();
@@ -208,7 +197,7 @@ export default function App() {
   useEffect(() => {
     loadPresets();
     invoke<Settings>("get_settings")
-      .then((s) => { setLocale(s.locale); setSettings(s); })
+      .then((s) => { setLocale(s.locale); settingsRef.current = s; setSettings(s); })
       .catch(console.error);
     // Estado real do autostart vem do plugin (fonte da verdade), não das settings.
     isEnabled().then(setAutostart).catch(console.error);
@@ -216,37 +205,42 @@ export default function App() {
     invoke<boolean>("check_accessibility").then((ok) => setNeedsAccess(!ok)).catch(console.error);
     // Histórico de refinos da sessão (pra timeline da tela Início).
     loadHistory();
-    // Atualização pendente? (puxa caso o evento tenha sido emitido antes de montar)
-    invoke<string | null>("get_pending_update").then((v) => { if (v) setUpdateVersion(v); }).catch(console.error);
     // Uso da API no mês.
     loadUsage();
     loadUsageHistory();
 
-    // Updater: aparece versão nova / confirma que está atualizado.
-    const unUpd = listen<string>("update-available", (e) => setUpdateVersion(e.payload));
-    const unNone = listen("update-none", () => setUpdateVersion(null));
     // Ao voltar o foco pra janela (ex.: depois de um refino via Ctrl+C×2),
     // recarrega o contador de uso e o histórico pra refletir o que foi feito.
     const unFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => { if (focused) { loadUsage(); loadUsageHistory(); loadHistory(); } });
     return () => {
-      unUpd.then((f) => f()); unNone.then((f) => f()); unFocus.then((f) => f());
+      unFocus.then((f) => f());
     };
   }, []);
 
-  // Salva no backend sempre que algo muda. Retorna a Promise pra quem precisa
-  // ESPERAR o salvamento antes do próximo passo (ex.: trocar e recarregar o modelo).
-  // Em falha, REVERTE o estado otimista pra UI não mentir sobre o que foi salvo.
+  // Serialize settings writes and merge against the last committed state so
+  // navigation or unrelated changes cannot overwrite an API configuration.
   function update(patch: Partial<Settings>): Promise<void> {
-    if (!settings) return Promise.resolve();
-    const prev = settings;
-    const next = { ...settings, ...patch };
-    setSettings(next);
-    return invoke("set_settings", { newSettings: next })
-      .then(() => {})
-      .catch((e) => {
-        setSettings(prev); // reverte o otimismo
-        throw e;
-      });
+    return queueSettings(async () => {
+      if (!settingsRef.current) return;
+      const next = { ...settingsRef.current, ...patch };
+      await invoke("set_settings", { newSettings: next });
+      settingsRef.current = next;
+      setSettings(next);
+    });
+  }
+
+  function queueSettings(operation: () => Promise<void>): Promise<void> {
+    const pending = settingsQueue.current.catch(() => {}).then(operation);
+    settingsQueue.current = pending;
+    return pending;
+  }
+
+  function applyApi(config: ApiConfig, key: string): Promise<void> {
+    return queueSettings(async () => {
+      const next = await connection.apply(config, key);
+      settingsRef.current = next;
+      setSettings(next);
+    });
   }
 
   // Liga/desliga o início com o sistema (autostart) e persiste nas settings.
@@ -348,20 +342,14 @@ export default function App() {
               </div>
             )}
 
-            {updateVersion && (
+            {updater.version && (
               <div className="banner update">
                 <div className="banner-text">
-                  <strong>{t("app.update.title", { version: updateVersion })}</strong>
-                  <p>
-                    {installing
-                      ? t("app.update.installing")
-                      : updateErr
-                      ? t("app.update.error", { error: updateErr })
-                      : t("app.update.body")}
-                  </p>
+                  <strong>{t("app.update.title", { version: updater.version })}</strong>
+                  {updater.installing || updater.error ? <UpdateStatus updater={updater} /> : <p>{t("app.update.body")}</p>}
                 </div>
-                <button className="btn-dl primary" disabled={installing} onClick={installUpdate}>
-                  {installing ? t("app.update.btn.installing") : t("app.update.btn")}
+                <button className="btn-dl primary" disabled={updater.installing || updater.checking} onClick={updater.install}>
+                  {updater.installing ? t("app.update.btn.installing") : t("app.update.btn")}
                 </button>
               </div>
             )}
@@ -374,12 +362,12 @@ export default function App() {
               <HistoricoTab history={history} presets={presets} />
             )}
 
-            {tab === "motor" && (
+            <div hidden={tab !== "motor"}>
               <MotorTab
                 settings={settings}
-                update={update}
+                apply={applyApi}
               />
-            )}
+            </div>
 
             {tab === "presets" && (
               <PresetsTab settings={settings} update={update} presets={presets} loadPresets={loadPresets} />
@@ -388,7 +376,7 @@ export default function App() {
             {tab === "gatilho" && <GatilhoTab settings={settings} update={update} />}
 
             {tab === "geral" && (
-              <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} />
+              <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} updater={updater} />
             )}
 
           </div>
