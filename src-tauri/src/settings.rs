@@ -37,6 +37,9 @@ fn default_api_model() -> String {
 fn default_use_examples() -> bool {
     true
 }
+fn default_fast_mode() -> bool {
+    true
+}
 fn default_trigger_modifier() -> String {
     "ctrl".into()
 }
@@ -82,6 +85,9 @@ pub struct Settings {
     pub api_format: crate::api_endpoint::ApiFormat,
     #[serde(default)]
     pub api_custom: bool,
+    /// Prefer low/no reasoning on documented model/provider pairs.
+    #[serde(default = "default_fast_mode")]
+    pub api_fast_mode: bool,
     /// Usar exemplos few-shot (turnos do preset) no refino. Default on; a UI expõe
     /// um toggle pra A/B testar. `serde(default)` mantém settings.json antigos válidos.
     #[serde(default = "default_use_examples")]
@@ -124,6 +130,7 @@ impl Default for Settings {
             api_model: default_api_model(),
             api_format: crate::api_endpoint::ApiFormat::Auto,
             api_custom: false,
+            api_fast_mode: true,
             use_examples: default_use_examples(),
             trigger_modifier: default_trigger_modifier(),
             trigger_key: default_trigger_key(),
@@ -247,6 +254,7 @@ mod tests {
         let legacy = r#"{"default_preset":"codigo","mode":"popup","output":"replace"}"#;
         let s: Settings = serde_json::from_str(legacy).unwrap();
         assert_eq!(s.locale, "en");
+        assert!(s.api_fast_mode);
         assert_eq!(s.default_preset, "codigo"); // não zerou as outras prefs
         assert_eq!(s.mode, super::ActivationMode::Popup);
         assert_eq!(s.output, super::OutputPref::Replace);

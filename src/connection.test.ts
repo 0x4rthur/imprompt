@@ -13,6 +13,7 @@ function deferred<T>() {
 describe("connection coordination", () => {
   it("normalizes URL paths without merging different query parameters", () => {
     expect(configId(config)).toBe(configId({ ...config, baseUrl: `${config.baseUrl}/` }));
+    expect(configId(config)).not.toBe(configId({ ...config, fastMode: false }));
     expect(configId({ ...config, baseUrl: `${config.baseUrl}?deployment=team/` })).not.toBe(configId({ ...config, baseUrl: `${config.baseUrl}?deployment=team` }));
   });
   it("shares overlapping probes and reuses a completed test on navigation", async () => {

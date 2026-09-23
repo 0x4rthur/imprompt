@@ -213,6 +213,7 @@ export default function MotorTab({ settings, apply }: Props) {
   const [apiBase, setApiBase] = useState(() => settings.api_base_url || "https://api.openai.com/v1");
   const [apiModel, setApiModel] = useState(() => settings.api_model || PROVIDERS[0].model);
   const [apiFormat, setApiFormat] = useState<ApiFormat>(() => settings.api_format ?? "auto");
+  const [fastMode, setFastMode] = useState(() => settings.api_fast_mode ?? true);
   const [apiKey, setApiKey] = useState("");
   const [apiBusy, setApiBusy] = useState(false);
   // Resultado do teste: null (nada ainda), {ok:true} (conectado) ou {ok:false,msg}.
@@ -259,7 +260,8 @@ export default function MotorTab({ settings, apply }: Props) {
     setApiModel(settings.api_model || PROVIDERS[0].model);
     setApiFormat(settings.api_format ?? "auto");
     setCustomMode(settings.api_custom ?? false);
-  }, [settings.api_base_url, settings.api_model, settings.api_format, settings.api_custom]);
+    setFastMode(settings.api_fast_mode ?? true);
+  }, [settings.api_base_url, settings.api_model, settings.api_format, settings.api_custom, settings.api_fast_mode]);
 
   // Provedor ativo: "custom" se o usuário forçou OU o host não casa com nenhum
   // conhecido; senão, o provedor cujo host bate com a Base URL.
@@ -322,7 +324,7 @@ export default function MotorTab({ settings, apply }: Props) {
     setApiBusy(true);
     setResult(null);
     try {
-      await apply({ baseUrl: apiBase.trim(), model: apiModel.trim(), format: apiFormat, custom: isCustom }, apiKey);
+      await apply({ baseUrl: apiBase.trim(), model: apiModel.trim(), format: apiFormat, custom: isCustom, fastMode }, apiKey);
       setResult({ ok: true, msg: "" });
       await refreshKeyStatus();
       setApiKey(""); // não mantém a chave digitada na memória da UI
@@ -437,6 +439,11 @@ export default function MotorTab({ settings, apply }: Props) {
                 <LockIcon /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
               </span>
             )}
+          </div>
+
+          <div>
+            <label className="fast-mode"><input type="checkbox" checked={fastMode} onChange={(event) => { setFastMode(event.target.checked); setResult(null); }} />{t("motor.fastMode")}</label>
+            <p className="api-hint">{t("motor.fastMode.help")}</p>
           </div>
 
           <div className="api-row">

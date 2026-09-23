@@ -9,6 +9,7 @@
 //! `std::thread` real (o `refine_text` e o fluxo do gatilho fazem isso). O
 //! A construção e destruição do cliente também ficam fora do runtime async.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
@@ -48,6 +49,7 @@ pub struct ApiEngine {
     /// Contador de uso/custo da API. `None` nos usos que NÃO devem contar (ex.: o
     /// ping do "testar conexão" e os testes criam o ApiEngine sem tracker).
     usage_tracker: Option<Arc<UsageTracker>>,
+    fast_mode: AtomicBool,
 }
 
 impl ApiEngine {
@@ -74,6 +76,8 @@ impl ApiEngine {
         let client = reqwest::blocking::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .connect_timeout(std::time::Duration::from_secs(10))
+            .pool_idle_timeout(std::time::Duration::from_secs(600))
+            .tcp_keepalive(std::time::Duration::from_secs(60))
             // Sem redirects: um POST /chat/completions de API OpenAI-compatível
             // responde 200 direto. Não seguir redirects evita que um endpoint
             // comprometido encadeie saltos carregando o header Authorization (SEC-3).
@@ -91,6 +95,7 @@ impl ApiEngine {
             api_key: api_key.trim().to_string(),
             client,
             usage_tracker: None,
+            fast_mode: AtomicBool::new(true),
         })
     }
 
@@ -98,6 +103,11 @@ impl ApiEngine {
     /// do "testar conexão" e os testes não, pra não poluir o contador).
     pub fn with_usage_tracker(mut self, tracker: Arc<UsageTracker>) -> Self {
         self.usage_tracker = Some(tracker);
+        self
+    }
+
+    pub fn with_fast_mode(self, enabled: bool) -> Self {
+        self.fast_mode.store(enabled, Ordering::Relaxed);
         self
     }
 }
@@ -159,18 +169,34 @@ impl Engine for ApiEngine {
             role: "user",
             content: user_text,
         });
-        let body = request_body(&self.model, self.endpoint.format, &messages);
+        let mut body = request_body(&self.model, self.endpoint.format, &messages);
+        let mut optional = if self.fast_mode.load(Ordering::Relaxed) {
+            crate::latency_policy::apply(&self.endpoint, &self.model, &mut body)
+        } else {
+            vec![]
+        };
 
         // 1 tentativa + até MAX_RETRIES retentativas; só repete em erro transitório
         // E enquanto couber no teto global de latência (TOTAL_DEADLINE).
         let start = std::time::Instant::now();
         let mut attempt = 0usize;
         loop {
-            match self.try_once(&body) {
+            match self.try_once(&body, &optional) {
                 Ok((text, usage)) => {
                     // Contabiliza o refino (só se este motor tiver tracker = API).
                     self.record_usage(&messages, &text, usage);
                     return Ok(text);
+                }
+                Err(RefineError::UnsupportedOptional(_))
+                    if !optional.is_empty() && should_retry(attempt, start.elapsed(), true) =>
+                {
+                    // Retry once after explicit rejection, remembering compatibility
+                    // on the cached client. No extra request on successful calls.
+                    for field in optional.drain(..) {
+                        body.as_object_mut().unwrap().remove(field);
+                    }
+                    self.fast_mode.store(false, Ordering::Relaxed);
+                    attempt += 1;
                 }
                 Err(err) => {
                     if should_retry(attempt, start.elapsed(), err.is_transient()) {
@@ -205,7 +231,11 @@ impl ApiEngine {
 
     /// UMA tentativa. Devolve `(texto, Option<(prompt_tokens, completion_tokens)>)`
     /// no sucesso; classifica falha em transitória (vale retry) ou permanente.
-    fn try_once(&self, body: &Value) -> std::result::Result<Completion, RefineError> {
+    fn try_once(
+        &self,
+        body: &Value,
+        optional: &[&str],
+    ) -> std::result::Result<Completion, RefineError> {
         let mut request = self.client.post(&self.endpoint.url);
         if !self.api_key.is_empty() {
             request = if self.endpoint.format == ApiFormat::Anthropic {
@@ -237,6 +267,12 @@ impl ApiEngine {
 
         let code = status.as_u16();
         let raw_body = resp.text().unwrap_or_default();
+        if crate::latency_policy::rejected_optional(code, &raw_body, optional) {
+            return Err(RefineError::UnsupportedOptional(
+                classify_status(code, &raw_body).into_message(),
+            )
+            .redact(&self.api_key));
+        }
         Err(classify_status(code, &raw_body).redact(&self.api_key))
     }
 }
@@ -330,6 +366,7 @@ fn parse_response(
 /// tentar de novo.
 #[derive(Debug)]
 enum RefineError {
+    UnsupportedOptional(String),
     /// Pode tentar de novo (429, 5xx 500–504, timeout/conexão).
     Transient(String),
     /// Não adianta repetir (401/403, demais 4xx, corpo inválido).
@@ -350,6 +387,7 @@ impl RefineError {
         };
         match self {
             Self::Transient(msg) => Self::Transient(sanitize(msg)),
+            Self::UnsupportedOptional(msg) => Self::UnsupportedOptional(sanitize(msg)),
             Self::Permanent(msg) => Self::Permanent(sanitize(msg)),
         }
     }
@@ -358,7 +396,9 @@ impl RefineError {
     }
     fn into_message(self) -> String {
         match self {
-            RefineError::Transient(m) | RefineError::Permanent(m) => m,
+            RefineError::Transient(m)
+            | RefineError::Permanent(m)
+            | RefineError::UnsupportedOptional(m) => m,
         }
     }
 }
@@ -515,6 +555,53 @@ mod tests {
             assert_eq!(body["messages"][3]["content"], "original");
             assert!(body.get("temperature").is_none());
             assert!(body.get("max_tokens").is_none());
+        }
+    }
+
+    #[test]
+    fn rejected_fast_control_falls_back_once_and_is_remembered() {
+        let (base, server) = server(vec![
+            (400, r#"{"error":{"message":"Unsupported parameter: reasoning_effort","param":"reasoning_effort"}}"#.into()),
+            (200, r#"{"choices":[{"message":{"content":"OK"}}]}"#.into()),
+            (200, r#"{"choices":[{"message":{"content":"OK"}}]}"#.into()),
+        ]);
+        let mut engine = ApiEngine::new(&base, "gpt-5-nano", "test-key").unwrap();
+        // Exercise production policy over loopback transport, never the real API.
+        engine.endpoint.base = "https://api.openai.com/v1".into();
+        assert_eq!(engine.refine("system", None, "original").unwrap(), "OK");
+        assert_eq!(engine.refine("system", None, "next").unwrap(), "OK");
+        let bodies: Vec<Value> = server
+            .join()
+            .unwrap()
+            .iter()
+            .map(|request| serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap())
+            .collect();
+        assert_eq!(bodies.len(), 3);
+        assert_eq!(bodies[0]["reasoning_effort"], "minimal");
+        assert!(bodies[1].get("reasoning_effort").is_none());
+        assert!(bodies[2].get("reasoning_effort").is_none());
+    }
+
+    #[test]
+    fn fast_mode_opt_out_and_success_use_one_request_without_truncating_input() {
+        let text = "Mantenha calcular_total, R$ 12,50 e 日本語. ".repeat(400);
+        for enabled in [true, false] {
+            let (base, server) = server(vec![(
+                200,
+                r#"{"choices":[{"message":{"content":"Complete answer"}}]}"#.into(),
+            )]);
+            let mut engine = ApiEngine::new(&base, "gpt-5-nano", "test-key")
+                .unwrap()
+                .with_fast_mode(enabled);
+            engine.endpoint.base = "https://api.openai.com/v1".into();
+            engine.refine("system", None, &text).unwrap();
+            let requests = server.join().unwrap();
+            assert_eq!(requests.len(), 1);
+            let body: Value =
+                serde_json::from_str(requests[0].split_once("\r\n\r\n").unwrap().1).unwrap();
+            assert_eq!(body["messages"][1]["content"], text);
+            assert_eq!(body.get("reasoning_effort").is_some(), enabled);
+            assert!(body.get("max_completion_tokens").is_none());
         }
     }
 
@@ -877,6 +964,74 @@ mod tests {
             println!("\n========== preset={pid} | input={input:?}");
             println!("---------- ZERO-SHOT (use_examples=off) ----------\n{zero}");
             println!("---------- FEW-SHOT  (use_examples=on)  ----------\n{few}");
+        }
+    }
+
+    /// Opt-in, paid A/B using only synthetic inputs and the saved provider/model.
+    /// Never changes settings, credentials or the user's usage/history files.
+    #[test]
+    #[ignore]
+    fn ab_latency_saved_model() {
+        assert_eq!(
+            std::env::var("IMPROMPT_LIVE_LATENCY_TEST").as_deref(),
+            Ok("1")
+        );
+        let path = dirs::config_dir().unwrap().join("imprompt/settings.json");
+        let settings: crate::settings::Settings =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        let key = crate::secrets::load_api_key(&settings.api_base_url)
+            .unwrap()
+            .expect("A saved API credential is required");
+        let eng = ApiEngine::with_format(
+            &settings.api_base_url,
+            &settings.api_model,
+            &key,
+            settings.api_format,
+        )
+        .unwrap();
+        let mut controls = json!({});
+        assert!(!crate::latency_policy::apply(&eng.endpoint, &eng.model, &mut controls).is_empty());
+        let presets = crate::presets::default_presets("pt-BR");
+        let cases = [
+            ("corrigir", "me faz um resumo desse relatorio em 3 topicos e mantem o prazo 25/09/2026 e o valor R$ 1.250,50"),
+            ("ingles", "Crie uma função Python chamada `calcular_total` que some os preços, ignore valores negativos e mantenha a mensagem \"Valor inválido\"."),
+            ("frontend", "o avatar do chat treme enquanto o bot digita e a mensagem nova pisca. corrige isso sem mudar o historico nem o alinhamento das mensagens"),
+        ];
+        let report_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/latency-ab.json");
+        let mut records = vec![];
+        for (index, (id, input)) in cases.into_iter().enumerate() {
+            let preset = crate::presets::find_preset(&presets, id, "pt-BR");
+            let system = preset.system_prompt("pt-BR");
+            let example = (settings.use_examples && preset.has_example()).then_some((
+                preset.example_input.as_str(),
+                preset.example_output.as_str(),
+            ));
+            // Alternate order and reuse one HTTP client to reduce warm-up bias.
+            for fast in if index % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            } {
+                eng.fast_mode.store(fast, Ordering::Relaxed);
+                let start = std::time::Instant::now();
+                let output = eng.refine(&system, example, input).unwrap();
+                let millis = start.elapsed().as_millis();
+                println!(
+                    "preset={id} fast={fast} elapsed_ms={millis} chars={}",
+                    output.chars().count()
+                );
+                assert_eq!(
+                    eng.fast_mode.load(Ordering::Relaxed),
+                    fast,
+                    "Speed control was rejected"
+                );
+                records.push(json!({
+                    "model": eng.model, "preset": id, "fast": fast,
+                    "elapsed_ms": millis, "input": input, "output": output,
+                }));
+                std::fs::write(&report_path, serde_json::to_vec_pretty(&records).unwrap()).unwrap();
+            }
         }
     }
 

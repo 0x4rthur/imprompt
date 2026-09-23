@@ -302,6 +302,7 @@ pub fn set_settings(state: State<AppState>, new_settings: Settings) -> Result<()
     if current.api_base_url != new_settings.api_base_url
         || current.api_model != new_settings.api_model
         || current.api_format != new_settings.api_format
+        || current.api_fast_mode != new_settings.api_fast_mode
     {
         *engine = None;
     }
@@ -322,6 +323,7 @@ pub fn build_engine(
     let api_key = crate::secrets::load_api_key(&s.api_base_url)?.unwrap_or_default();
     // Liga o contador de uso/custo (ver usage.rs).
     let api = ApiEngine::with_format(&s.api_base_url, &s.api_model, &api_key, s.api_format)?
+        .with_fast_mode(s.api_fast_mode)
         .with_usage_tracker(usage);
     Ok(Arc::new(api))
 }
@@ -401,6 +403,7 @@ pub async fn test_api_connection(
     base_url: String,
     model: String,
     format: Option<crate::api_endpoint::ApiFormat>,
+    fast_mode: Option<bool>,
 ) -> Result<String, String> {
     // Locale lido na borda (State não cruza pra thread). Erros internos sobem como
     // CHAVES i18n e são traduzidos aqui via tr_msg.
@@ -414,7 +417,8 @@ pub async fn test_api_connection(
                 .unwrap_or_default();
             let eng =
                 ApiEngine::with_format(&base_url, &model, &api_key, format.unwrap_or_default())
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| e.to_string())?
+                    .with_fast_mode(fast_mode.unwrap_or(true));
             // Ping mínimo: zero-shot (sem exemplo) — só valida credencial/modelo.
             eng.refine("Responda apenas com a palavra OK.", None, "ping")
                 .map(|_| ())
@@ -479,6 +483,7 @@ pub async fn apply_api_configuration(
     model: String,
     format: crate::api_endpoint::ApiFormat,
     custom: bool,
+    fast_mode: Option<bool>,
     key: Option<String>,
 ) -> Result<Settings, String> {
     let locale = lock(&app.state::<AppState>().settings).locale.clone();
@@ -491,7 +496,8 @@ pub async fn apply_api_configuration(
             let new_key = key.as_deref().map(str::trim).filter(|key| !key.is_empty());
             let api_key = new_key.or(previous_key.as_deref()).unwrap_or_default();
             let candidate =
-                crate::api_engine::ApiEngine::with_format(&base_url, &model, api_key, format)?;
+                crate::api_engine::ApiEngine::with_format(&base_url, &model, api_key, format)?
+                    .with_fast_mode(fast_mode.unwrap_or(true));
             candidate.refine("Reply with only OK.", None, "ping")?;
             let state = app.state::<AppState>();
             let mut engine = lock(&state.engine);
@@ -501,6 +507,7 @@ pub async fn apply_api_configuration(
             next.api_model = model;
             next.api_format = format;
             next.api_custom = custom;
+            next.api_fast_mode = fast_mode.unwrap_or(true);
             if let Some(key) = new_key {
                 crate::secrets::save_api_key(&base_url, key)?;
             }

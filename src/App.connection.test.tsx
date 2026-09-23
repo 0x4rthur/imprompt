@@ -47,6 +47,17 @@ async function openApp() {
 }
 
 describe("API settings navigation", () => {
+  it("keeps the speed preference through navigation and sends it with the tested configuration", async () => {
+    await openApp();
+    const option = screen.getByRole("checkbox", { name: "Prioritize speed" }) as HTMLInputElement;
+    expect(option.checked).toBe(true);
+    fireEvent.click(option);
+    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    fireEvent.click(screen.getByRole("button", { name: "API" }));
+    expect((screen.getByRole("checkbox", { name: "Prioritize speed" }) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Apply and test" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("apply_api_configuration", expect.objectContaining({ fastMode: false })));
+  });
   it("updates the footer estimate and benchmark when selecting a model", async () => {
     await openApp();
     expect(screen.getByTestId("model-cost-note").textContent).toContain("GPT-5.6 Luna: ~$0.0008");

@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ApiFormat, Settings } from "./types";
 
-export type ApiConfig = { baseUrl: string; model: string; format: ApiFormat; custom?: boolean };
+export type ApiConfig = { baseUrl: string; model: string; format: ApiFormat; custom?: boolean; fastMode?: boolean };
 export type ConnectionHealth = { health: "checking" | "connected" | "error"; detail: string };
 const CHECKING: ConnectionHealth = { health: "checking", detail: "" };
 
 export function apiConfig(settings: Settings): ApiConfig {
-  return { baseUrl: settings.api_base_url, model: settings.api_model, format: settings.api_format ?? "auto", custom: settings.api_custom ?? false };
+  return { baseUrl: settings.api_base_url, model: settings.api_model, format: settings.api_format ?? "auto", custom: settings.api_custom ?? false, fastMode: settings.api_fast_mode ?? true };
 }
 
 export function configId(config: ApiConfig): string {
@@ -16,7 +16,7 @@ export function configId(config: ApiConfig): string {
     url.pathname = url.pathname.replace(/\/+$/, "") || "/";
     base = url.toString();
   } catch { /* Invalid drafts still need distinct status entries. */ }
-  return JSON.stringify([base, config.model.trim(), config.format]);
+  return JSON.stringify([base, config.model.trim(), config.format, config.fastMode ?? true]);
 }
 
 type Invoke = <T>(command: string, args: Record<string, unknown>) => Promise<T>;

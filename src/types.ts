@@ -31,6 +31,7 @@ export type Settings = {
   api_model: string;
   api_format: ApiFormat;
   api_custom: boolean;
+  api_fast_mode?: boolean;
   use_examples: boolean;
   trigger_modifier: "ctrl" | "alt" | "shift";
   trigger_key: string;

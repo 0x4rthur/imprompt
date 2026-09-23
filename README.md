@@ -118,6 +118,11 @@ require HTTPS and a key. Model IDs are sent as entered, without a model allowlis
 forced sampling parameters. Availability still depends on the provider/account.
 Connection tests make a small generation request and may incur provider charges.
 
+**Prioritize speed** is on by default. It lowers reasoning effort where the selected
+model supports it. All preset instructions and examples are preserved. Turn it off in the API tab for
+complex reasoning. Your model and standard processing tier stay the same.
+See [latency controls and sources](docs/LATENCY.md) for coverage and tradeoffs.
+
 Protocol references: [OpenAI models](https://developers.openai.com/api/docs/models/gpt-5.6-luna),
 [Anthropic Messages](https://platform.claude.com/docs/en/api/messages/create),
 [Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), and

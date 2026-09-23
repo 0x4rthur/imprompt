@@ -12,6 +12,7 @@ mod commands;
 mod engine;
 mod hotkey;
 mod i18n;
+mod latency_policy;
 mod model_catalog;
 mod presets;
 mod secrets;
