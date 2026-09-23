@@ -184,15 +184,17 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     <section className="card">
       {/* Preset padrão */}
       <div className="field">
-        <label>{t("presets.default")}</label>
-        <div className="chips">
+        <h2 className="sec-title" id="default-preset-title">{t("presets.default")}</h2>
+        <div className="chips" role="group" aria-labelledby="default-preset-title">
           {presets.map((p) => (
             <button
               key={p.id}
               className={"chip" + (settings.default_preset === p.id ? " active" : "")}
               style={{ "--pc-h": presetHue(p.id) } as CSSProperties}
+              aria-pressed={settings.default_preset === p.id}
               onClick={() => update({ default_preset: p.id })}
             >
+              <span className="p-dot" aria-hidden="true" />
               {p.label}
             </button>
           ))}
@@ -202,7 +204,7 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
 
       {/* Presets (criar/editar/duplicar/excluir) — edição em acordeon inline */}
       <div className="field">
-        <label>{t("presets.list")}</label>
+        <h2 className="sec-title">{t("presets.list")}</h2>
         <p className="help">{t("presets.list.help")}</p>
         <div className="mypresets">
           {presets.map((p) => {
@@ -210,7 +212,9 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
             return (
               <div className="mp-item" key={p.id}>
                 <div className="mp-row">
+                  <span className="p-dot" style={{ "--pc-h": presetHue(p.id) } as CSSProperties} aria-hidden="true" />
                   <span className="mp-label">{p.label}</span>
+                  {settings.default_preset === p.id && <span className="mp-badge default">{t("presets.badge.default")}</span>}
                   {p.edited && <span className="mp-badge">{t("presets.badge.edited")}</span>}
                   <button className="btn-dl" aria-expanded={anchor === p.id} onClick={() => toggleEdit(p)}>{t("presets.edit")}</button>
                   <button className="btn-dl" onClick={() => startDuplicatePreset(p)}>{t("presets.duplicate")}</button>
@@ -248,11 +252,10 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
 
       {/* Exemplos few-shot */}
       <div className="field">
-        <label>{t("presets.fewShot")}</label>
-        <div className="seg" role="group" aria-label={t("presets.fewShot.aria")}>
-          <button aria-pressed={settings.use_examples} className={settings.use_examples ? "active" : ""} onClick={() => update({ use_examples: true })}>{t("presets.fewShot.yes")}</button>
-          <button aria-pressed={!settings.use_examples} className={!settings.use_examples ? "active" : ""} onClick={() => update({ use_examples: false })}>{t("presets.fewShot.no")}</button>
-        </div>
+        <label className="switch-row">
+          <span className="sec-title">{t("presets.fewShot")}</span>
+          <input type="checkbox" className="switch" checked={settings.use_examples} onChange={(e) => update({ use_examples: e.target.checked })} />
+        </label>
         <p className="help">
           {settings.use_examples
             ? t("presets.fewShot.on.help")

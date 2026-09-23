@@ -75,7 +75,7 @@ function GeminiLogo({ size }: { size: number }) {
 // xAI — "X" em 4 partes; explode pra fora e volta no hover.
 function XaiLogo({ size }: { size: number }) {
   return (
-    <svg className="ico ico-xai" viewBox="0 0 24 24" width={size} height={size} fill="#18181b" aria-label="xAI" role="img">
+    <svg className="ico ico-xai" viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-label="xAI" role="img">
       <path className="xai-1" d="M6.469 8.776L16.512 23h-4.464L2.005 8.776H6.47z" />
       <path className="xai-2" d="M6.465 16.676l2.233 3.164L6.467 23H2l4.465-6.324z" />
       <path className="xai-3" d="M22 1l-9.952 14.095-2.233-3.163L17.533 1H22z" />

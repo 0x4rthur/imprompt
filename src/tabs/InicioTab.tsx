@@ -1,11 +1,14 @@
 // InicioTab.tsx — "Início": DASHBOARD (visão geral). Uma linguagem visual só:
 // barras horizontais de alto contraste (tinta sobre trilho claro). Uso/custo do mês,
-// composição de tokens (entrada→saída), gastos por mês e atalhos. Sem chamadas ao
-// backend (recebe tudo do App). A timeline de refinos fica na aba "Histórico".
+// composição de tokens (entrada→saída), gastos por mês e a configuração atual (cada
+// linha leva à aba correspondente). Se a API não conecta, um aviso de primeiro uso
+// aponta pra aba API. A timeline de refinos fica na aba "Histórico".
+import { useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 import type { MonthUsage, Preset, Settings, Tab, UsageSummary } from "../types";
 import { presetHue } from "../presetColor";
 import { ApiProviderIcon, providerName } from "../ApiProviderIcon";
+import { apiConfig, connection } from "../connection";
 import { useT } from "../i18n/useT";
 import { Trans } from "../i18n/Trans";
 import type { Key } from "../i18n/catalog";
@@ -42,11 +45,22 @@ function monthShort(key: string, localeTag: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString(localeTag, { month: "short" }).replace(".", "");
 }
 
+function RowChevron() {
+  return (
+    <svg className="setup-chev" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 4l4 4-4 4" />
+    </svg>
+  );
+}
+
 export default function InicioTab({ settings, usage, usageHistory, presets, onNavigate }: Props) {
   const { t, locale } = useT();
   const localeTag = locale === "pt-BR" ? "pt-BR" : "en-US";
   const mod = t(MOD_LABEL[settings.trigger_modifier] ?? "mod.ctrl");
   const key = (settings.trigger_key || "c").toUpperCase();
+  // Mesmo estado de saúde que o rail mostra (o rail dispara o teste; aqui só lê).
+  const config = apiConfig(settings);
+  const { health } = useSyncExternalStore(connection.subscribe, () => connection.snapshot(config));
 
   const refinos = usage?.refinements ?? 0;
   const custo = usage?.cost_usd ?? 0;
@@ -70,7 +84,18 @@ export default function InicioTab({ settings, usage, usageHistory, presets, onNa
 
   return (
     <div className="inicio">
-      {/* Faixa fina do atalho — utilitário no topo, não billboard. */}
+      {/* Primeiro uso / conexão quebrada: o próximo passo em destaque. */}
+      {health === "error" && (
+        <div className="callout" role="status">
+          <div className="callout-text">
+            <strong>{t("inicio.setup.title")}</strong>
+            <p>{t("inicio.setup.body")}</p>
+          </div>
+          <button className="btn-dl primary" onClick={() => onNavigate("motor")}>{t("inicio.setup.cta")}</button>
+        </div>
+      )}
+
+      {/* Faixa do gesto — utilitário, não billboard. */}
       <div className="dash-strip">
         <span>
           <Trans
@@ -84,78 +109,85 @@ export default function InicioTab({ settings, usage, usageHistory, presets, onNa
       </div>
 
       {/* Este mês — custo em destaque, demais secundários. */}
-      <div className="ey">{t("inicio.month")}</div>
-      <div className="stats-row">
-        <div className="st"><div className="n">~US$ {fmtCost(custo, localeTag)}</div><div className="l">{t("inicio.month.cost")}</div></div>
-        <div className="st muted"><div className="n">{refinos}</div><div className="l">{t("inicio.month.imprompts")}</div></div>
-        <div className="st muted"><div className="n">{refinos > 0 ? `~US$ ${fmtCost(custoMedio, localeTag)}` : "—"}</div><div className="l">{t("inicio.month.perImprompt")}</div></div>
-      </div>
+      <section className="dash-sec">
+        <h2 className="sec-title">{t("inicio.month")}</h2>
+        <div className="stats-row">
+          <div className="st lead"><div className="n">~US$ {fmtCost(custo, localeTag)}</div><div className="l">{t("inicio.month.cost")}</div></div>
+          <div className="st"><div className="n">{refinos}</div><div className="l">{t("inicio.month.imprompts")}</div></div>
+          <div className="st"><div className="n">{refinos > 0 ? `~US$ ${fmtCost(custoMedio, localeTag)}` : "—"}</div><div className="l">{t("inicio.month.perImprompt")}</div></div>
+        </div>
+      </section>
 
       {/* Tokens — barra empilhada entrada → saída. */}
-      <div className="ey">{t("inicio.tokens")} {tokTotal > 0 && <span className="t">{t("inicio.tokens.month", { n: fmtTok(tokTotal, localeTag) })}</span>}</div>
-      {tokTotal > 0 ? (
-        <>
-          <div className="tbar" role="img" aria-label={t("inicio.tokens.aria", { in: fmtTok(tokIn, localeTag), inPct, out: fmtTok(tokOut, localeTag), outPct })}>
-            <span className="seg in" style={{ width: inPct + "%" }} />
-            <span className="seg out" style={{ width: outPct + "%" }} />
-          </div>
-          <div className="tleg">
-            <span><span className="dot" style={{ background: "#cdcdd2" }} />{t("inicio.tokens.in")} · {fmtTok(tokIn, localeTag)} <span className="pct">{inPct}%</span></span>
-            <span><span className="dot" style={{ background: "var(--ink)" }} />{t("inicio.tokens.out")} · {fmtTok(tokOut, localeTag)} <span className="pct">{outPct}%</span></span>
-          </div>
-        </>
-      ) : (
-        <div className="tnone">{t("inicio.tokens.empty")}</div>
-      )}
+      <section className="dash-sec">
+        <h2 className="sec-title">{t("inicio.tokens")}{tokTotal > 0 && <span className="sec-meta">{t("inicio.tokens.month", { n: fmtTok(tokTotal, localeTag) })}</span>}</h2>
+        {tokTotal > 0 ? (
+          <>
+            <div className="tbar" role="img" aria-label={t("inicio.tokens.aria", { in: fmtTok(tokIn, localeTag), inPct, out: fmtTok(tokOut, localeTag), outPct })}>
+              <span className="tbar-seg in" style={{ width: inPct + "%" }} />
+              <span className="tbar-seg out" style={{ width: outPct + "%" }} />
+            </div>
+            <div className="tleg">
+              <span><span className="dot in" />{t("inicio.tokens.in")} · {fmtTok(tokIn, localeTag)} <span className="pct">{inPct}%</span></span>
+              <span><span className="dot out" />{t("inicio.tokens.out")} · {fmtTok(tokOut, localeTag)} <span className="pct">{outPct}%</span></span>
+            </div>
+          </>
+        ) : (
+          <p className="tnone">{t("inicio.tokens.empty")}</p>
+        )}
+      </section>
 
       {/* Gastos por mês — barras horizontais (rótulo + trilho + valor). */}
-      <div className="ey">{t("inicio.spend")}</div>
-      {months.length === 0 ? (
-        <div className="tnone">{t("inicio.spend.empty")}</div>
-      ) : (
-        <div role="img" aria-label={t("inicio.spend.aria", { list: months.map((m) => `${monthShort(m.month, localeTag)} ~US$ ${fmtCost(m.cost_usd, localeTag)}`).join(", ") })}>
-          {months.map((m) => {
-            const w = Math.max(3, Math.round((m.cost_usd / maxCost) * 100));
-            return (
-              <div className={"mrow" + (m.month === curMonth ? " cur" : "")} key={m.month} title={t("inicio.spend.rowTitle", { month: m.month, n: m.refinements, cost: fmtCost(m.cost_usd, localeTag) })}>
-                <span className="mx">{monthShort(m.month, localeTag)}</span>
-                <span className="mt"><span className="mf" style={{ width: w + "%" }} /></span>
-                <span className="mv">~US$ {fmtCost(m.cost_usd, localeTag)}</span>
-              </div>
-            );
-          })}
-          {months.length < 2 && <div className="hint">{t("inicio.spend.hint")}</div>}
-        </div>
-      )}
+      <section className="dash-sec">
+        <h2 className="sec-title">{t("inicio.spend")}</h2>
+        {months.length === 0 ? (
+          <p className="tnone">{t("inicio.spend.empty")}</p>
+        ) : (
+          <div role="img" aria-label={t("inicio.spend.aria", { list: months.map((m) => `${monthShort(m.month, localeTag)} ~US$ ${fmtCost(m.cost_usd, localeTag)}`).join(", ") })}>
+            {months.map((m) => {
+              const w = Math.max(3, Math.round((m.cost_usd / maxCost) * 100));
+              return (
+                <div className={"mrow" + (m.month === curMonth ? " cur" : "")} key={m.month} title={t("inicio.spend.rowTitle", { month: m.month, n: m.refinements, cost: fmtCost(m.cost_usd, localeTag) })}>
+                  <span className="mx">{monthShort(m.month, localeTag)}</span>
+                  <span className="mt"><span className="mf" style={{ width: w + "%" }} /></span>
+                  <span className="mv">~US$ {fmtCost(m.cost_usd, localeTag)}</span>
+                </div>
+              );
+            })}
+            {months.length < 2 && <p className="hint">{t("inicio.spend.hint")}</p>}
+          </div>
+        )}
+      </section>
 
-      {/* Atalhos — preferências + presets. */}
-      <div className="ey">{t("inicio.shortcuts")}</div>
-      <div className="dash-short">
-        <button className="short-card" onClick={() => onNavigate("motor")}>
-          <span className="short-ico"><ApiProviderIcon host={host} size={20} /></span>
-          <span className="short-tt">{t("tab.api")}</span>
-          <span className="short-sub">{providerName(host)} · {settings.api_model || "—"}</span>
-        </button>
-        <button className="short-card" onClick={() => onNavigate("presets")}>
-          <span className="short-tt">{t("tab.presets")}</span>
-          <span className="short-sub">
-            {defPreset ? (
-              <Trans
-                k="inicio.short.presets.default"
-                slots={{ label: <span className="tl-preset" style={{ "--pc-h": presetHue(defPreset.id) } as CSSProperties}>{defPreset.label}</span> }}
-              />
-            ) : "—"}
-          </span>
-        </button>
-        <button className="short-card" onClick={() => onNavigate("gatilho")}>
-          <span className="short-tt">{t("tab.gatilho")}</span>
-          <span className="short-sub">{t("inicio.short.gatilho.sub", { mod, key, action: settings.output === "replace" ? t("inicio.short.gatilho.replace") : t("inicio.short.gatilho.copy") })}</span>
-        </button>
-        <button className="short-card" onClick={() => onNavigate("geral")}>
-          <span className="short-tt">{t("tab.sobre")}</span>
-          <span className="short-sub">{t("inicio.short.sobre.sub")}</span>
-        </button>
-      </div>
+      {/* Sua configuração — estado atual; cada linha leva à aba que o altera. */}
+      <section className="dash-sec">
+        <h2 className="sec-title">{t("inicio.setup")}</h2>
+        <div className="setup-list">
+          <button className="setup-row" onClick={() => onNavigate("motor")}>
+            <span className="setup-k">{t("tab.api")}</span>
+            <span className="setup-v">
+              <ApiProviderIcon host={host} size={15} />
+              <span className="setup-txt">{providerName(host)} · {settings.api_model || "—"}</span>
+            </span>
+            <RowChevron />
+          </button>
+          <button className="setup-row" onClick={() => onNavigate("presets")}>
+            <span className="setup-k">{t("presets.default")}</span>
+            <span className="setup-v">
+              {defPreset && <span className="p-dot" style={{ "--pc-h": presetHue(defPreset.id) } as CSSProperties} aria-hidden="true" />}
+              <span className="setup-txt">{defPreset?.label ?? "—"}</span>
+            </span>
+            <RowChevron />
+          </button>
+          <button className="setup-row" onClick={() => onNavigate("gatilho")}>
+            <span className="setup-k">{t("tab.gatilho")}</span>
+            <span className="setup-v">
+              <span className="setup-txt">{t("inicio.short.gatilho.sub", { mod, key, action: settings.output === "replace" ? t("inicio.short.gatilho.replace") : t("inicio.short.gatilho.copy") })}</span>
+            </span>
+            <RowChevron />
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

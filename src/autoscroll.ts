@@ -111,7 +111,7 @@ function attach(scroller: HTMLElement): void {
 
 // Scrollers conhecidos do app (janela principal + popup). Cobre todas as abas
 // porque elas vivem dentro de `.main`.
-const SELECTORS = ".main, .rail, .overlay, .result-body, .capture, .dd-list, .app-scroll";
+const SELECTORS = ".main, .rail, .overlay, .palette-body, .result-body, .capture, .dd-list";
 
 export function initAutoScrollbars(): () => void {
   const scan = () => document.querySelectorAll<HTMLElement>(SELECTORS).forEach(attach);

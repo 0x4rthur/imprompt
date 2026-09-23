@@ -2,6 +2,7 @@
 // (key-recorder, sem dropdowns), janela entre os toques, modo de ativação e destino
 // do resultado.
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import type { Settings } from "../types";
 import { useT } from "../i18n/useT";
 import { Trans } from "../i18n/Trans";
@@ -85,9 +86,9 @@ export default function GatilhoTab({ settings, update }: Props) {
     <section className="card">
       {/* Atalho de ativação — gravado direto pelo teclado */}
       <div className="field">
-        <label>{t("gatilho.label")}</label>
+        <h2 className="sec-title">{t("gatilho.label")}</h2>
         <TriggerRecorder settings={settings} update={update} />
-        <div className="debounce-row">
+        <div className="debounce">
           <span id="debounce-label" className="debounce-label"><Trans k="gatilho.debounce" slots={{ ms: <strong>{settings.debounce_ms} ms</strong> }} /></span>
           <input
             type="range"
@@ -97,8 +98,10 @@ export default function GatilhoTab({ settings, update }: Props) {
             max={600}
             step={10}
             value={settings.debounce_ms}
+            style={{ "--fill": `${((settings.debounce_ms - 250) / 350) * 100}%` } as CSSProperties}
             onChange={(e) => update({ debounce_ms: Number(e.target.value) })}
           />
+          <span className="debounce-scale" aria-hidden="true"><span>250 ms</span><span>600 ms</span></span>
         </div>
         <p className="help">
           <Trans k="gatilho.help" slots={{ strong: <strong>{t("gatilho.help.strong")}</strong> }} />
@@ -107,7 +110,7 @@ export default function GatilhoTab({ settings, update }: Props) {
 
       {/* Modo de ativação */}
       <div className="field">
-        <label>{t("gatilho.when")}</label>
+        <h2 className="sec-title">{t("gatilho.when")}</h2>
         <div className="seg" role="group" aria-label={t("gatilho.when")}>
           <button aria-pressed={settings.mode === "instant"} className={settings.mode === "instant" ? "active" : ""} onClick={() => update({ mode: "instant" })}>{t("gatilho.when.instant")}</button>
           <button aria-pressed={settings.mode === "popup"} className={settings.mode === "popup" ? "active" : ""} onClick={() => update({ mode: "popup" })}>{t("gatilho.when.popup")}</button>
@@ -121,7 +124,7 @@ export default function GatilhoTab({ settings, update }: Props) {
 
       {/* Saída */}
       <div className="field">
-        <label>{t("gatilho.output")}</label>
+        <h2 className="sec-title">{t("gatilho.output")}</h2>
         <div className="seg" role="group" aria-label={t("gatilho.output")}>
           <button aria-pressed={settings.output === "replace"} className={settings.output === "replace" ? "active" : ""} onClick={() => update({ output: "replace" })}>{t("gatilho.output.replace")}</button>
           <button aria-pressed={settings.output === "clipboard"} className={settings.output === "clipboard" ? "active" : ""} onClick={() => update({ output: "clipboard" })}>{t("gatilho.output.clipboard")}</button>

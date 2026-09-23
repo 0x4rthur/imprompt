@@ -338,44 +338,53 @@ export default function MotorTab({ settings, apply }: Props) {
     }
   }
 
+  // Estimativa de custo do modelo selecionado (ou aviso de preço desconhecido).
+  const costNote = (() => {
+    const model = recModels.find((entry) => entry.id === apiModel);
+    return model
+      ? t("motor.cost.example", { model: model.name, cost: formatRefinementCost(exampleRefinementCost(model), locale) })
+      : t("motor.cost.unknown", { model: apiModel || "—" });
+  })();
+
   return (
     <section className="card">
-      {/* Conexão (provedor + endpoint + modelo + chave) */}
-      <div className="field">
-        <label>{t("motor.connection")}</label>
-
-        <fieldset className="api-cfg api-fields" disabled={apiBusy}>
-          <div>
-            <span className="api-label">{t("motor.provider")}</span>
-            <div className="prov-grid" role="group" aria-label={t("motor.provider")}>
-              {PROVIDERS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  aria-label={p.label}
-                  aria-pressed={activeProvider === p.id}
-                  className={"prov-pill" + (activeProvider === p.id ? " on" : "")}
-                  onClick={() => onProviderSelect(p.id)}
-                >
-                  <ApiProviderIcon host={hostOf(p.base)} size={17} />
-                  <span>{p.label}</span>
-                </button>
-              ))}
+      <fieldset className="api-cfg api-fields" disabled={apiBusy} aria-label={t("motor.connection")}>
+        {/* Provedor: define o endpoint e, portanto, pra onde o texto vai. */}
+        <div className="field">
+          <h2 className="sec-title" id="api-provider-title">{t("motor.provider")}</h2>
+          <div className="prov-grid" role="group" aria-labelledby="api-provider-title">
+            {PROVIDERS.map((p) => (
               <button
+                key={p.id}
                 type="button"
-                aria-pressed={isCustom}
-                className={"prov-pill" + (isCustom ? " on" : "")}
-                onClick={() => onProviderSelect(CUSTOM)}
-                title={t("motor.custom.title")}
+                aria-label={p.label}
+                aria-pressed={activeProvider === p.id}
+                className={"prov-pill" + (activeProvider === p.id ? " on" : "")}
+                onClick={() => onProviderSelect(p.id)}
               >
-                <CustomGlyph />
-                <span>{t("motor.custom")}</span>
+                <ApiProviderIcon host={hostOf(p.base)} size={17} />
+                <span>{p.label}</span>
               </button>
-            </div>
+            ))}
+            <button
+              type="button"
+              aria-pressed={isCustom}
+              className={"prov-pill" + (isCustom ? " on" : "")}
+              onClick={() => onProviderSelect(CUSTOM)}
+              title={t("motor.custom.title")}
+            >
+              <CustomGlyph />
+              <span>{t("motor.custom")}</span>
+            </button>
           </div>
 
+          {/* Indicador de privacidade: segue o provedor que está sendo configurado. */}
+          <p className="privacy warn">
+            <ArrowOutIcon /> <span><Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} /></span>
+          </p>
+
           {isCustom && (
-            <div>
+            <div className="sub-field">
               <label className="api-label" htmlFor="api-format">{t("motor.format")}</label>
               <select id="api-format" value={apiFormat} onChange={(e) => { setApiFormat(e.target.value as ApiFormat); setResult(null); }}>
                 <option value="auto">{t("motor.format.auto")}</option>
@@ -386,7 +395,7 @@ export default function MotorTab({ settings, apply }: Props) {
             </div>
           )}
 
-          <div>
+          <div className="sub-field">
             <label className="api-label" htmlFor="api-base">{t("motor.baseUrl")}</label>
             <input
               id="api-base"
@@ -400,76 +409,61 @@ export default function MotorTab({ settings, apply }: Props) {
             />
             {!isCustom && <span className="api-hint">{t("motor.baseUrl.hint")}</span>}
           </div>
-
-          <div>
-            <span className="api-label">{t("motor.model")}</span>
-            {recModels.length > 0 && (
-              <Dropdown ariaLabel={t("motor.model")} value={modelDropValue} options={modelOptions} onSelect={onModelSelect} />
-            )}
-            {showModelInput && (
-              <input
-                id="api-model"
-                ref={modelRef}
-                aria-label={t("motor.model.aria")}
-                className={recModels.length > 0 ? "dd-extra-input" : ""}
-                value={apiModel}
-                onChange={(e) => { setApiModel(e.target.value); setResult(null); }}
-                placeholder={t("motor.model.placeholder")}
-                spellCheck={false}
-                autoComplete="off"
-              />
-            )}
-            <ModelInfo provider={provider} modelId={apiModel} />
-          </div>
-
-          <div>
-            <label className="api-label" htmlFor="api-key">{t("motor.apiKey")}</label>
-            <input
-              id="api-key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
-              placeholder={keySaved ? t("motor.apiKey.placeholderChange") : "sk-…"}
-              spellCheck={false}
-              autoComplete="new-password"
-            />
-            <span className="api-hint">{t("motor.apiKey.scope")}</span>
-            {keySaved && (
-              <span className="api-saved">
-                <LockIcon /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
-              </span>
-            )}
-          </div>
-
-          <div>
-            <label className="fast-mode"><input type="checkbox" checked={fastMode} onChange={(event) => { setFastMode(event.target.checked); setResult(null); }} />{t("motor.fastMode")}</label>
-            <p className="api-hint">{t("motor.fastMode.help")}</p>
-          </div>
-
-          <div className="api-row">
-            <button className="btn-dl primary" disabled={apiBusy} onClick={applyApi}>
-              {apiBusy ? t("motor.testing") : t("motor.applyTest")}
-            </button>
-            {!apiBusy && result?.ok && (
-              <span className="test-ok"><PlugIcon /> {t("motor.connected")}</span>
-            )}
-          </div>
-          {!apiBusy && result && !result.ok && (
-            <div className="field-err">{result.msg}</div>
-          )}
-        </fieldset>
-
-        {/* Indicador de privacidade: segue o provedor que está sendo configurado. */}
-        <div className="privacy warn">
-          <ArrowOutIcon /> <Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} />
         </div>
 
-        <p className="help" data-testid="model-cost-note">{(() => {
-          const model = recModels.find((entry) => entry.id === apiModel);
-          return model
-            ? t("motor.cost.example", { model: model.name, cost: formatRefinementCost(exampleRefinementCost(model), locale) })
-            : t("motor.cost.unknown", { model: apiModel || "—" });
-        })()}</p>
+        {/* Modelo: lista curada (ou id próprio) + ficha com benchmark e preços. */}
+        <div className="field">
+          <h2 className="sec-title">{t("motor.model")}</h2>
+          {recModels.length > 0 && (
+            <Dropdown ariaLabel={t("motor.model")} value={modelDropValue} options={modelOptions} onSelect={onModelSelect} />
+          )}
+          {showModelInput && (
+            <input
+              id="api-model"
+              ref={modelRef}
+              aria-label={t("motor.model.aria")}
+              className={recModels.length > 0 ? "dd-extra-input" : ""}
+              value={apiModel}
+              onChange={(e) => { setApiModel(e.target.value); setResult(null); }}
+              placeholder={t("motor.model.placeholder")}
+              spellCheck={false}
+              autoComplete="off"
+            />
+          )}
+          <ModelInfo provider={provider} modelId={apiModel} />
+          <p className="help" data-testid="model-cost-note">{costNote}</p>
+        </div>
+
+        {/* Chave: vai pro cofre do sistema, uma por endpoint. */}
+        <div className="field">
+          <label className="sec-title" htmlFor="api-key">{t("motor.apiKey")}</label>
+          <input
+            id="api-key"
+            type="password"
+            value={apiKey}
+            onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
+            placeholder={keySaved ? t("motor.apiKey.placeholderChange") : "sk-…"}
+            spellCheck={false}
+            autoComplete="new-password"
+          />
+          <span className="api-hint">{t("motor.apiKey.scope")}</span>
+          {keySaved && (
+            <span className="api-saved">
+              <LockIcon /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
+            </span>
+          )}
+        </div>
+
+        <div className="field">
+          <label className="switch-row">
+            <span className="sec-title">{t("motor.fastMode")}</span>
+            <input type="checkbox" className="switch" checked={fastMode} onChange={(event) => { setFastMode(event.target.checked); setResult(null); }} />
+          </label>
+          <p className="help">{t("motor.fastMode.help")}</p>
+        </div>
+      </fieldset>
+
+      <div className="field notes">
         <p className="help">{t("motor.help")}</p>
         <details className="help-more">
           <summary>{t("motor.more.summary")}</summary>
@@ -477,6 +471,21 @@ export default function MotorTab({ settings, apply }: Props) {
         </details>
       </div>
 
+      {/* Barra de ação presa ao rodapé da área rolável: o formulário é longo e a
+          ação principal (e o resultado do teste) fica sempre à vista. */}
+      <div className="apply-bar">
+        {!apiBusy && result && !result.ok && (
+          <div className="field-err" role="alert">{result.msg}</div>
+        )}
+        <div className="api-row">
+          <button className="btn-dl primary" disabled={apiBusy} onClick={applyApi}>
+            {apiBusy ? t("motor.testing") : t("motor.applyTest")}
+          </button>
+          {!apiBusy && result?.ok && (
+            <span className="test-ok" role="status"><PlugIcon /> {t("motor.connected")}</span>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

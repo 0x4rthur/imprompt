@@ -35,7 +35,7 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
   return (
     <section className="card">
       <div className="field">
-        <label>{t("app.update.section")}</label>
+        <h2 className="sec-title">{t("app.update.section")}</h2>
         <p className="help">{version ? t("app.update.installed", { version }) : "Imprompt"}</p>
         <UpdateStatus updater={updater} />
         <div className="api-row">
@@ -45,12 +45,11 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
       </div>
       {/* Iniciar com o sistema (autostart) */}
       <div className="field">
-        <label>{t("geral.autostart")}</label>
-        <div className="seg" role="group" aria-label={t("geral.autostart")}>
-          <button aria-pressed={!autostart} className={!autostart ? "active" : ""} onClick={() => toggleAutostart(false)}>{t("geral.autostart.no")}</button>
-          <button aria-pressed={autostart} className={autostart ? "active" : ""} onClick={() => toggleAutostart(true)}>{t("geral.autostart.yes")}</button>
-        </div>
-        {autostartErr && <div className="field-err">✗ {autostartErr}</div>}
+        <label className="switch-row">
+          <span className="sec-title">{t("geral.autostart")}</span>
+          <input type="checkbox" className="switch" checked={autostart} onChange={(e) => toggleAutostart(e.target.checked)} />
+        </label>
+        {autostartErr && <div className="field-err" role="alert">{autostartErr}</div>}
         <p className="help">
           {autostart ? t("geral.autostart.on.help") : t("geral.autostart.off.help")}
         </p>
@@ -58,7 +57,7 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
 
       {/* Idioma da interface */}
       <div className="field">
-        <label>{t("geral.language")}</label>
+        <h2 className="sec-title">{t("geral.language")}</h2>
         <div className="seg" role="group" aria-label={t("geral.language")}>
           <button aria-pressed={settings.locale === "en"} className={settings.locale === "en" ? "active" : ""}
                   onClick={() => { setLocale("en"); update({ locale: "en" }); }}>English</button>
@@ -70,7 +69,7 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
 
       {/* Apoiar o projeto — doação via Stripe (abre no navegador). */}
       <div className="support">
-        <p className="support-title">{t("geral.support.title")}</p>
+        <h2 className="support-title">{t("geral.support.title")}</h2>
         <p className="support-desc">{t("geral.support.desc")}</p>
         <button className="donate" onClick={() => { invoke("open_url", { url: DONATE_URL }).catch(console.error); }}>
           <HandHeartIcon size={18} />
@@ -78,7 +77,6 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
         </button>
       </div>
 
-      {version && <p className="foot">Imprompt v{version}</p>}
     </section>
   );
 }

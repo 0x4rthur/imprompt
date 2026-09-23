@@ -20,13 +20,21 @@ const en = {
   "tab.gatilho": "Shortcut",
   "tab.sobre": "Settings",
 
+  // Subtítulo de cada página (uma linha, abaixo do título).
+  "page.inicio": "Usage this month and your current setup.",
+  "page.historico": "Imprompts from this session only. Nothing is saved to disk.",
+  "page.presets": "Each preset is an instruction sent along with your text.",
+  "page.api": "The provider and model that refine your text.",
+  "page.gatilho": "How Imprompt is triggered and where the result goes.",
+  "page.sobre": "Updates, startup and language.",
+
   // Modificadores de teclado (canônicos; reusados onde o atalho é exibido).
   "mod.ctrl": "Ctrl",
   "mod.alt": "Alt",
   "mod.shift": "Shift",
 
   // App shell.
-  "app.title": "Imprompt — Preferences",
+  "app.title": "Imprompt Preferences",
   "app.loading": "Loading…",
   "app.nav": "Navigation",
   "app.window.minimize": "Minimize",
@@ -80,7 +88,7 @@ const en = {
   "conn.disconnected": "No connection",
   "conn.noKey": "no saved key",
   "conn.title.error": "{name}: {detail}",
-  "conn.title.test": "{name} ({host}) — click to test the connection",
+  "conn.title.test": "{name} ({host}). Click to test the connection.",
   // Fallback genérico quando o host não casa com nenhuma marca conhecida.
   "conn.providerFallback": "API",
   // Host exibido quando a base URL configurada é vazia/ilegível.
@@ -117,7 +125,7 @@ const en = {
   // Provedor personalizado.
   "motor.custom": "Custom",
   "motor.custom.title": "Your own API endpoint",
-  "motor.baseUrl.hint": "Set by the provider — pick \"Custom\" to edit.",
+  "motor.baseUrl.hint": "Set by the provider. Pick \"Custom\" to edit it.",
   "motor.model.customOption": "Custom…",
   "motor.model.placeholder": "e.g. gpt-5.6-luna",
   "motor.model.aria": "Model id",
@@ -155,7 +163,7 @@ const en = {
   "gatilho.label": "Shortcut",
   "gatilho.debounce": "Window between the 2 taps: {ms}",
   "gatilho.help":
-    "The 1st tap copies the selection; the 2nd (within the window) activates Imprompt. {strong} — it's what copies the text; other shortcuts require you to have copied the text beforehand.",
+    "The 1st tap copies the selection; the 2nd (within the window) activates Imprompt. {strong}: it's what copies the text. With other shortcuts, copy the text yourself first.",
   "gatilho.help.strong": "Ctrl+C is recommended",
   // Modo de ativação.
   "gatilho.when": "When to activate",
@@ -194,6 +202,7 @@ const en = {
   "presets.cancel": "Cancel",
   // Item da lista.
   "presets.badge.edited": "edited",
+  "presets.badge.default": "default",
   "presets.edit": "Edit",
   "presets.duplicate": "Duplicate",
   "presets.delete": "Delete",
@@ -206,9 +215,6 @@ const en = {
   "presets.restore.confirm.title": "Undoes your edits and deletions of the default presets",
   // Few-shot.
   "presets.fewShot": "Use examples (few-shot)",
-  "presets.fewShot.aria": "Use examples",
-  "presets.fewShot.yes": "Yes",
-  "presets.fewShot.no": "No",
   "presets.fewShot.on.help":
     "Each preset sends one example (input → output) as conversation turns before your text. Usually improves the quality of the API's answer.",
   "presets.fewShot.off.help":
@@ -216,7 +222,7 @@ const en = {
 
   // ── Aba Início (InicioTab) ──
   // Faixa fina do atalho (com markup inline via <Trans>).
-  "inicio.strip.mode": "mode {mode} · via API",
+  "inicio.strip.mode": "{mode} mode",
   "inicio.strip.mode.popup": "Show popup",
   "inicio.strip.mode.instant": "Instant",
   "inicio.strip.hint": "Select and press {mod} + {key} ×2",
@@ -231,26 +237,29 @@ const en = {
   "inicio.tokens.aria": "Tokens: input {in} ({inPct}%), output {out} ({outPct}%)",
   "inicio.tokens.in": "input",
   "inicio.tokens.out": "output",
-  "inicio.tokens.empty": "No tokens this month yet — they show up after the first imprompt.",
+  "inicio.tokens.empty": "No tokens this month yet. They show up after your first imprompt.",
   // Gastos por mês.
   "inicio.spend": "Spending by month",
   "inicio.spend.empty": "No data yet. Your monthly spending shows up here as you use it.",
   "inicio.spend.aria": "Spending by month: {list}",
   "inicio.spend.rowTitle": "{month}: {n} imprompt(s) · ~US$ {cost}",
   "inicio.spend.hint": "Previous months' bars fill in here as you use it.",
-  // Atalhos (short-cards).
-  "inicio.shortcuts": "Shortcuts",
-  "inicio.short.presets.default": "default: {label}",
+  // Sua configuração (linhas que levam às abas).
+  "inicio.setup": "Your setup",
+  // Aviso de primeiro uso (sem conexão com a API).
+  "inicio.setup.title": "Connect a provider to start",
+  "inicio.setup.body": "Imprompt refines text through your own API key. Setup takes about a minute.",
+  "inicio.setup.cta": "Set up the API",
   "inicio.short.gatilho.sub": "{mod}+{key} ×2 · {action}",
   "inicio.short.gatilho.replace": "replace",
   "inicio.short.gatilho.copy": "copy",
-  "inicio.short.sobre.sub": "autostart · version",
 
   // ── Aba Histórico (HistoricoTab) ──
-  "historico.title": "Imprompt history",
   "historico.today": "Today",
   "historico.yesterday": "Yesterday",
-  "historico.empty": "No imprompts in this session. Your imprompts show up here — and aren't saved to disk.",
+  "historico.empty": "No imprompts in this session yet. Select text in any app and use your shortcut.",
+  "historico.copy": "Copy result",
+  "historico.copied": "Copied",
   "historico.aria.original": "original",
   "historico.aria.result": "result",
 
@@ -266,7 +275,7 @@ const en = {
   // Cabeçalho do popup (a marca "Imprompt" fica fora do catálogo).
   "popup.head.sub": "Captured text",
   // Citação capturada (vazia / recolher / expandir).
-  "popup.capture.empty": "(nothing captured — select some text)",
+  "popup.capture.empty": "Nothing captured. Select some text first.",
   "popup.capture.collapse": "Collapse",
   "popup.capture.expand": "Expand",
   // Presets (label + aria do grupo).
@@ -288,8 +297,6 @@ const en = {
   // ── Aba Geral (GeralTab) ──
   // Iniciar com o sistema (label + aria + botões).
   "geral.autostart": "Start with the system",
-  "geral.autostart.no": "No",
-  "geral.autostart.yes": "Yes",
   "geral.autostart.on.help":
     "Imprompt opens with the system, already hidden in the tray, ready for Ctrl+C×2.",
   "geral.autostart.off.help": "Open Imprompt manually whenever you want to use it.",
@@ -309,11 +316,18 @@ const ptBR: Record<keyof typeof en, string> = {
   "tab.gatilho": "Atalho",
   "tab.sobre": "Configurações",
 
+  "page.inicio": "Uso deste mês e a sua configuração atual.",
+  "page.historico": "Imprompts só desta sessão. Nada é salvo no disco.",
+  "page.presets": "Cada preset é uma instrução enviada junto com o seu texto.",
+  "page.api": "O provedor e o modelo que refinam o seu texto.",
+  "page.gatilho": "Como o Imprompt é acionado e para onde vai o resultado.",
+  "page.sobre": "Atualizações, inicialização e idioma.",
+
   "mod.ctrl": "Ctrl",
   "mod.alt": "Alt",
   "mod.shift": "Shift",
 
-  "app.title": "Imprompt — Preferências",
+  "app.title": "Preferências do Imprompt",
   "app.loading": "Carregando…",
   "app.nav": "Navegação",
   "app.window.minimize": "Minimizar",
@@ -364,7 +378,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "conn.disconnected": "Sem conexão",
   "conn.noKey": "sem chave salva",
   "conn.title.error": "{name}: {detail}",
-  "conn.title.test": "{name} ({host}) — clique para testar a conexão",
+  "conn.title.test": "{name} ({host}). Clique para testar a conexão.",
   "conn.providerFallback": "API",
   "conn.invalidProvider": "(provedor inválido)",
 
@@ -396,7 +410,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "motor.apiKey.scope": "Salva separadamente para este endpoint. Opcional em localhost.",
   "motor.custom": "Personalizado",
   "motor.custom.title": "Seu próprio endpoint de API",
-  "motor.baseUrl.hint": "Definido pelo provedor — escolha \"Personalizado\" para editar.",
+  "motor.baseUrl.hint": "Definido pelo provedor. Escolha \"Personalizado\" para editar.",
   "motor.model.customOption": "Personalizado…",
   "motor.model.placeholder": "ex.: gpt-5.6-luna",
   "motor.model.aria": "Id do modelo",
@@ -426,7 +440,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "gatilho.label": "Atalho",
   "gatilho.debounce": "Janela entre os 2 toques: {ms}",
   "gatilho.help":
-    "O 1º toque copia a seleção; o 2º (dentro da janela) ativa o Imprompt. {strong} — é ele que copia o texto; outros atalhos exigem que você já tenha copiado o texto antes.",
+    "O 1º toque copia a seleção; o 2º (dentro da janela) ativa o Imprompt. {strong}: é ele que copia o texto. Com outros atalhos, copie o texto antes.",
   "gatilho.help.strong": "Ctrl+C é o recomendado",
   "gatilho.when": "Quando ativar",
   "gatilho.when.instant": "Instantâneo",
@@ -457,6 +471,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "presets.create": "Criar",
   "presets.cancel": "Cancelar",
   "presets.badge.edited": "editado",
+  "presets.badge.default": "padrão",
   "presets.edit": "Editar",
   "presets.duplicate": "Duplicar",
   "presets.delete": "Excluir",
@@ -467,16 +482,13 @@ const ptBR: Record<keyof typeof en, string> = {
   "presets.restore.confirm": "Confirmar restauração",
   "presets.restore.confirm.title": "Desfaz suas edições e exclusões dos presets padrão",
   "presets.fewShot": "Usar exemplos (few-shot)",
-  "presets.fewShot.aria": "Usar exemplos",
-  "presets.fewShot.yes": "Sim",
-  "presets.fewShot.no": "Não",
   "presets.fewShot.on.help":
     "Cada preset manda um exemplo (entrada → saída) como turnos de conversa antes do seu texto. Costuma melhorar a qualidade da resposta da API.",
   "presets.fewShot.off.help":
     "Zero-shot: só a instrução do preset, sem exemplo. Útil pra comparar (A/B).",
 
   // ── Aba Início (InicioTab) ──
-  "inicio.strip.mode": "modo {mode} · via API",
+  "inicio.strip.mode": "modo {mode}",
   "inicio.strip.mode.popup": "Mostrar popup",
   "inicio.strip.mode.instant": "Instantâneo",
   "inicio.strip.hint": "Selecione e aperte {mod} + {key} ×2",
@@ -489,24 +501,26 @@ const ptBR: Record<keyof typeof en, string> = {
   "inicio.tokens.aria": "Tokens: entrada {in} ({inPct}%), saída {out} ({outPct}%)",
   "inicio.tokens.in": "entrada",
   "inicio.tokens.out": "saída",
-  "inicio.tokens.empty": "Sem tokens neste mês ainda — aparecem após o primeiro imprompt.",
+  "inicio.tokens.empty": "Sem tokens neste mês ainda. Eles aparecem após o primeiro imprompt.",
   "inicio.spend": "Gastos por mês",
   "inicio.spend.empty": "Sem dados ainda. Seus gastos por mês aparecem aqui conforme você usa.",
   "inicio.spend.aria": "Gastos por mês: {list}",
   "inicio.spend.rowTitle": "{month}: {n} imprompt(s) · ~US$ {cost}",
   "inicio.spend.hint": "As barras dos meses anteriores entram aqui conforme você usa.",
-  "inicio.shortcuts": "Atalhos",
-  "inicio.short.presets.default": "padrão: {label}",
+  "inicio.setup": "Sua configuração",
+  "inicio.setup.title": "Conecte um provedor para começar",
+  "inicio.setup.body": "O Imprompt refina textos com a sua própria chave de API. A configuração leva cerca de um minuto.",
+  "inicio.setup.cta": "Configurar a API",
   "inicio.short.gatilho.sub": "{mod}+{key} ×2 · {action}",
   "inicio.short.gatilho.replace": "substitui",
   "inicio.short.gatilho.copy": "copia",
-  "inicio.short.sobre.sub": "autostart · versão",
 
   // ── Aba Histórico (HistoricoTab) ──
-  "historico.title": "Histórico de imprompts",
   "historico.today": "Hoje",
   "historico.yesterday": "Ontem",
-  "historico.empty": "Nenhum imprompt nesta sessão. Seus imprompts aparecem aqui — e não são salvos no disco.",
+  "historico.empty": "Nenhum imprompt nesta sessão ainda. Selecione um texto em qualquer app e use o seu atalho.",
+  "historico.copy": "Copiar resultado",
+  "historico.copied": "Copiado",
   "historico.aria.original": "original",
   "historico.aria.result": "resultado",
 
@@ -517,7 +531,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "popup.badge.noModel": "(modelo não definido)",
   "popup.error.fallback": "Não consegui concluir o imprompt. Verifique a configuração da API nas Preferências.",
   "popup.head.sub": "Texto capturado",
-  "popup.capture.empty": "(nada capturado — selecione um texto)",
+  "popup.capture.empty": "Nada capturado. Selecione um texto antes.",
   "popup.capture.collapse": "Recolher",
   "popup.capture.expand": "Expandir",
   "popup.presets.label": "Preset",
@@ -533,8 +547,6 @@ const ptBR: Record<keyof typeof en, string> = {
 
   // ── Aba Geral (GeralTab) ──
   "geral.autostart": "Iniciar com o sistema",
-  "geral.autostart.no": "Não",
-  "geral.autostart.yes": "Sim",
   "geral.autostart.on.help":
     "O Imprompt abre junto com o sistema, já escondido na bandeja, pronto pro Ctrl+C×2.",
   "geral.autostart.off.help": "Abra o Imprompt manualmente quando quiser usá-lo.",

@@ -1,8 +1,8 @@
 // HistoricoTab.tsx — aba "Histórico": timeline dos imprompts da SESSÃO (não persiste
 // em disco — preserva a privacidade do app). Cada entrada é um ACORDEON: colapsada
 // mostra hora + preset + prévia do original; expande pra ver original e resultado
-// completos. Recebe history/presets do App.
-import { useState } from "react";
+// completos (com "Copiar resultado"). Recebe history/presets do App.
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Preset, RefineRecord } from "../types";
 import { presetHue } from "../presetColor";
@@ -28,12 +28,26 @@ export default function HistoricoTab({ history, presets }: Props) {
   const localeTag = locale === "pt-BR" ? "pt-BR" : "en-US";
   // Quais entradas estão expandidas (por timestamp). Default: todas colapsadas.
   const [open, setOpen] = useState<Set<number>>(new Set());
+  // Entrada cujo resultado acabou de ser copiado (feedback "Copiado" por ~1,5s).
+  const [copied, setCopied] = useState<number | null>(null);
+  const copiedTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
   const toggle = (ts: number) =>
     setOpen((prev) => {
       const next = new Set(prev);
       if (next.has(ts)) next.delete(ts); else next.add(ts);
       return next;
     });
+  async function copyResult(h: RefineRecord) {
+    try {
+      await navigator.clipboard.writeText(h.result);
+      setCopied(h.timestamp);
+      window.clearTimeout(copiedTimer.current);
+      copiedTimer.current = window.setTimeout(() => setCopied(null), 1500);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   // Agrupa preservando a ordem (history vem do mais recente pro mais antigo).
   const groups: { date: string; items: RefineRecord[] }[] = [];
@@ -47,17 +61,13 @@ export default function HistoricoTab({ history, presets }: Props) {
 
   return (
     <div className="inicio">
-      <div className="inicio-head" style={{ marginTop: 0 }}>
-        <h2>{t("historico.title")}</h2>
-      </div>
-
       {history.length === 0 ? (
-        <div className="tl-empty">{t("historico.empty")}</div>
+        <p className="tl-empty">{t("historico.empty")}</p>
       ) : (
         <div className="timeline">
           {groups.map((g, gi) => (
-            <div key={g.date + "-" + gi}>
-              <div className="tl-group-date">{g.date}</div>
+            <section key={g.date + "-" + gi}>
+              <h2 className="tl-group-date">{g.date}</h2>
               <div className="tl-list">
                 {g.items.map((h, i) => {
                   const isOpen = open.has(h.timestamp);
@@ -74,8 +84,19 @@ export default function HistoricoTab({ history, presets }: Props) {
                       <div className="acc-body">
                         <div className="acc-inner">
                           <div className="acc-pad">
-                            <div className="tl-line orig"><span className="tl-mk" aria-label={t("historico.aria.original")}>[-]</span><span>{h.original}</span></div>
-                            <div className="tl-line res"><span className="tl-mk ok" aria-label={t("historico.aria.result")}>[+]</span><span>{h.result}</span></div>
+                            <div className="tl-block">
+                              <span className="tl-label">{t("historico.aria.original")}</span>
+                              <p className="tl-line orig">{h.original}</p>
+                            </div>
+                            <div className="tl-block">
+                              <span className="tl-label ok">{t("historico.aria.result")}</span>
+                              <p className="tl-line res">{h.result}</p>
+                            </div>
+                            <div className="tl-actions">
+                              <button className="btn-dl" tabIndex={isOpen ? 0 : -1} onClick={() => copyResult(h)} aria-live="polite">
+                                {copied === h.timestamp ? t("historico.copied") : t("historico.copy")}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -83,7 +104,7 @@ export default function HistoricoTab({ history, presets }: Props) {
                   );
                 })}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}

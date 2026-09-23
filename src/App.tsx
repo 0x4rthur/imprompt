@@ -34,6 +34,16 @@ const TAB_KEY: Record<Tab, Key> = {
   geral: "tab.sobre",
 };
 
+// Subtítulo (uma linha) do cabeçalho de cada página.
+const PAGE_KEY: Record<Tab, Key> = {
+  inicio: "page.inicio",
+  historico: "page.historico",
+  presets: "page.presets",
+  motor: "page.api",
+  gatilho: "page.gatilho",
+  geral: "page.sobre",
+};
+
 // Chave de catálogo do modificador do atalho, pra interpolar em mensagens.
 const MOD_KEY: Record<Settings["trigger_modifier"], Key> = { ctrl: "mod.ctrl", alt: "mod.alt", shift: "mod.shift" };
 
@@ -95,14 +105,12 @@ function NavIcon({ id }: { id: Tab }) {
         </svg>
       );
     case "gatilho":
-      // Link externo; a seta "sai" e a janela encolhe no hover (itshover → CSS).
+      // Teclado; a barra de espaço "afunda" no hover (o atalho é um gesto de teclado).
       return (
-        <svg {...base} strokeLinejoin="round" className="ico-extlink">
-          <path className="external-box" d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6" />
-          <g className="external-arrow">
-            <path d="M11 13l9 -9" />
-            <path d="M15 4h5v5" />
-          </g>
+        <svg {...base} strokeLinejoin="round" className="ico-kbd">
+          <rect x="2.5" y="6" width="19" height="12" rx="2" />
+          <path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01" />
+          <path className="kbd-space" d="M8 14.2h8" />
         </svg>
       );
     case "geral":
@@ -256,18 +264,24 @@ export default function App() {
     }
   }
 
+  // Barra de título CUSTOM: a janela roda sem decoração nativa (decorations:false).
+  // Fica só sobre a coluna de conteúdo (o rail sobe até o topo); a barra inteira é
+  // região de arrasto (data-tauri-drag-region), só os controles recebem clique.
+  const titlebar = (
+    <header className="titlebar" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
+      <WindowControls />
+    </header>
+  );
+
   if (!settings) {
     return (
       <div className="app">
-        <header className="titlebar" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
-          <span className="tb-title"></span>
-          <div className="tb-right">
-            <WindowControls />
+        <div className="content">
+          {titlebar}
+          <div className="loading-brand" data-tauri-drag-region>
+            <BrandMark size={28} />
+            <div className="lb-text">{t("app.loading")}</div>
           </div>
-        </header>
-        <div className="loading-brand" data-tauri-drag-region>
-          <BrandMark size={28} />
-          <div className="lb-text">{t("app.loading")}</div>
         </div>
       </div>
     );
@@ -275,21 +289,11 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Barra de título CUSTOM: a janela roda sem decoração nativa (decorations:false).
-          A marca foi pro rail à esquerda; aqui ficam só o título e os controles de janela.
-          A barra inteira é a região de arrasto (data-tauri-drag-region). */}
-      <header className="titlebar" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
-        <span className="tb-title"></span>
-        <div className="tb-right">
-          <WindowControls />
-        </div>
-      </header>
-
       <div className="shell">
-        {/* ── Rail: logo + navegação de ícones; Geral fixo no rodapé ── */}
+        {/* ── Rail (altura total): marca + navegação; Configurações e conexão no rodapé ── */}
         <nav className="rail" aria-label={t("app.nav")}>
-          <div className="rail-brand">
-            <BrandMark size={22} />
+          <div className="rail-brand" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
+            <BrandMark size={18} />
             <span className="rb-name">imprompt</span>
           </div>
 
@@ -320,66 +324,74 @@ export default function App() {
           </div>
         </nav>
 
-        {/* ── Conteúdo ── */}
-        <main className="main">
-          <div className="main-inner">
+        {/* ── Conteúdo: barra de título + página rolável ── */}
+        <div className="content">
+          {titlebar}
+          <main className="main">
+            <div className="main-inner">
 
-            {needsAccess && (
-              <div className="banner">
-                <div className="banner-text">
-                  <strong>{t("app.access.title")}</strong>
-                  <p>
-                    {t("app.access.body", {
-                      mod: t(MOD_KEY[settings.trigger_modifier] ?? "mod.ctrl"),
-                      key: (settings.trigger_key || "c").toUpperCase(),
-                    })}
-                  </p>
+              {needsAccess && (
+                <div className="banner" role="alert">
+                  <div className="banner-text">
+                    <strong>{t("app.access.title")}</strong>
+                    <p>
+                      {t("app.access.body", {
+                        mod: t(MOD_KEY[settings.trigger_modifier] ?? "mod.ctrl"),
+                        key: (settings.trigger_key || "c").toUpperCase(),
+                      })}
+                    </p>
+                  </div>
+                  <button className="btn-dl" onClick={() => invoke("open_accessibility_settings").catch(console.error)}>
+                    {t("app.access.open")}
+                  </button>
                 </div>
-                <button className="btn-dl" onClick={() => invoke("open_accessibility_settings").catch(console.error)}>
-                  {t("app.access.open")}
-                </button>
-              </div>
-            )}
+              )}
 
-            {updater.version && (
-              <div className="banner update">
-                <div className="banner-text">
-                  <strong>{t("app.update.title", { version: updater.version })}</strong>
-                  {updater.installing || updater.error ? <UpdateStatus updater={updater} /> : <p>{t("app.update.body")}</p>}
+              {updater.version && (
+                <div className="banner update" role="status">
+                  <div className="banner-text">
+                    <strong>{t("app.update.title", { version: updater.version })}</strong>
+                    {updater.installing || updater.error ? <UpdateStatus updater={updater} /> : <p>{t("app.update.body")}</p>}
+                  </div>
+                  <button className="btn-dl primary" disabled={updater.installing || updater.checking} onClick={updater.install}>
+                    {updater.installing ? t("app.update.btn.installing") : t("app.update.btn")}
+                  </button>
                 </div>
-                <button className="btn-dl primary" disabled={updater.installing || updater.checking} onClick={updater.install}>
-                  {updater.installing ? t("app.update.btn.installing") : t("app.update.btn")}
-                </button>
+              )}
+
+              <header className="page-head">
+                <h1>{t(TAB_KEY[tab])}</h1>
+                <p>{t(PAGE_KEY[tab])}</p>
+              </header>
+
+              {tab === "inicio" && (
+                <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} onNavigate={selectTab} />
+              )}
+
+              {tab === "historico" && (
+                <HistoricoTab history={history} presets={presets} />
+              )}
+
+              <div hidden={tab !== "motor"}>
+                <MotorTab
+                  settings={settings}
+                  apply={applyApi}
+                />
               </div>
-            )}
 
-            {tab === "inicio" && (
-              <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} onNavigate={selectTab} />
-            )}
+              {tab === "presets" && (
+                <PresetsTab settings={settings} update={update} presets={presets} loadPresets={loadPresets} />
+              )}
 
-            {tab === "historico" && (
-              <HistoricoTab history={history} presets={presets} />
-            )}
+              {tab === "gatilho" && <GatilhoTab settings={settings} update={update} />}
 
-            <div hidden={tab !== "motor"}>
-              <MotorTab
-                settings={settings}
-                apply={applyApi}
-              />
+              {tab === "geral" && (
+                <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} updater={updater} />
+              )}
+
             </div>
-
-            {tab === "presets" && (
-              <PresetsTab settings={settings} update={update} presets={presets} loadPresets={loadPresets} />
-            )}
-
-            {tab === "gatilho" && <GatilhoTab settings={settings} update={update} />}
-
-            {tab === "geral" && (
-              <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} updater={updater} />
-            )}
-
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );

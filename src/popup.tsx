@@ -163,9 +163,13 @@ function Palette() {
     }
   }, []);
 
-  // rola o resultado pra vista quando ele aparece
+  // rola o resultado pra vista quando ele aparece; o botão "Imprompt" (que tinha o
+  // foco) sai do rodapé, então o foco volta pro diálogo (Enter segue refazendo).
   useEffect(() => {
-    if (refined != null) resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (refined == null) return;
+    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const active = document.activeElement;
+    if (!active || active === document.body) paletteRef.current?.focus({ preventScroll: true });
   }, [refined]);
 
   const apply = useCallback(async () => {
@@ -193,7 +197,13 @@ function Palette() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") { e.preventDefault(); close(); }
-      else if (e.key === "Enter") { e.preventDefault(); refine(); }
+      else if (e.key === "Enter") {
+        // Enter num botão de ação focado (Copiar/Aplicar/Expandir) ativa o próprio
+        // botão; em qualquer outro lugar, refina (ou refaz).
+        const el = document.activeElement;
+        if (el instanceof HTMLElement && el.matches(".copy, .replace, .cap-toggle")) return;
+        e.preventDefault(); refine();
+      }
       else if (/^[1-9]$/.test(e.key)) {
         const p = presetsRef.current[parseInt(e.key, 10) - 1];
         if (p) setPresetId(p.id);
@@ -236,6 +246,9 @@ function Palette() {
     return () => window.removeEventListener("keydown", onTrap);
   }, []);
 
+  const long = captured.length > 180; // citação longa: recolhida em 3 linhas, expansível
+  const hasResult = refined != null;
+
   return (
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div
@@ -248,56 +261,82 @@ function Palette() {
         tabIndex={-1}
       >
         <div className="palette-head" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
-          <span className="ph-mark" aria-hidden="true"><BrandMark size={19} /></span>
+          <span className="ph-mark" aria-hidden="true"><BrandMark size={16} /></span>
           <span className="ph-title">Imprompt</span>
           <span className="ph-esc"><kbd>Esc</kbd></span>
         </div>
 
-        <div
-          className={"capture" + (expanded ? " exp" : "")}
-          onClick={() => { if (captured.length > 180) setExpanded((v) => !v); }}
-          title={captured.length > 180 ? (expanded ? t("popup.capture.collapse") : t("popup.capture.expand")) : undefined}
-        >
-          {captured || t("popup.capture.empty")}
-        </div>
-
-        <div className="presets" role="group" aria-label={t("popup.presets.label")}>
-          {presets.map((p, i) => (
-            <button
-              key={p.id}
-              className={"chip" + (presetId === p.id ? " active" : "")}
-              style={{ "--pc-h": presetHue(p.id) } as CSSProperties}
-              aria-pressed={presetId === p.id}
-              onClick={() => setPresetId(p.id)}
-            >
-              <span className="num">{i + 1}</span>
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="actions">
-          <button className="refine" disabled={loading || !captured.trim()} aria-busy={loading} onClick={refine}>
-            <span className="refine-label">{loading ? "Imprompting…" : "Imprompt"}</span>
-            <kbd className="enter">Enter</kbd>
-          </button>
-          <span className="loc-note">{captured.trim() ? outNote : t("popup.note.selectAgain")}</span>
-        </div>
-
-        {refined != null && (
-          <div className="result" ref={resultRef} aria-live="polite">
-            <div className="result-head">
-              <span className="result-title">{error ? t("popup.result.error") : t("popup.result.title")}</span>
-              {!error && badge && <span className="result-badge">{badge}</span>}
-            </div>
-            <div className={"result-body" + (error ? " err" : "")} {...(error ? { role: "alert" } : {})}>{refined}</div>
-            <div className="result-actions">
-              {!error && <button className="replace" title={outNote} onClick={apply}>{t("popup.action.apply")}</button>}
-              {!error && <button className="copy" title={t("popup.action.copy.title")} onClick={copy}>{t("popup.action.copy")}</button>}
-              <button className="redo" title={t("popup.action.redo.title")} onClick={refine}>{t("popup.action.redo")}</button>
-            </div>
+        {/* Corpo rolável: texto capturado → presets → resultado. */}
+        <div className="palette-body">
+          <div className="cap-head">
+            <span className="cap-label">{t("popup.head.sub")}</span>
+            {long && (
+              <button type="button" className="cap-toggle" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+                {expanded ? t("popup.capture.collapse") : t("popup.capture.expand")}
+              </button>
+            )}
           </div>
-        )}
+          <div
+            className={"capture" + (expanded ? " exp" : "") + (captured ? "" : " empty") + (long ? " long" : "")}
+            onClick={() => { if (long) setExpanded((v) => !v); }}
+          >
+            {captured || t("popup.capture.empty")}
+          </div>
+
+          <div className="presets" role="group" aria-label={t("popup.presets.label")}>
+            {presets.map((p, i) => (
+              <button
+                key={p.id}
+                className={"chip" + (presetId === p.id ? " active" : "")}
+                style={{ "--pc-h": presetHue(p.id) } as CSSProperties}
+                aria-pressed={presetId === p.id}
+                onClick={() => setPresetId(p.id)}
+              >
+                {i < 9 && <span className="num" aria-hidden="true">{i + 1}</span>}
+                <span className="p-dot" aria-hidden="true" />
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Região viva persistente: o leitor de tela anuncia o resultado/erro. */}
+          <div className="result-live" aria-live="polite">
+            {loading && (
+              <div className="result-skel" aria-hidden="true"><span /><span /><span /></div>
+            )}
+            {hasResult && (
+              <div className="result" ref={resultRef}>
+                <div className="result-head">
+                  <span className="result-title">{error ? t("popup.result.error") : t("popup.result.title")}</span>
+                  {!error && badge && <span className="result-badge">{badge}</span>}
+                </div>
+                <div className={"result-body" + (error ? " err" : "")} {...(error ? { role: "alert" } : {})}>{refined}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Rodapé fixo: destino da saída + ações. Antes do resultado, "Imprompt";
+            depois, Refazer (o Enter continua refazendo) / Copiar / Aplicar. */}
+        <div className="palette-foot">
+          <span className="loc-note">{captured.trim() ? outNote : t("popup.note.selectAgain")}</span>
+          <div className="foot-actions">
+            {hasResult ? (
+              <>
+                <button className="redo" title={t("popup.action.redo.title")} onClick={refine}>
+                  {t("popup.action.redo")}<kbd className="enter">Enter</kbd>
+                </button>
+                {!error && <button className="copy" title={t("popup.action.copy.title")} onClick={copy}>{t("popup.action.copy")}</button>}
+                {!error && <button className="replace" title={outNote} onClick={apply}>{t("popup.action.apply")}</button>}
+              </>
+            ) : (
+              <button className="refine" disabled={loading || !captured.trim()} aria-busy={loading} onClick={refine}>
+                <span className="refine-label">{loading ? "Imprompting…" : "Imprompt"}</span>
+                <kbd className="enter">Enter</kbd>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
