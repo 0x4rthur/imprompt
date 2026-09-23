@@ -106,12 +106,11 @@ function NavIcon({ id }: { id: Tab }) {
         </svg>
       );
     case "geral":
-      // Info (círculo + "i"); o "i" se desenha no hover (itshover → CSS).
+      // Engrenagem com giro curto no hover ou foco por teclado.
       return (
-        <svg {...base} className="ico-info">
-          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
-          <path className="info-dot" pathLength={1} d="M12 9h.01" />
-          <path className="info-line" pathLength={1} d="M11 12h1v4h1" />
+        <svg {...base} className="ico-settings" strokeLinejoin="round" aria-hidden="true">
+          <polygon points="18.65,9.24 21.29,10.02 21.29,13.98 18.65,14.76 18.65,14.76 19.97,17.17 17.17,19.97 14.76,18.65 14.76,18.65 13.98,21.29 10.02,21.29 9.24,18.65 9.24,18.65 6.83,19.97 4.03,17.17 5.35,14.76 5.35,14.76 2.71,13.98 2.71,10.02 5.35,9.24 5.35,9.24 4.03,6.83 6.83,4.03 9.24,5.35 9.24,5.35 10.02,2.71 13.98,2.71 14.76,5.35 14.76,5.35 17.17,4.03 19.97,6.83 18.65,9.24" />
+          <circle cx="12" cy="12" r="3" />
         </svg>
       );
   }

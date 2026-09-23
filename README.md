@@ -102,7 +102,7 @@ benchmarks include sources and reference variants, and missing data is labeled.
 See the [model catalog notes](docs/MODEL_CATALOG.md) for recommendations, pricing
 conditions, and local price overrides. Existing saved model IDs remain unchanged.
 
-**About → Updates** displays the installed version and checks for a newer release.
+**Settings → Updates** displays the installed version and checks for a newer release.
 Choose **Download and restart** to download, verify and install it within the app.
 Background checks run at startup and every six hours. See [updater details](docs/UPDATER.md).
 

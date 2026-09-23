@@ -290,15 +290,15 @@ body{margin:0; background:var(--cream); color:var(--ink); font-family:var(--mono
 .ico-extlink .external-box, .ico-extlink .external-arrow{transform-box:view-box; transform-origin:center; transition:transform .3s ease-out}
 .nav-item:hover .ico-extlink .external-arrow{transform:translate(2px,-2px) scale(1.1)}
 .nav-item:hover .ico-extlink .external-box{transform:scale(.95)}
-/* Ícone Sobre (info) — o "i" se desenha no hover. */
-.ico-info .info-dot, .ico-info .info-line{stroke-dasharray:1 1}
-.nav-item:hover .ico-info .info-dot{animation:info-draw .3s ease-out both}
-.nav-item:hover .ico-info .info-line{animation:info-draw .4s ease-out .1s both}
-@keyframes info-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* Configurações — engrenagem gira sem deslocar o rótulo. */
+.ico-settings{transform-box:view-box; transform-origin:center; transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.nav-item:is(:hover,:focus-visible) .ico-settings{transform:rotate(90deg)}
 @media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{animation-duration:.01ms !important; transition-duration:.01ms !important; animation-iteration-count:1 !important}
   .nav-item:hover .ico-pie .pie-main, .nav-item:hover .ico-pie .pie-slice{animation:none}
   .ico-hist .clock-hand, .ico-hist .history-circle, .ico-library path, .ico-extlink .external-box, .ico-extlink .external-arrow{transition:none}
-  .nav-item:hover .ico-info .info-dot, .nav-item:hover .ico-info .info-line{animation:none}
+  .ico-settings{transition:none}
+  .nav-item:is(:hover,:focus-visible) .ico-settings{transform:none}
 }
 
 /* Aparições suaves das dicas e informações do modelo. */
@@ -435,7 +435,7 @@ input[type=range]::-moz-range-thumb{width:16px; height:16px; border:0; border-ra
 
 .foot{text-align:left; color:var(--stone); font-size:12.5px; margin-top:20px; line-height:1.6}
 
-/* Suporte / doação (aba Sobre). O ícone hand-heart anima no hover do botão. */
+/* Suporte / doação (aba Configurações). O ícone hand-heart anima no hover do botão. */
 .support{border-top:1px solid var(--line); margin-top:24px; padding-top:20px}
 .support-title{font-size:13.5px; font-weight:500; color:var(--ink); letter-spacing:.01em; margin:0 0 6px}
 .support-desc{font-size:12.5px; color:var(--stone); line-height:1.5; margin:0 0 14px}

@@ -18,7 +18,7 @@ const en = {
   "tab.presets": "Presets",
   "tab.api": "API",
   "tab.gatilho": "Shortcut",
-  "tab.sobre": "About",
+  "tab.sobre": "Settings",
 
   // Modificadores de teclado (canônicos; reusados onde o atalho é exibido).
   "mod.ctrl": "Ctrl",
@@ -307,7 +307,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "tab.presets": "Presets",
   "tab.api": "API",
   "tab.gatilho": "Atalho",
-  "tab.sobre": "Sobre",
+  "tab.sobre": "Configurações",
 
   "mod.ctrl": "Ctrl",
   "mod.alt": "Alt",

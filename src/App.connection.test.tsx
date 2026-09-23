@@ -52,7 +52,7 @@ describe("API settings navigation", () => {
     const option = screen.getByRole("checkbox", { name: "Prioritize speed" }) as HTMLInputElement;
     expect(option.checked).toBe(true);
     fireEvent.click(option);
-    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "API" }));
     expect((screen.getByRole("checkbox", { name: "Prioritize speed" }) as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Apply and test" }));
@@ -74,13 +74,13 @@ describe("API settings navigation", () => {
     expect(screen.getByLabelText("Model benchmark")).toBeTruthy();
   });
 
-  it("checks for a new version inside About and offers installation", async () => {
+  it("checks for a new version inside Settings and offers installation", async () => {
     await openApp();
     const original = vi.mocked(invoke).getMockImplementation()!;
     vi.mocked(invoke).mockImplementation((command, args) => command === "check_for_updates"
       ? Promise.resolve("0.1.3") as ReturnType<typeof invoke>
       : original(command, args));
-    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Check for updates" }));
     await screen.findAllByText("Update available: v0.1.3");
     expect(screen.getAllByRole("button", { name: "Download and restart" })).toHaveLength(2);
@@ -134,7 +134,7 @@ describe("API settings navigation", () => {
     fireEvent.click(screen.getByRole("option", { name: "Custom…" }));
     const model = screen.getByRole("textbox", { name: "Model id" });
     fireEvent.change(model, { target: { value: "my-new-model" } });
-    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "API" }));
     expect((screen.getByRole("textbox", { name: "Model id" }) as HTMLInputElement).value).toBe("my-new-model");
   });
@@ -160,7 +160,7 @@ describe("API settings navigation", () => {
     vi.mocked(invoke).mockImplementation((command, args) => command === "apply_api_configuration" ? pending as ReturnType<typeof invoke> : original(command, args));
     fireEvent.click(screen.getByRole("button", { name: "Apply and test" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Testing…" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "API" }));
     expect((screen.getByRole("button", { name: "Testing…" }) as HTMLButtonElement).disabled).toBe(true);
     await act(async () => { reject("Model unavailable"); });
@@ -172,7 +172,7 @@ describe("API settings navigation", () => {
     await openApp();
     fireEvent.click(screen.getByRole("button", { name: "Custom" }));
     fireEvent.change(screen.getByLabelText("API format"), { target: { value: "responses" } });
-    fireEvent.click(screen.getByRole("button", { name: "About" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "API" }));
     expect((screen.getByLabelText("API format") as HTMLSelectElement).value).toBe("responses");
     expect((screen.getByLabelText("Base URL") as HTMLInputElement).readOnly).toBe(false);
