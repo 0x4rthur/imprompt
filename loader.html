@@ -4,9 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Imprompt</title>
+    <script src="/theme.js"></script>
     <style>
       /* Mesmo sistema do app (styles.css), inline pra janela abrir sem esperar o
-         bundle: claro "Mono / Cream" ou escuro "Mono / Ink", seguindo o sistema.
+         bundle: claro "Mono / Cream" ou escuro "Mono / Ink", conforme data-theme
+         (public/theme.js: Sistema/Claro/Escuro, escolhido em Geral).
          Janela OPACA — sem transparência, pra não revelar o desktop atrás (o
          "vidro"). A sombra é nativa da janela. */
       :root{
@@ -16,14 +18,12 @@
         --ink:oklch(0.21 0.006 286);
         --bracket:oklch(0.82 0.008 286);
       }
-      @media (prefers-color-scheme: dark){
-        :root{
-          color-scheme:dark;
-          --bg:oklch(0.185 0.005 286);
-          --edge:oklch(0.98 0.003 286 / .14);
-          --ink:oklch(0.955 0.003 286);
-          --bracket:oklch(0.48 0.010 286);
-        }
+      :root[data-theme="dark"]{
+        color-scheme:dark;
+        --bg:oklch(0.185 0.005 286);
+        --edge:oklch(0.98 0.003 286 / .14);
+        --ink:oklch(0.955 0.003 286);
+        --bracket:oklch(0.48 0.010 286);
       }
       html,body{margin:0; height:100%; overflow:hidden}
       body{ background:var(--bg); border:1px solid var(--edge); box-sizing:border-box }

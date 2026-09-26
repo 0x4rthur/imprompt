@@ -20,7 +20,7 @@ vi.mock("./connection", async (importOriginal) => {
 const initial: Settings = {
   default_preset: "estruturar", mode: "instant", output: "replace", autostart: false,
   api_base_url: "https://api.openai.com/v1", api_model: "gpt-5.6-luna", api_format: "auto", api_custom: false,
-  use_examples: true, trigger_modifier: "ctrl", trigger_key: "c", debounce_ms: 400, locale: "en",
+  use_examples: true, trigger_modifier: "ctrl", trigger_key: "c", debounce_ms: 400, locale: "en", theme: "system",
 };
 
 beforeEach(() => {
