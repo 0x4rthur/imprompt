@@ -12,7 +12,8 @@ const BUILTIN_HUE: Record<string, number> = {
   codigo: 195, // ciano
   corrigir: 150, // verde
   ingles: 45, // âmbar
-  frontend: 350, // rosa
+  frontend: 350, // rosa (Vibe Code)
+  resumir: 250, // azul
 };
 
 // Hash estável (djb2) → matiz 0-359, para presets não-embutidos.

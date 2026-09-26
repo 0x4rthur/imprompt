@@ -10,6 +10,7 @@ import type { CSSProperties } from "react";
 import type { Preset, Settings } from "./types";
 import { presetHue } from "./presetColor";
 import { setLocale, t } from "./i18n";
+import { applyTheme } from "./theme";
 import { useT } from "./i18n/useT";
 import "./fonts";
 import "./styles.css";
@@ -45,6 +46,8 @@ function Palette() {
   const presetIdRef = useRef(presetId); presetIdRef.current = presetId;
   const capturedRef = useRef(captured); capturedRef.current = captured;
   const loadingRef = useRef(loading); loadingRef.current = loading;
+  const refinedRef = useRef(refined); refinedRef.current = refined;
+  const errorRef = useRef(error); errorRef.current = error;
   const presetsRef = useRef(presets); presetsRef.current = presets;
 
   // Menu de contexto desativado + barra de rolagem custom — igual à janela principal.
@@ -61,11 +64,12 @@ function Palette() {
   // (ver auditoria BUG-4). NÃO re-semeia presetId (preserva a escolha da sessão).
   const applySettings = useCallback(async () => {
     try {
-      const s = await invoke<Pick<Settings, "output" | "api_model" | "locale">>("get_settings");
+      const s = await invoke<Pick<Settings, "output" | "api_model" | "locale" | "theme">>("get_settings");
       // Aplica o idioma ANTES dos rótulos: a janela do popup é reusada entre
       // gatilhos (não remonta), então sem reaplicar aqui o popup ficaria preso
       // no idioma da 1ª abertura mesmo após o usuário trocar nas Preferências.
       setLocale(s.locale);
+      applyTheme(s.theme);
       setOutNote(t(s.output === "replace" ? "popup.output.replace" : "popup.output.clipboard"));
       setBadge(t("popup.badge.api", { model: s.api_model || t("popup.badge.noModel") }));
     } catch (e) {
@@ -135,9 +139,6 @@ function Palette() {
     window.setTimeout(() => { appWindow.hide(); }, 130);
   }, []);
 
-  // Encolhe a janela pra ABRAÇAR o card — sem área transparente sobrando atrás
-  // (o "fundo/vidro" que aparecia). Re-mede quando o card muda de tamanho
-  // (resultado, citação expandida) e a cada reuso (animSeq). MARGIN = folga pro shadow.
   const refine = useCallback(async () => {
     const text = capturedRef.current.trim();
     if (!text || loadingRef.current) return;
@@ -164,7 +165,7 @@ function Palette() {
   }, []);
 
   // rola o resultado pra vista quando ele aparece; o botão "Imprompt" (que tinha o
-  // foco) sai do rodapé, então o foco volta pro diálogo (Enter segue refazendo).
+  // foco) sai do rodapé, então o foco volta pro diálogo (Enter passa a aplicar).
   useEffect(() => {
     if (refined == null) return;
     resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -186,22 +187,36 @@ function Palette() {
     }
   }, [refined, error]);
 
+  // O listener de teclado monta uma vez só; lê o apply mais recente por ref.
+  const applyRef = useRef(apply);
+  applyRef.current = apply;
+
   const copy = useCallback(async () => {
     if (refined == null) return;
     try { await navigator.clipboard.writeText(refined); } catch (e) { console.error(e); }
   }, [refined]);
 
-  // teclado: Esc fecha, Enter refina, 1–9 escolhe preset (atalho cobre só os 9
-  // primeiros presets — uma tecla por dígito). Lê presets/refine/close de refs
-  // e callbacks estáveis, então o listener monta uma vez só ([] como dep).
+  // teclado: Esc fecha, Enter avança o fluxo (sem resultado: refina; com
+  // resultado: aplica — Ctrl+C, Ctrl+C, Enter, Enter), R refaz, 1–9 escolhe preset
+  // (atalho cobre só os 9 primeiros presets — uma tecla por dígito). Lê estado de
+  // refs e callbacks estáveis, então o listener monta uma vez só ([] como dep).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === "Escape") { e.preventDefault(); close(); }
       else if (e.key === "Enter") {
-        // Enter num botão de ação focado (Copiar/Aplicar/Expandir) ativa o próprio
-        // botão; em qualquer outro lugar, refina (ou refaz).
+        // Enter num botão de ação focado (Refazer/Copiar/Aplicar/Expandir) ativa o
+        // próprio botão; em qualquer outro lugar, avança o fluxo.
         const el = document.activeElement;
-        if (el instanceof HTMLElement && el.matches(".copy, .replace, .cap-toggle")) return;
+        if (el instanceof HTMLElement && el.matches(".redo, .copy, .replace, .cap-toggle")) return;
+        e.preventDefault();
+        // Tecla segurada (auto-repeat) não aplica sozinha o resultado que acabou de chegar.
+        if (e.repeat) return;
+        // Erro não tem o que aplicar: Enter tenta de novo.
+        if (refinedRef.current != null && !errorRef.current) applyRef.current();
+        else refine();
+      }
+      else if ((e.key === "r" || e.key === "R") && refinedRef.current != null) {
         e.preventDefault(); refine();
       }
       else if (/^[1-9]$/.test(e.key)) {
@@ -317,17 +332,21 @@ function Palette() {
         </div>
 
         {/* Rodapé fixo: destino da saída + ações. Antes do resultado, "Imprompt";
-            depois, Refazer (o Enter continua refazendo) / Copiar / Aplicar. */}
+            depois, Refazer (R) / Copiar / Aplicar (Enter). Com erro, Enter refaz. */}
         <div className="palette-foot">
           <span className="loc-note">{captured.trim() ? outNote : t("popup.note.selectAgain")}</span>
           <div className="foot-actions">
             {hasResult ? (
               <>
                 <button className="redo" title={t("popup.action.redo.title")} onClick={refine}>
-                  {t("popup.action.redo")}<kbd className="enter">Enter</kbd>
+                  {t("popup.action.redo")}<kbd className="enter">{error ? "Enter" : "R"}</kbd>
                 </button>
                 {!error && <button className="copy" title={t("popup.action.copy.title")} onClick={copy}>{t("popup.action.copy")}</button>}
-                {!error && <button className="replace" title={outNote} onClick={apply}>{t("popup.action.apply")}</button>}
+                {!error && (
+                  <button className="replace" title={outNote} onClick={apply}>
+                    {t("popup.action.apply")}<kbd className="enter">Enter</kbd>
+                  </button>
+                )}
               </>
             ) : (
               <button className="refine" disabled={loading || !captured.trim()} aria-busy={loading} onClick={refine}>

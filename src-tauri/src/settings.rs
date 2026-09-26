@@ -52,6 +52,9 @@ fn default_debounce_ms() -> u64 {
 fn default_locale() -> String {
     "en".into()
 }
+fn default_theme() -> String {
+    "system".into()
+}
 
 impl From<OutputPref> for OutputMode {
     fn from(p: OutputPref) -> Self {
@@ -107,6 +110,11 @@ pub struct Settings {
     /// `serde(default)` garante que JSONs antigos carreguem sem zerar as prefs.
     #[serde(default = "default_locale")]
     pub locale: String,
+
+    /// Tema da UI: "system" (segue o SO), "light" ou "dark". Só o front usa
+    /// (public/theme.js resolve e aplica); `serde(default)` mantém JSONs antigos.
+    #[serde(default = "default_theme")]
+    pub theme: String,
     // NOTA: a chave da API NÃO mora mais aqui. Ela vai pro cofre de credenciais
     // do SO (ver secrets.rs). Settings antigos que ainda tiverem "api_key" são
     // migrados em `load()` e o campo some do JSON. serde ignora campos extras,
@@ -136,6 +144,7 @@ impl Default for Settings {
             trigger_key: default_trigger_key(),
             debounce_ms: default_debounce_ms(),
             locale: default_locale(),
+            theme: default_theme(),
         }
     }
 }
@@ -254,6 +263,7 @@ mod tests {
         let legacy = r#"{"default_preset":"codigo","mode":"popup","output":"replace"}"#;
         let s: Settings = serde_json::from_str(legacy).unwrap();
         assert_eq!(s.locale, "en");
+        assert_eq!(s.theme, "system");
         assert!(s.api_fast_mode);
         assert_eq!(s.default_preset, "codigo"); // não zerou as outras prefs
         assert_eq!(s.mode, super::ActivationMode::Popup);

@@ -538,8 +538,12 @@ fn position_popup(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
         }
     };
     let (cx, cy) = (cursor.x as i32, cursor.y as i32);
-    // Tamanho FIXO da janela do popup (sem resize dinâmico — evita qualquer loop).
-    let (w, h) = (496i32, 430i32);
+    // Tamanho REAL da janela (físico): respeita o DPI e um eventual redimensionamento
+    // do usuário (dentro dos limites do builder). Fallback: o tamanho padrão.
+    let (w, h) = win
+        .outer_size()
+        .map(|sz| (sz.width as i32, sz.height as i32))
+        .unwrap_or((POPUP_W as i32, POPUP_H as i32));
     // Monitor sob o cursor (fallback: primário) pra posicionar/clampar na tela certa.
     let mon = app
         .available_monitors()
@@ -627,6 +631,14 @@ fn position_loader(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
 }
 
 /// Abre a janela do popup (modo Popup) e entrega o texto capturado pra ela.
+/// Tamanho do popup (lógico): padrão e limites de redimensionamento.
+const POPUP_W: f64 = 496.0;
+const POPUP_H: f64 = 430.0;
+const POPUP_MIN_W: f64 = 420.0;
+const POPUP_MIN_H: f64 = 320.0;
+const POPUP_MAX_W: f64 = 820.0;
+const POPUP_MAX_H: f64 = 760.0;
+
 /// Guarda o texto no estado (a janela PUXA via `get_captured_text` ao montar —
 /// cobre o 1º open sem corrida) e EMITE um evento `captured-text` (atualiza a
 /// janela quando ela é reusada num gatilho seguinte).
@@ -643,7 +655,12 @@ fn open_popup_window(app: &tauri::AppHandle, captured_text: &str) {
     } else {
         match WebviewWindowBuilder::new(app, "popup", WebviewUrl::App("popup.html".into()))
             .title("Imprompt")
-            .inner_size(496.0, 430.0)
+            .inner_size(POPUP_W, POPUP_H)
+            // Limites de redimensionamento: sem eles a janela sem bordas podia ser
+            // espremida até sumir o conteúdo ou esticada até a tela toda (fundo preto).
+            .min_inner_size(POPUP_MIN_W, POPUP_MIN_H)
+            .max_inner_size(POPUP_MAX_W, POPUP_MAX_H)
+            .maximizable(false)
             .decorations(false)
             .shadow(true) // janela OPACA com sombra nativa (igual à principal) — sem
             // transparência, então nenhuma animação revela o desktop atrás ("vidro").

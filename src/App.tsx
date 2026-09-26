@@ -15,6 +15,7 @@ import GeralTab from "./tabs/GeralTab";
 import ConnectionStatus from "./ConnectionStatus";
 import { connection, type ApiConfig } from "./connection";
 import { setLocale } from "./i18n";
+import { applyTheme } from "./theme";
 import type { Key } from "./i18n/catalog";
 import { useT } from "./i18n/useT";
 import { useAppUpdater } from "./useAppUpdater";
@@ -204,7 +205,7 @@ export default function App() {
   useEffect(() => {
     loadPresets();
     invoke<Settings>("get_settings")
-      .then((s) => { setLocale(s.locale); settingsRef.current = s; setSettings(s); })
+      .then((s) => { setLocale(s.locale); applyTheme(s.theme); settingsRef.current = s; setSettings(s); })
       .catch(console.error);
     // Estado real do autostart vem do plugin (fonte da verdade), não das settings.
     isEnabled().then(setAutostart).catch(console.error);

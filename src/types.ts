@@ -38,6 +38,8 @@ export type Settings = {
   debounce_ms: number;
   // Idioma da UI. Espelha Settings.locale do backend (default "en").
   locale: "en" | "pt-BR";
+  // Tema da UI: segue o SO ("system") ou fixo. Espelha Settings.theme do backend.
+  theme: "system" | "light" | "dark";
   // NOTA: a chave NÃO trafega mais nas settings — ela vai pro cofre do SO via os
   // comandos set_api_key / get_api_key_status.
 };

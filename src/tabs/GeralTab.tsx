@@ -1,10 +1,11 @@
-// GeralTab.tsx — aba "Geral": iniciar com o sistema (autostart) + idioma da UI.
+// GeralTab.tsx — aba "Geral": iniciar com o sistema (autostart), idioma e tema da UI.
 // O estado real do autostart é a fonte da verdade do plugin; vive no App.
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import type { Settings } from "../types";
 import { setLocale } from "../i18n";
+import { applyTheme } from "../theme";
 import { useT } from "../i18n/useT";
 import HandHeartIcon from "../HandHeartIcon";
 import UpdateStatus from "../UpdateStatus";
@@ -65,6 +66,18 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
                   onClick={() => { setLocale("pt-BR"); update({ locale: "pt-BR" }); }}>Português</button>
         </div>
         <p className="help">{t("geral.language.help")}</p>
+      </div>
+
+      {/* Tema: segue o SO ou fixo em claro/escuro */}
+      <div className="field">
+        <h2 className="sec-title">{t("geral.theme")}</h2>
+        <div className="seg" role="group" aria-label={t("geral.theme")}>
+          {(["system", "light", "dark"] as const).map((th) => (
+            <button key={th} aria-pressed={settings.theme === th} className={settings.theme === th ? "active" : ""}
+                    onClick={() => { applyTheme(th); update({ theme: th }); }}>{t(`geral.theme.${th}`)}</button>
+          ))}
+        </div>
+        <p className="help">{t("geral.theme.help")}</p>
       </div>
 
       {/* Apoiar o projeto — doação via Stripe (abre no navegador). */}
