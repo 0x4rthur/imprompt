@@ -383,6 +383,11 @@ fn run_refine_flow(app: &tauri::AppHandle) {
     }
 }
 
+/// Tamanho (lógico) da janelinha "Imprompting…": cabe o logo animado aberto
+/// (os colchetes se afastam) + o texto + os pontinhos.
+const LOADER_W: f64 = 224.0;
+const LOADER_H: f64 = 46.0;
+
 /// Cria/mostra a micro-janela "Refinando…". Sem bordas, sempre no topo, some
 /// quando o refino acaba. É o indicador de processamento durante o refino.
 fn show_loader(app: &tauri::AppHandle) {
@@ -400,7 +405,7 @@ fn show_loader(app: &tauri::AppHandle) {
     // oculta, posiciona perto do cursor e só então mostra (sem flash no canto).
     match WebviewWindowBuilder::new(app, "loader", WebviewUrl::App("loader.html".into()))
         .title("Imprompt")
-        .inner_size(210.0, 46.0)
+        .inner_size(LOADER_W, LOADER_H)
         .decorations(false)
         .always_on_top(true)
         .resizable(false)
@@ -598,7 +603,7 @@ fn position_loader(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
         }
     };
     let (cx, cy) = (cursor.x as i32, cursor.y as i32);
-    let (w, h) = (210i32, 46i32);
+    let (w, h) = (LOADER_W as i32, LOADER_H as i32);
     let mon = app
         .available_monitors()
         .ok()
