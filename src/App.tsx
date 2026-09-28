@@ -6,7 +6,7 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import BrandMark from "./BrandMark";
 import { initAutoScrollbars } from "./autoscroll";
 import { blockContextMenu } from "./noContextMenu";
-import type { MonthUsage, Preset, RefineRecord, Settings, UsageSummary } from "./types";
+import type { Balance, MonthUsage, Preset, RefineRecord, Settings, UsageSummary } from "./types";
 import InicioTab from "./tabs/InicioTab";
 import HistoricoTab from "./tabs/HistoricoTab";
 import MotorTab from "./tabs/MotorTab";
@@ -181,6 +181,8 @@ export default function App() {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   // Histórico de uso por mês (pro gráfico de gastos do dashboard).
   const [usageHistory, setUsageHistory] = useState<MonthUsage[]>([]);
+  // Saldo no provedor (DeepSeek/OpenRouter; nos outros, link do site). Falha = sem saldo.
+  const [balance, setBalance] = useState<Balance | null>(null);
 
   // Carrega o histórico de refinos da sessão (mais recente primeiro).
   function loadHistory() {
@@ -196,6 +198,10 @@ export default function App() {
   function loadUsage() {
     invoke<UsageSummary>("get_usage").then(setUsage).catch(console.error);
   }
+  // Saldo no provedor: ao abrir, ao entrar no Início/API e depois de aplicar a API.
+  function loadBalance() {
+    invoke<Balance>("get_api_balance").then(setBalance).catch(() => setBalance(null));
+  }
   // Histórico de uso por mês (pro gráfico de gastos do dashboard).
   function loadUsageHistory() {
     invoke<MonthUsage[]>("get_usage_history").then(setUsageHistory).catch(console.error);
@@ -206,7 +212,8 @@ export default function App() {
     setDir(TABS.indexOf(t) >= TABS.indexOf(tab) ? 1 : -1);
     setTab(t);
     localStorage.setItem("imprompt.tab", t);
-    if (t === "inicio") { loadUsage(); loadUsageHistory(); }
+    if (t === "inicio") { loadUsage(); loadUsageHistory(); loadBalance(); }
+    if (t === "motor") loadBalance();
     if (t === "historico") loadHistory();
   }
 
@@ -239,11 +246,12 @@ export default function App() {
     loadHistory();
     // Uso da API no mês.
     loadUsage();
+    loadBalance();
     loadUsageHistory();
 
     // Ao voltar o foco pra janela (ex.: depois de um refino via Ctrl+C×2),
     // recarrega o contador de uso e o histórico pra refletir o que foi feito.
-    const unFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => { if (focused) { loadUsage(); loadUsageHistory(); loadHistory(); } });
+    const unFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => { if (focused) { loadUsage(); loadUsageHistory(); loadHistory(); loadBalance(); } });
     return () => {
       unFocus.then((f) => f());
     };
@@ -272,6 +280,7 @@ export default function App() {
       const next = await connection.apply(config, key);
       settingsRef.current = next;
       setSettings(next);
+      loadBalance();
     });
   }
 
@@ -379,7 +388,7 @@ export default function App() {
               )}
 
               {tab === "inicio" && (
-                <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} history={history} onNavigate={selectTab} />
+                <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} history={history} onNavigate={selectTab} balance={balance} />
               )}
 
               {tab === "historico" && (
@@ -390,6 +399,7 @@ export default function App() {
                 <MotorTab
                   settings={settings}
                   apply={applyApi}
+                  balance={balance}
                 />
               </div>
 

@@ -139,6 +139,11 @@ const en = {
   "motor.connectError": "Couldn't connect. Check the Base URL, the model, and the key.",
   // Privacidade (com host inline via <Trans>).
   "motor.privacy": "On every imprompt, your text is sent to {host}.",
+  "balance.remaining": "Balance: {amount}",
+  "balance.low": "low",
+  "balance.used": "Spent with this key: {amount} (no spending limit set)",
+  "balance.site": "See your balance on the provider's site",
+  "inicio.tile.lowBalance": "Low balance · {amount}",
   // Ajuda (custo/cofre).
   "motor.help":
     "Cost depends on the model and text length. The key lives in the system credential vault, never in plain text on disk.",
@@ -441,6 +446,11 @@ const ptBR: Record<keyof typeof en, string> = {
   "motor.connected": "Conectado",
   "motor.connectError": "Não consegui conectar. Confira a Base URL, o modelo e a chave.",
   "motor.privacy": "A cada imprompt, seu texto é enviado para {host}.",
+  "balance.remaining": "Saldo: {amount}",
+  "balance.low": "baixo",
+  "balance.used": "Gasto com esta chave: {amount} (sem limite de gasto)",
+  "balance.site": "Ver saldo no site do provedor",
+  "inicio.tile.lowBalance": "Saldo baixo · {amount}",
   "motor.help":
     "O custo depende do modelo e do tamanho do texto. A chave fica no cofre de credenciais do sistema, nunca em texto puro no disco.",
   "motor.more.summary": "Provedores e segurança",

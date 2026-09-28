@@ -117,6 +117,14 @@ async function handle(cmd: string, args: Record<string, unknown>): Promise<unkno
       return usage;
     }
     case "get_usage_history": return EMPTY ? [] : MONTHS;
+    case "get_api_balance": {
+      // ?lowbal=1 simula saldo baixo; DeepSeek/OpenRouter leem saldo, o resto dá o link.
+      const host = new URL(settings.api_base_url).host;
+      const low = new URLSearchParams(location.search).has("lowbal");
+      if (host.endsWith("deepseek.com") || low) return { kind: "remaining", amount: low ? 0.42 : 4.2, currency: "USD" };
+      if (host.endsWith("openrouter.ai")) return { kind: "used", amount: 1.5, currency: "USD" };
+      return { kind: "unsupported", billing_url: host.endsWith("openai.com") ? "https://platform.openai.com/settings/organization/billing/overview" : null };
+    }
     case "get_api_key_status": return { saved: true, masked: "sk-…DEMO" };
     case "test_api_connection":
       await wait(700);

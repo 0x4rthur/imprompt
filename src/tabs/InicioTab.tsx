@@ -8,7 +8,7 @@
 // com o seletor Custo · Imprompts e o card escuro de imprompts com a linha.
 import { useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { motion } from "motion/react";
-import type { MonthUsage, Preset, RefineRecord, Settings, Tab, UsageSummary } from "../types";
+import type { Balance, MonthUsage, Preset, RefineRecord, Settings, Tab, UsageSummary } from "../types";
 import { presetHue } from "../presetColor";
 import { ApiProviderIcon, providerName } from "../ApiProviderIcon";
 import { apiConfig, connection } from "../connection";
@@ -19,6 +19,7 @@ import BrandMark from "../BrandMark";
 import Segmented from "../ui/Segmented";
 import { ArrowRightIcon, ClipboardIcon, KeyboardIcon, ReplaceIcon, ThemeIcon } from "../ui/icons";
 import { ease, reducedMotion, spring, useCountUp } from "../motion";
+import { formatMoney, isLowBalance } from "../BalanceLine";
 
 type Props = {
   settings: Settings;
@@ -27,6 +28,8 @@ type Props = {
   presets: Preset[];
   history: RefineRecord[];
   onNavigate: (t: Tab) => void;
+  /** Saldo no provedor (null = ainda não chegou / sem saldo). */
+  balance?: Balance | null;
 };
 
 type Metric = "cost" | "count";
@@ -68,9 +71,9 @@ function relTime(ts: number, localeTag: string): string {
 }
 
 // Bloco de configuração: ícone num quadrado elevado + valor + rótulo; leva à aba.
-function Tile({ icon, value, label, title, onClick }: { icon: ReactNode; value: string; label: string; title: string; onClick: () => void }) {
+function Tile({ icon, value, label, title, onClick, warn }: { icon: ReactNode; value: string; label: string; title: string; onClick: () => void; warn?: boolean }) {
   return (
-    <button type="button" className="tile" title={title} onClick={onClick}>
+    <button type="button" className={"tile" + (warn ? " warn" : "")} title={title} onClick={onClick}>
       <span className="tile-ico">{icon}</span>
       <span className="tile-v">{value}</span>
       <span className="tile-k">{label}</span>
@@ -78,9 +81,13 @@ function Tile({ icon, value, label, title, onClick }: { icon: ReactNode; value: 
   );
 }
 
-export default function InicioTab({ settings, usage, usageHistory, presets, history, onNavigate }: Props) {
+export default function InicioTab({ settings, usage, usageHistory, presets, history, onNavigate, balance = null }: Props) {
   const { t, locale } = useT();
   const localeTag = locale === "pt-BR" ? "pt-BR" : "en-US";
+  // Saldo baixo no provedor: o bloco da API avisa no lugar do rótulo "API".
+  const lowBalance = balance?.kind === "remaining" && isLowBalance(balance)
+    ? t("inicio.tile.lowBalance", { amount: formatMoney(balance.amount, balance.currency, localeTag) })
+    : null;
   const [animate] = useState(() => !reducedMotion());
   const [metric, setMetric] = useState<Metric>("cost");
   const mod = t(MOD_LABEL[settings.trigger_modifier] ?? "mod.ctrl");
@@ -163,8 +170,8 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
           )}
 
           <div className="tiles" data-enter>
-            <Tile icon={<ApiProviderIcon host={host} size={19} />} value={provider} label={t("inicio.tile.api")}
-              title={`${provider} · ${settings.api_model || "—"}`} onClick={() => onNavigate("motor")} />
+            <Tile icon={<ApiProviderIcon host={host} size={19} />} value={provider} label={lowBalance ?? t("inicio.tile.api")} warn={lowBalance != null}
+              title={`${provider} · ${settings.api_model || "—"}${lowBalance ? ` · ${lowBalance}` : ""}`} onClick={() => onNavigate("motor")} />
             <Tile icon={<span className="p-dot lg" style={{ "--pc-h": presetHue(settings.default_preset) } as CSSProperties} />}
               value={defPreset?.label ?? "—"} label={t("inicio.tile.preset")} title={defPreset?.label ?? "—"} onClick={() => onNavigate("presets")} />
             <Tile icon={settings.output === "replace" ? <ReplaceIcon size={18} /> : <ClipboardIcon size={18} />}
