@@ -36,7 +36,7 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
   }, []);
 
   return (
-    <div className="page-stack">
+    <div className="page-stack page-fill">
       <div className="grid-2">
         {/* Atualizações: a versão instalada em destaque + status + ações. */}
         <section className="card upd" data-enter>

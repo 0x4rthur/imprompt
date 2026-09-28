@@ -338,8 +338,9 @@ fieldset.api-fields:disabled{opacity:.72}
 .tb-btn:focus-visible{outline-offset:-2px}
 .tb-btn svg{width:12px; height:12px}
 
-.rail{position:relative; flex:0 0 100px; display:flex; flex-direction:column; margin:12px 0 12px 12px; padding:14px 8px 12px; border-radius:var(--r-rail);
-  background:linear-gradient(180deg, var(--rail-1) 0%, var(--rail-2) 100%); box-shadow:var(--sh-float), inset 0 1px 0 oklch(1 0 0 / .14), inset 0 0 0 1px oklch(1 0 0 / .04);
+/* Menu de altura inteira, colado nas bordas de cima, de baixo e da esquerda. */
+.rail{position:relative; flex:0 0 104px; display:flex; flex-direction:column; margin:0; padding:14px 10px 12px; border-radius:0;
+  background:linear-gradient(180deg, var(--rail-1) 0%, var(--rail-2) 100%); box-shadow:1px 0 0 oklch(0 0 0 / .06), 8px 0 24px -12px oklch(0.21 0.006 286 / .35), inset -1px 0 0 oklch(1 0 0 / .05);
   overflow-y:auto; scrollbar-width:none}
 .rail::-webkit-scrollbar{display:none}
 .rail-brand{flex:none; display:flex; justify-content:center; align-items:center; height:34px; margin-bottom:10px; user-select:none; -webkit-user-select:none}
@@ -366,7 +367,7 @@ fieldset.api-fields:disabled{opacity:.72}
 .nav-label{max-width:100%; overflow-wrap:anywhere}
 
 /* Janela fixa em 900×640: o menu usa a medida compacta pra caber inteiro. */
-.rail{padding:10px 8px 10px}
+.rail{padding:12px 10px 12px}
 .rail-brand{height:28px; margin-bottom:4px}
 .nav-item, .conn{gap:4px; padding:4px 0 5px}
 .nav-ico, .conn-ico{width:36px; height:36px}
@@ -374,7 +375,14 @@ fieldset.api-fields:disabled{opacity:.72}
 
 /* Conteúdo rolável */
 .main{flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-gutter:stable}
-.main-inner{max-width:780px; padding:2px 28px 28px}
+.main-inner{max-width:780px; min-height:100%; display:flex; flex-direction:column; padding:2px 28px 28px}
+/* Abas que cabem na janela esticam os cards até embaixo (sem sobra de fundo). */
+.page-fill{flex:1}
+.page-fill > .grid-2{flex:1; align-items:stretch}
+.page-fill > .grid-2 > .card, .page-fill > .grid-2 > .page-stack > .card{display:flex; flex-direction:column}
+.page-fill > .grid-2 > .page-stack > .card{flex:1}
+.page-fill .upd .api-row{margin-top:auto}
+.page-fill .card > .seg{align-self:flex-start}
 
 /* Cabeçalho da página (as abas, exceto o Início, que tem título de estado). */
 .page-head{margin:2px 0 18px}
@@ -444,61 +452,61 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 
 /* ── Ícones da navegação: micro-animação no hover/foco do item ───────────── */
 .ico-plug path{transition:transform .3s var(--ease-out), opacity .3s var(--ease-out)}
-.nav-item:hover .ico-plug .plug-upper{transform:translate(-2px, 2px)}
-.nav-item:hover .ico-plug .plug-lower{transform:translate(2px, -2px)}
-.nav-item:hover .ico-plug .plug-leg{opacity:0}
+.nav-item:is(:hover, .active) .ico-plug .plug-upper{transform:translate(-2px, 2px)}
+.nav-item:is(:hover, .active) .ico-plug .plug-lower{transform:translate(2px, -2px)}
+.nav-item:is(:hover, .active) .ico-plug .plug-leg{opacity:0}
 .ico-pie .pie-main, .ico-pie .pie-slice{stroke-dasharray:1 1}
-.nav-item:hover .ico-pie .pie-main{animation:pie-draw .5s var(--ease-out) both}
-.nav-item:hover .ico-pie .pie-slice{animation:pie-draw .4s var(--ease-out) .2s both}
+.nav-item:is(:hover, .active) .ico-pie .pie-main{animation:pie-draw .5s var(--ease-out) both}
+.nav-item:is(:hover, .active) .ico-pie .pie-slice{animation:pie-draw .4s var(--ease-out) .2s both}
 @keyframes pie-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 .ico-hist .clock-hand, .ico-hist .history-circle{transform-box:view-box; transform-origin:center; transition:transform .3s var(--ease-out)}
-.nav-item:hover .ico-hist .clock-hand{transform:rotate(-30deg)}
-.nav-item:hover .ico-hist .history-circle{transform:rotate(-45deg)}
+.nav-item:is(:hover, .active) .ico-hist .clock-hand{transform:rotate(-30deg)}
+.nav-item:is(:hover, .active) .ico-hist .history-circle{transform:rotate(-45deg)}
 .ico-library{overflow:visible}
 .ico-library path{transition:transform .35s var(--ease-out)}
 .ico-library .book-1{transform-box:view-box; transform-origin:18px 20px}
 .ico-library .book-2{transform-box:view-box; transform-origin:12px 20px}
 .ico-library .book-3{transform-box:view-box; transform-origin:8px 20px}
 .ico-library .book-4{transform-box:view-box; transform-origin:4px 20px}
-.nav-item:hover .ico-library .book-1{transform:rotate(12deg)}
-.nav-item:hover .ico-library .book-2{transform:translateY(-2px) rotate(-8deg)}
-.nav-item:hover .ico-library .book-3{transform:rotate(-10deg)}
-.nav-item:hover .ico-library .book-4{transform:rotate(-4deg)}
+.nav-item:is(:hover, .active) .ico-library .book-1{transform:rotate(12deg)}
+.nav-item:is(:hover, .active) .ico-library .book-2{transform:translateY(-2px) rotate(-8deg)}
+.nav-item:is(:hover, .active) .ico-library .book-3{transform:rotate(-10deg)}
+.nav-item:is(:hover, .active) .ico-library .book-4{transform:rotate(-4deg)}
 .ico-kbd .kbd-space{transform-box:view-box; transform-origin:12px 14.2px; transition:transform .22s var(--ease-out)}
-.nav-item:is(:hover, :focus-visible) .ico-kbd .kbd-space{transform:translateY(.8px) scaleX(.72)}
+.nav-item:is(:hover, :focus-visible, .active) .ico-kbd .kbd-space{transform:translateY(.8px) scaleX(.72)}
 .ico-settings{transform-box:view-box; transform-origin:center; transition:transform .5s var(--ease-out)}
-.nav-item:is(:hover, :focus-visible) .ico-settings{transform:rotate(90deg)}
+.nav-item:is(:hover, :focus-visible, .active) .ico-settings{transform:rotate(90deg)}
 
 /* Logos dos provedores: animam no hover da pílula (readaptadas do itshover). */
 .ico path{transition:transform .25s ease-in-out, opacity .25s ease-in-out}
 .ico-openai .oai-draw{stroke-dasharray:1 1}
-.prov-tile:hover .ico-openai .oai-draw{animation:oai-draw .8s ease-in-out both}
-.prov-tile:hover .ico-openai .oai-draw:nth-of-type(2){animation-delay:.05s}
-.prov-tile:hover .ico-openai .oai-draw:nth-of-type(3){animation-delay:.1s}
-.prov-tile:hover .ico-openai .oai-draw:nth-of-type(4){animation-delay:.15s}
-.prov-tile:hover .ico-openai .oai-draw:nth-of-type(5){animation-delay:.2s}
-.prov-tile:hover .ico-openai .oai-draw:nth-of-type(6){animation-delay:.25s}
+.prov-tile:is(:hover, .on) .ico-openai .oai-draw{animation:oai-draw .8s ease-in-out both}
+.prov-tile:is(:hover, .on) .ico-openai .oai-draw:nth-of-type(2){animation-delay:.05s}
+.prov-tile:is(:hover, .on) .ico-openai .oai-draw:nth-of-type(3){animation-delay:.1s}
+.prov-tile:is(:hover, .on) .ico-openai .oai-draw:nth-of-type(4){animation-delay:.15s}
+.prov-tile:is(:hover, .on) .ico-openai .oai-draw:nth-of-type(5){animation-delay:.2s}
+.prov-tile:is(:hover, .on) .ico-openai .oai-draw:nth-of-type(6){animation-delay:.25s}
 @keyframes oai-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 .ico-anthropic .ant-i{transform-box:fill-box; transform-origin:center}
-.prov-tile:hover .ico-anthropic .ant-i{transform:skewX(-12deg) scaleY(1.1)}
+.prov-tile:is(:hover, .on) .ico-anthropic .ant-i{transform:skewX(-12deg) scaleY(1.1)}
 .ico-gemini{transform-origin:center; transition:transform .7s ease-in-out}
-.prov-tile:hover .ico-gemini{transform:rotate(180deg) scale(.9)}
+.prov-tile:is(:hover, .on) .ico-gemini{transform:rotate(180deg) scale(.9)}
 .ico-xai path{transform-box:fill-box; transform-origin:center}
-.prov-tile:hover .ico-xai .xai-1{animation:xai-1 .55s ease-in-out}
-.prov-tile:hover .ico-xai .xai-2{animation:xai-2 .55s ease-in-out}
-.prov-tile:hover .ico-xai .xai-3{animation:xai-3 .55s ease-in-out}
-.prov-tile:hover .ico-xai .xai-4{animation:xai-4 .55s ease-in-out}
+.prov-tile:is(:hover, .on) .ico-xai .xai-1{animation:xai-1 .55s ease-in-out}
+.prov-tile:is(:hover, .on) .ico-xai .xai-2{animation:xai-2 .55s ease-in-out}
+.prov-tile:is(:hover, .on) .ico-xai .xai-3{animation:xai-3 .55s ease-in-out}
+.prov-tile:is(:hover, .on) .ico-xai .xai-4{animation:xai-4 .55s ease-in-out}
 @keyframes xai-1{0%,100%{transform:translate(0,0)}45%{transform:translate(-3px,-1.5px)}}
 @keyframes xai-2{0%,100%{transform:translate(0,0)}45%{transform:translate(-2px,2px)}}
 @keyframes xai-3{0%,100%{transform:translate(0,0)}45%{transform:translate(3px,-2px)}}
 @keyframes xai-4{0%,100%{transform:translate(0,0)}45%{transform:translate(2px,1.5px)}}
 .ico-deepseek{transform-origin:center}
-.prov-tile:hover .ico-deepseek{animation:ds-wiggle .55s ease-in-out}
+.prov-tile:is(:hover, .on) .ico-deepseek{animation:ds-wiggle .55s ease-in-out}
 @keyframes ds-wiggle{0%,100%{transform:rotate(0)}30%{transform:rotate(-8deg)}65%{transform:rotate(6deg)}}
 .ico-openrouter{transform-origin:center; transition:transform .25s ease-in-out}
-.prov-tile:hover .ico-openrouter{transform:scale(1.12)}
-.prov-tile:hover .ico-code .br-l{transform:translateX(-3px)}
-.prov-tile:hover .ico-code .br-r{transform:translateX(3px)}
+.prov-tile:is(:hover, .on) .ico-openrouter{transform:scale(1.12)}
+.prov-tile:is(:hover, .on) .ico-code .br-l{transform:translateX(-3px)}
+.prov-tile:is(:hover, .on) .ico-code .br-r{transform:translateX(3px)}
 
 /* ── Início ──────────────────────────────────────────────────────────────── */
 /* Topo em duas colunas de MESMA altura (stretch): à esquerda o título de estado,
@@ -680,7 +688,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .rec-hint{font:500 12px var(--sans); color:var(--amber-fg)}
 
 /* Janela entre os toques: rótulo com valor + trilho afundado + knob quadrado. */
-.debounce{max-width:470px; margin-top:18px}
+.debounce{margin-top:18px}
 .debounce-label{font:400 12.5px var(--sans); color:var(--body)}
 .debounce-label strong{font:600 12.5px var(--mono); color:var(--ink)}
 .range{-webkit-appearance:none; appearance:none; display:block; width:100%; height:8px; margin:14px 0 0; cursor:pointer; border-radius:4px; outline:none;
@@ -853,8 +861,8 @@ kbd.enter{height:18px; min-width:0; padding:0 5px; font-size:10px; color:inherit
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{animation-duration:.01ms !important; animation-delay:0s !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; transition-delay:0s !important; scroll-behavior:auto !important}
   .conn-dot.ok::after{animation:none}
-  .nav-item:hover .ico-pie .pie-main, .nav-item:hover .ico-pie .pie-slice{animation:none}
-  .nav-item:is(:hover, :focus-visible) .ico-settings, .nav-item:is(:hover, :focus-visible) .ico-kbd .kbd-space{transform:none}
-  .prov-tile:hover .ico-openai .oai-draw, .prov-tile:hover .ico-xai path, .prov-tile:hover .ico-deepseek{animation:none}
+  .nav-item:is(:hover, .active) .ico-pie .pie-main, .nav-item:is(:hover, .active) .ico-pie .pie-slice{animation:none}
+  .nav-item:is(:hover, :focus-visible, .active) .ico-settings, .nav-item:is(:hover, :focus-visible, .active) .ico-kbd .kbd-space{transform:none}
+  .prov-tile:is(:hover, .on) .ico-openai .oai-draw, .prov-tile:is(:hover, .on) .ico-xai path, .prov-tile:is(:hover, .on) .ico-deepseek{animation:none}
   .rec-caret, .conn-dot.busy, .result-skel span{animation:none}
 }
