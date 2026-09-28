@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MotionConfig, motion } from "motion/react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
@@ -20,6 +21,7 @@ import type { Key } from "./i18n/catalog";
 import { useT } from "./i18n/useT";
 import { useAppUpdater } from "./useAppUpdater";
 import UpdateStatus from "./UpdateStatus";
+import { spring, usePageEnter } from "./motion";
 
 type Tab = "inicio" | "historico" | "motor" | "presets" | "gatilho" | "geral";
 const TABS: Tab[] = ["inicio", "historico", "presets", "motor", "gatilho", "geral"];
@@ -143,6 +145,20 @@ function WindowControls() {
   );
 }
 
+// Item do menu: ícone num bloco + rótulo embaixo. O ativo recebe a peça clara
+// (layoutId compartilhado), então ela desliza de um item pro outro.
+function NavButton({ id, active, label, onSelect }: { id: Tab; active: boolean; label: string; onSelect: (t: Tab) => void }) {
+  return (
+    <button className={"nav-item" + (active ? " active" : "")} aria-current={active ? "page" : undefined} onClick={() => onSelect(id)}>
+      <span className="nav-ico">
+        {active && <motion.span className="nav-pill" layoutId="nav-pill" transition={spring.snappy} aria-hidden="true" />}
+        <NavIcon id={id} />
+      </span>
+      <span className="nav-label">{label}</span>
+    </button>
+  );
+}
+
 export default function App() {
   // Assina o locale: re-renderiza a janela inteira quando o idioma troca (toggle
   // na aba Geral) e devolve o tradutor `t`.
@@ -155,6 +171,10 @@ export default function App() {
   const [autostartErr, setAutostartErr] = useState("");
   const [needsAccess, setNeedsAccess] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
+  // Direção da última troca (pela ordem do menu): a aba nova entra de baixo se
+  // o item está abaixo do anterior, de cima se está acima.
+  const [dir, setDir] = useState<1 | -1>(1);
+  const mainInnerRef = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<RefineRecord[]>([]);
   const updater = useAppUpdater();
   // Uso da API (mês corrente).
@@ -183,6 +203,7 @@ export default function App() {
 
   // Persiste a aba escolhida e carrega o que ela precisa.
   function selectTab(t: Tab) {
+    setDir(TABS.indexOf(t) >= TABS.indexOf(tab) ? 1 : -1);
     setTab(t);
     localStorage.setItem("imprompt.tab", t);
     if (t === "inicio") { loadUsage(); loadUsageHistory(); }
@@ -195,6 +216,9 @@ export default function App() {
     const offScroll = initAutoScrollbars();
     return () => { offCtx(); offScroll(); };
   }, []);
+
+  // Entrada em cascata das seções da aba (não atrasa a troca, que é síncrona).
+  usePageEnter(mainInnerRef, settings ? tab : null, dir);
 
   // Título da janela (document.title) acompanha o idioma.
   useEffect(() => {
@@ -276,7 +300,7 @@ export default function App() {
 
   if (!settings) {
     return (
-      <div className="app">
+      <div className="app loading">
         <div className="content">
           {titlebar}
           <div className="loading-brand" data-tauri-drag-region>
@@ -289,38 +313,24 @@ export default function App() {
   }
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="app">
       <div className="shell">
-        {/* ── Rail (altura total): marca + navegação; Configurações e conexão no rodapé ── */}
+        {/* ── Menu grafite flutuante: marca + navegação; Configurações e conexão no
+            rodapé. O bloco claro do item ativo é UM só e desliza entre os itens. ── */}
         <nav className="rail" aria-label={t("app.nav")}>
           <div className="rail-brand" data-tauri-drag-region onDoubleClick={(e) => e.preventDefault()}>
-            <BrandMark size={18} />
-            <span className="rb-name">imprompt</span>
+            <BrandMark size={22} />
           </div>
 
           <div className="rail-nav">
-            {TABS.filter((t) => t !== "geral").map((id) => (
-              <button
-                key={id}
-                className={"nav-item" + (tab === id ? " active" : "")}
-                aria-current={tab === id ? "page" : undefined}
-                onClick={() => selectTab(id)}
-              >
-                <NavIcon id={id} />
-                <span>{t(TAB_KEY[id])}</span>
-              </button>
+            {TABS.filter((id) => id !== "geral").map((id) => (
+              <NavButton key={id} id={id} active={tab === id} label={t(TAB_KEY[id])} onSelect={selectTab} />
             ))}
           </div>
 
           <div className="rail-foot">
-            <button
-              className={"nav-item" + (tab === "geral" ? " active" : "")}
-              aria-current={tab === "geral" ? "page" : undefined}
-              onClick={() => selectTab("geral")}
-            >
-              <NavIcon id="geral" />
-              <span>{t("tab.sobre")}</span>
-            </button>
+            <NavButton id="geral" active={tab === "geral"} label={t("tab.sobre")} onSelect={selectTab} />
             <ConnectionStatus settings={settings} />
           </div>
         </nav>
@@ -329,10 +339,10 @@ export default function App() {
         <div className="content">
           {titlebar}
           <main className="main">
-            <div className="main-inner">
+            <div className="main-inner" ref={mainInnerRef}>
 
               {needsAccess && (
-                <div className="banner" role="alert">
+                <div className="banner" role="alert" data-enter>
                   <div className="banner-text">
                     <strong>{t("app.access.title")}</strong>
                     <p>
@@ -349,7 +359,7 @@ export default function App() {
               )}
 
               {updater.version && (
-                <div className="banner update" role="status">
+                <div className="banner update" role="status" data-enter>
                   <div className="banner-text">
                     <strong>{t("app.update.title", { version: updater.version })}</strong>
                     {updater.installing || updater.error ? <UpdateStatus updater={updater} /> : <p>{t("app.update.body")}</p>}
@@ -360,10 +370,13 @@ export default function App() {
                 </div>
               )}
 
-              <header className="page-head">
-                <h1>{t(TAB_KEY[tab])}</h1>
-                <p>{t(PAGE_KEY[tab])}</p>
-              </header>
+              {/* O Início tem o próprio título (mostra o estado); as outras abas usam este. */}
+              {tab !== "inicio" && (
+                <header className="page-head" data-enter>
+                  <h1>{t(TAB_KEY[tab])}</h1>
+                  <p>{t(PAGE_KEY[tab])}</p>
+                </header>
+              )}
 
               {tab === "inicio" && (
                 <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} onNavigate={selectTab} />
@@ -395,5 +408,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </MotionConfig>
   );
 }

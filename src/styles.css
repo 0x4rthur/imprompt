@@ -52,6 +52,12 @@
   --rail-on-ico:oklch(0.21 0.006 286);
   --dark-1:oklch(0.43 0.006 286);
   --dark-2:oklch(0.27 0.006 286);
+  --rail-ok:oklch(0.74 0.18 150);
+  --rail-busy:oklch(0.80 0.16 70);
+  --rail-bad:oklch(0.70 0.19 25);
+  --rail-ok-fg:oklch(0.86 0.09 150);
+  --rail-busy-fg:oklch(0.88 0.09 75);
+  --rail-bad-fg:oklch(0.84 0.09 25);
 
   /* Sinais */
   --mint:oklch(0.72 0.19 148);
@@ -130,6 +136,12 @@
   --rail-on-ico:oklch(0.185 0.005 286);
   --dark-1:oklch(0.36 0.006 286);
   --dark-2:oklch(0.265 0.006 286);
+  --rail-ok:oklch(0.74 0.18 150);
+  --rail-busy:oklch(0.80 0.16 70);
+  --rail-bad:oklch(0.70 0.19 25);
+  --rail-ok-fg:oklch(0.86 0.09 150);
+  --rail-busy-fg:oklch(0.88 0.09 75);
+  --rail-bad-fg:oklch(0.84 0.09 25);
 
   --mint:oklch(0.74 0.18 150);
   --mint-fg:oklch(0.80 0.15 150);
@@ -300,46 +312,61 @@ fieldset.api-fields:disabled{opacity:.72}
 .callout-text p{color:var(--dim)}
 
 /* ═══ Seções antigas (migradas tarefa a tarefa) ═══ */
-/* ── Shell: rail (altura total) + coluna de conteúdo ─────────────────────── */
+/* ── Casca: menu grafite flutuante + coluna de conteúdo ─────────────────── */
 /* A janela roda SEM decoração nativa (decorations:false): barra de título e
-   controles são desenhados aqui. O rail sobe até o topo; a barra de título fica
-   só sobre o conteúdo e é inteira região de arrasto (filhos sem ponteiro, exceto
-   os botões). */
-.app{height:100%; display:flex; background:var(--bg); overflow:hidden}
+   controles são desenhados aqui. O menu é um bloco flutuante à esquerda; a
+   barra de título fica só sobre o conteúdo e é inteira região de arrasto
+   (filhos sem ponteiro, exceto os botões). */
+.app{height:100%; display:flex; overflow:hidden; background:radial-gradient(80% 60% at 78% -8%, var(--glow) 0%, transparent 62%), var(--canvas)}
 .shell{flex:1 1 auto; min-width:0; display:flex; overflow:hidden}
 .content{flex:1 1 auto; min-width:0; min-height:0; display:flex; flex-direction:column}
 
-.titlebar{flex:0 0 auto; height:40px; display:flex; justify-content:flex-end; align-items:stretch; background:var(--bg); user-select:none; -webkit-user-select:none}
+.titlebar{flex:0 0 auto; height:40px; display:flex; justify-content:flex-end; align-items:center; padding:0 10px; user-select:none; -webkit-user-select:none}
 .titlebar *{pointer-events:none}
 .titlebar button{pointer-events:auto}
-.tb-controls{display:flex}
-.tb-btn{display:inline-flex; align-items:center; justify-content:center; width:46px; border:0; background:transparent; color:var(--stone); cursor:default; transition:background .12s, color .12s}
-.tb-btn:hover{background:var(--surface-card); color:var(--ink)}
-.tb-btn:active{background:var(--track)}
-.tb-btn.close:hover{background:oklch(0.55 0.21 27); color:oklch(0.99 0 0)}
+.tb-controls{display:flex; gap:4px}
+.tb-btn{width:30px; height:26px; display:grid; place-items:center; border:0; border-radius:var(--r-ctl); background:transparent; color:var(--stone); cursor:default; transition:background-color .15s, color .15s}
+.tb-btn:hover{background:var(--sunken); color:var(--ink)}
+.tb-btn:active{background:var(--sunken-2)}
+.tb-btn.close:hover{background:var(--danger-hot); color:oklch(0.99 0 0)}
 .tb-btn:focus-visible{outline-offset:-2px}
 .tb-btn svg{width:12px; height:12px}
 
-/* Rail à esquerda */
-.rail{flex:0 0 212px; display:flex; flex-direction:column; padding:0 12px 14px; background:var(--bg-rail); border-right:1px solid var(--line); overflow-y:auto}
-.rail-brand{flex:none; display:flex; align-items:center; gap:9px; height:58px; padding:0 10px; user-select:none; -webkit-user-select:none}
+.rail{position:relative; flex:0 0 100px; display:flex; flex-direction:column; margin:12px 0 12px 12px; padding:14px 8px 12px; border-radius:var(--r-rail);
+  background:linear-gradient(180deg, var(--rail-1) 0%, var(--rail-2) 100%); box-shadow:var(--sh-float), inset 0 1px 0 oklch(1 0 0 / .14), inset 0 0 0 1px oklch(1 0 0 / .04);
+  overflow-y:auto; scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.rail-brand{flex:none; display:flex; justify-content:center; align-items:center; height:34px; margin-bottom:10px; user-select:none; -webkit-user-select:none}
 .rail-brand *{pointer-events:none}
-.rb-name{font-weight:700; font-size:14.5px; letter-spacing:-.01em; color:var(--ink)}
-.rail-nav{display:flex; flex-direction:column; gap:2px; margin-top:6px}
-.rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:2px; padding-top:14px}
+.rail-brand .bm-bracket{fill:oklch(1 0 0 / .36)}
+.rail-brand .bm-ink{fill:oklch(1 0 0)}
+.rail-nav{display:flex; flex-direction:column; gap:2px}
+.rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:2px; padding-top:12px}
 
-.nav-item{display:flex; align-items:center; gap:11px; width:100%; min-height:36px; padding:7px 10px; cursor:pointer; text-align:left; font-size:13.5px; font-weight:500; color:var(--dim); background:transparent; border:1px solid transparent; border-radius:var(--rad-btn); transition:background .15s, color .15s, border-color .15s}
-.nav-item:hover{color:var(--ink); background:var(--bg)}
-.nav-item.active{color:var(--ink); background:var(--bg); font-weight:600; border-color:var(--line); box-shadow:0 1px 2px oklch(0.21 0.006 286 / .05)}
+/* Item: ícone num bloco + rótulo embaixo. O ativo recebe a peça clara (.nav-pill),
+   uma só, que desliza entre os itens (layoutId do Motion). */
+.nav-item{display:flex; flex-direction:column; align-items:center; gap:6px; width:100%; padding:6px 0 7px; border:0; background:none; cursor:pointer; text-align:center;
+  font:500 10.5px/1.15 var(--sans); color:var(--rail-lbl); border-radius:var(--r-tile); transition:color .25s}
+.nav-item:hover, .nav-item.active{color:oklch(0.99 0 0)}
+.nav-item.active{font-weight:600}
+.nav-item:focus-visible{outline-color:oklch(0.99 0 0); outline-offset:-1px}
+.nav-ico{position:relative; width:42px; height:42px; display:grid; place-items:center; border-radius:var(--r-tile); background:var(--rail-tile); color:var(--rail-ico);
+  box-shadow:inset 0 1px 0 oklch(1 0 0 / .07); transition:transform .35s var(--spring), color .2s .05s}
+.nav-item:hover .nav-ico{transform:translateY(-1px)}
+.nav-item:active .nav-ico{transform:scale(.94); transition-duration:.08s}
+.nav-item.active .nav-ico{color:var(--rail-on-ico)}
+.nav-pill{position:absolute; inset:0; border-radius:var(--r-tile); background:var(--rail-on); box-shadow:0 10px 20px -8px oklch(0 0 0 / .6), inset 0 1px 0 oklch(1 0 0 / .9)}
+.nav-ico svg{position:relative}
+.nav-label{max-width:100%; overflow-wrap:anywhere}
 
 /* Conteúdo rolável */
 .main{flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-gutter:stable}
-.main-inner{max-width:720px; padding:6px 36px 40px}
+.main-inner{max-width:780px; padding:2px 28px 28px}
 
-/* Cabeçalho da página: onde estou + o que esta página resolve. */
-.page-head{margin:0 0 26px}
-.page-head h1{font-size:20px; font-weight:600; letter-spacing:-.02em; line-height:1.25; color:var(--ink)}
-.page-head p{margin-top:6px; font-family:var(--sans); font-size:13.5px; line-height:1.5; color:var(--dim)}
+/* Cabeçalho da página (as abas, exceto o Início, que tem título de estado). */
+.page-head{margin:2px 0 18px}
+.page-head h1{font:600 38px/1.02 var(--sans); letter-spacing:-.045em; color:var(--ink)}
+.page-head p{margin-top:8px; font:400 13.5px/1.5 var(--sans); color:var(--dim)}
 
 /* ── Páginas de configuração: seções separadas por fios (sem caixa) ──────── */
 .card{animation:tab-in .2s var(--ease-out) both}
@@ -623,28 +650,28 @@ textarea.mp-input{min-height:180px; resize:vertical; line-height:1.5}
 @keyframes hh-pulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.28)}}
 @keyframes hh-bob{0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)}}
 
-/* ── Status de conexão (rodapé do rail) ──────────────────────────────────── */
-.conn{display:flex; align-items:center; gap:10px; width:100%; margin-top:10px; padding:9px 11px; text-align:left; background:var(--bg); border:1px solid var(--line); border-radius:var(--rad-card)}
-button.conn{cursor:pointer; transition:border-color .15s, background .15s}
-button.conn:hover:not(:disabled){border-color:var(--line-2)}
-button.conn:disabled{cursor:default}
-.conn-ico{flex:none; display:inline-flex; align-items:center; color:var(--ink)}
-.conn-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px; font-weight:600; color:var(--ink)}
-.conn.api.connected{background:var(--mint-soft); border-color:var(--mint-line)}
-.conn.api.connected .conn-label{color:var(--mint-fg)}
-.conn.api.checking{background:var(--amber-soft); border-color:var(--amber-line)}
-.conn.api.checking .conn-label{color:var(--amber-fg)}
-.conn.api.error{background:var(--danger-soft); border-color:var(--danger-line)}
-.conn.api.error .conn-label{color:var(--danger)}
-.conn-dot{flex:none; width:7px; height:7px; margin-left:auto; border-radius:50%}
-.conn-dot.ok{background:var(--mint); box-shadow:0 0 0 3px var(--mint-soft)}
-.conn-dot.busy{background:var(--amber); box-shadow:0 0 0 3px var(--amber-soft); animation:conn-pulse 1s ease-in-out infinite}
-.conn-dot.bad{background:var(--danger); box-shadow:0 0 0 3px var(--danger-soft)}
-@keyframes conn-pulse{0%,100%{opacity:1} 50%{opacity:.35}}
+/* ── Status da conexão (rodapé do menu) ──────────────────────────────────── */
+.conn{display:flex; flex-direction:column; align-items:center; gap:6px; width:100%; padding:6px 0 4px; border:0; background:none; cursor:pointer; text-align:center;
+  font:600 10.5px/1.15 var(--sans); color:var(--rail-lbl)}
+.conn:disabled{cursor:default}
+.conn-ico{position:relative; width:42px; height:42px; display:grid; place-items:center; border-radius:var(--r-tile); background:oklch(1 0 0 / .93); transition:transform .35s var(--spring)}
+.conn:hover:not(:disabled) .conn-ico{transform:translateY(-1px)}
+.conn:active:not(:disabled) .conn-ico{transform:scale(.94)}
+.conn-dot{position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; box-shadow:0 0 0 2.5px var(--rail-2)}
+.conn-dot.ok{background:var(--rail-ok)}
+.conn-dot.ok::after{content:""; position:absolute; inset:0; border-radius:50%; background:var(--rail-ok); animation:conn-ping 2.4s var(--out) infinite}
+.conn-dot.busy{background:var(--rail-busy); animation:conn-pulse 1s ease-in-out infinite}
+.conn-dot.bad{background:var(--rail-bad)}
+@keyframes conn-ping{0%{transform:scale(1); opacity:.55} 70%, 100%{transform:scale(2.6); opacity:0}}
+@keyframes conn-pulse{0%, 100%{opacity:1} 50%{opacity:.35}}
+.conn-label{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.conn.connected .conn-label{color:var(--rail-ok-fg)}
+.conn.checking .conn-label{color:var(--rail-busy-fg)}
+.conn.error .conn-label{color:var(--rail-bad-fg)}
 
 /* ── Logo (tema) e tela de carregamento ──────────────────────────────────── */
 .loading-brand{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px}
-.loading-brand .lb-text{font-size:12.5px; letter-spacing:.04em; color:var(--stone)}
+.loading-brand .lb-text{font:500 12.5px var(--sans); letter-spacing:.02em; color:var(--stone)}
 
 /* ── Movimento de entrada das páginas ───────────────────────────────────── */
 @keyframes tab-in{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
