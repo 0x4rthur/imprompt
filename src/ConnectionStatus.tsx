@@ -1,4 +1,4 @@
-// ConnectionStatus.tsx — indicador de conexão no rodapé do rail.
+// ConnectionStatus.tsx — indicador de conexão no rodapé do menu grafite.
 //
 // Mostra o logo do provedor + host + um ESTADO REAL de saúde da conexão com a API:
 //   • verificando… (âmbar)   — testando o provedor
@@ -53,9 +53,11 @@ export default function ConnectionStatus({ settings }: { settings: Settings }) {
           : t("conn.title.test", { name, host })
       }
     >
-      <span className="conn-ico"><ApiProviderIcon host={host} /></span>
+      <span className="conn-ico">
+        <ApiProviderIcon host={host} size={19} />
+        <span className={"conn-dot " + dotClass(health)} aria-hidden="true" />
+      </span>
       <span className="conn-label">{stateLabel}</span>
-      <span className={"conn-dot " + dotClass(health)} />
     </button>
   );
 }

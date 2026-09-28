@@ -46,6 +46,22 @@ async function openApp() {
   await waitFor(() => expect(screen.getByText("Key saved in the system vault (sk-…TEST)")).toBeTruthy());
 }
 
+describe("rail", () => {
+  it("keeps one sliding tile on the current tab and switches synchronously", async () => {
+    await openApp();
+    const api = screen.getByRole("button", { name: "API" });
+    expect(api.getAttribute("aria-current")).toBe("page");
+    expect(document.querySelectorAll(".nav-pill")).toHaveLength(1);
+    expect(api.querySelector(".nav-pill")?.getAttribute("aria-hidden")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const settings = screen.getByRole("button", { name: "Settings" });
+    expect(settings.getAttribute("aria-current")).toBe("page");
+    expect(settings.querySelector(".nav-pill")).toBeTruthy();
+    expect(document.querySelectorAll(".nav-pill")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Check for updates" })).toBeTruthy();
+  });
+});
+
 describe("API settings navigation", () => {
   it("keeps the speed preference through navigation and sends it with the tested configuration", async () => {
     await openApp();
