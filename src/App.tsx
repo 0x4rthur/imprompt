@@ -379,7 +379,7 @@ export default function App() {
               )}
 
               {tab === "inicio" && (
-                <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} onNavigate={selectTab} />
+                <InicioTab settings={settings} usage={usage} usageHistory={usageHistory} presets={presets} history={history} onNavigate={selectTab} />
               )}
 
               {tab === "historico" && (

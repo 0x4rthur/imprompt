@@ -260,13 +260,13 @@ kbd{display:inline-flex; align-items:center; justify-content:center; min-width:2
 .switch:focus-visible{outline-offset:3px; border-radius:var(--r-ctl)}
 
 /* ── Campos: afundados; foco vira card com anel ──────────────────────────── */
-.in, .api-cfg input:not([type=checkbox]):not([type=range]), fieldset.api-fields select, .mp-input{width:100%; min-height:38px; padding:8px 12px; border:0; border-radius:var(--r-ctl);
+.input, .api-cfg input:not([type=checkbox]):not([type=range]), fieldset.api-fields select, .mp-input{width:100%; min-height:38px; padding:8px 12px; border:0; border-radius:var(--r-ctl);
   background:var(--sunken); box-shadow:var(--inset); font:500 12.5px/1.45 var(--mono); color:var(--ink); outline:none; transition:box-shadow .2s, background-color .2s}
-.in::placeholder, .api-cfg input::placeholder, .mp-input::placeholder{color:var(--faint)}
-.in:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus, .mp-input:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
-.in[readonly], .api-cfg input[readonly]{background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
-.in[readonly]:focus, .api-cfg input[readonly]:focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
-select.in, fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
+.input::placeholder, .api-cfg input::placeholder, .mp-input::placeholder{color:var(--faint)}
+.input:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus, .mp-input:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
+.input[readonly], .api-cfg input[readonly]{background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
+.input[readonly]:focus, .api-cfg input[readonly]:focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
+select.input, fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a95' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center}
 .api-label{display:block; margin:16px 0 6px; font:500 11.5px var(--sans); color:var(--stone)}
@@ -516,53 +516,94 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
 .prov-pill:hover .ico-code .br-l{transform:translateX(-3px)}
 .prov-pill:hover .ico-code .br-r{transform:translateX(3px)}
 
-/* ── Início (dashboard) ──────────────────────────────────────────────────── */
-.inicio{display:flex; flex-direction:column; gap:30px; animation:tab-in .2s var(--ease-out) both}
-.dash-sec .sec-title{margin-bottom:14px}
+/* ── Início ──────────────────────────────────────────────────────────────── */
+/* Topo em duas colunas de MESMA altura (stretch): à esquerda o título de estado,
+   o card do gesto (estica pra alinhar) e os 4 blocos; à direita o painel do
+   último imprompt. Embaixo, "Este mês" em três cards. */
+.home{display:flex; flex-direction:column}
+.home-top{display:grid; grid-template-columns:minmax(0, 1fr) 318px; gap:18px; align-items:stretch}
+.home-left{display:flex; flex-direction:column; min-width:0}
+.hero{margin:2px 0 8px; font:600 44px/1.02 var(--sans); letter-spacing:-.05em; color:var(--ink); text-wrap:balance}
+.lead{margin:0 0 18px; font:400 13.5px/1.5 var(--sans); color:var(--dim)}
 
-/* Faixa do gesto: status + como disparar. */
-.dash-strip{display:flex; align-items:center; justify-content:space-between; gap:10px 16px; flex-wrap:wrap; padding:10px 14px; font-size:12.5px; color:var(--dim); background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card)}
-.dash-strip strong{font-weight:600; color:var(--ink)}
-.dash-strip-r{font-family:var(--sans); color:var(--stone)}
-.dash-strip-r kbd{margin:0 1px}
+.gesture{position:relative; flex:1; display:flex; flex-direction:column; min-height:128px; padding:15px 16px 14px; border-radius:var(--r-card); background:var(--sunken); box-shadow:var(--inset)}
+.gesture-title{max-width:250px; font:500 14px/1.35 var(--sans); color:var(--ink)}
+.gesture-keys{display:flex; align-items:center; gap:7px; margin-top:11px}
+.gesture-keys kbd{min-width:36px; height:31px; padding:0 10px; font-size:12.5px}
+.gesture-keys .plus{font:500 13px var(--mono); color:var(--faint)}
+.gesture-keys .x2{margin-left:3px; font:600 13px var(--mono); color:var(--dim)}
+.gesture-meta{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:auto; padding-top:12px; font:500 11.5px var(--sans); color:var(--dim)}
+.gesture-meta i{display:inline-block; width:6px; height:6px; margin-right:7px; border-radius:2px; background:var(--ink); vertical-align:1px}
+.gesture-go{position:absolute; top:14px; right:14px; width:40px; height:40px; display:grid; place-items:center; border:0; border-radius:var(--r-ctl);
+  background:var(--ink); color:var(--on-ink); box-shadow:var(--sh-ink); cursor:pointer; transition:transform .4s var(--spring)}
+.gesture-go:hover{transform:translateY(-2px) rotate(-4deg)}
+.gesture-go:active{transform:scale(.92); transition-duration:.08s}
+.gesture.setup{gap:6px; background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.gesture.setup .gesture-title{max-width:none; font-size:15px; font-weight:600}
+.gesture-body{max-width:44ch; font:400 12.5px/1.5 var(--sans); color:var(--dim)}
+.gesture.setup .btn-dl{align-self:flex-start; margin-top:auto}
 
-/* Este mês: custo em destaque, demais secundários. */
-.stats-row{display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px 52px}
-.st .n{font-size:17px; font-weight:600; letter-spacing:-.01em; color:var(--ink); font-variant-numeric:tabular-nums}
-.st.lead .n{font-size:24px; letter-spacing:-.02em}
-.st .l{margin-top:4px; font-family:var(--sans); font-size:12.5px; color:var(--stone)}
+.tiles{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-top:12px}
+.tile{display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; padding:12px 6px 11px; border:0; border-radius:var(--r-tile); cursor:pointer;
+  background:var(--sunken); box-shadow:var(--inset); color:var(--ink); transition:transform .4s var(--spring)}
+.tile:hover{transform:translateY(-2px)}
+.tile:active{transform:scale(.96); transition-duration:.08s}
+.tile-ico{width:40px; height:40px; display:grid; place-items:center; border-radius:calc(var(--r-tile) - 1px); background:var(--card); box-shadow:var(--sh-card), var(--hl); transition:box-shadow .25s}
+.tile:hover .tile-ico{box-shadow:var(--sh-lift), var(--hl)}
+.tile-v{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 12px/1.2 var(--sans)}
+.tile-k{margin-top:-3px; font:500 10.5px/1 var(--sans); color:var(--stone)}
+.p-dot.lg{width:10px; height:10px; border-radius:3px}
 
-/* Tokens: barra empilhada entrada → saída. */
-.tbar{display:flex; gap:2px; height:10px; border-radius:3px; overflow:hidden}
-.tbar-seg{height:100%}
-.tbar-seg.in, .tleg .dot.in{background:var(--bar-in)}
-.tbar-seg.out, .tleg .dot.out{background:var(--ink)}
-.tleg{display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 18px; margin-top:10px; font-size:12px; color:var(--dim)}
-.tleg .dot{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px}
-.tleg .pct{color:var(--faint)}
-.tnone{font-family:var(--sans); font-size:13px; line-height:1.5; color:var(--stone)}
+.last{position:relative; display:flex; flex-direction:column; gap:9px; min-width:0; padding:52px 14px 14px; border-radius:calc(var(--r-card) + 4px); overflow:hidden;
+  background:radial-gradient(70% 45% at 50% 0%, var(--glow), transparent 70%), var(--panel); box-shadow:var(--inset)}
+.last-tag{position:absolute; top:13px; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:7px; padding:6px 12px; white-space:nowrap;
+  border-radius:var(--r-chip); background:var(--ink); color:var(--on-ink); font:600 11.5px var(--sans); box-shadow:var(--sh-ink)}
+.last-tag .bm-bracket{fill:currentColor; opacity:.45}
+.last-tag .bm-ink{fill:currentColor}
+.msg{max-width:92%; padding:10px 12px; border-radius:var(--r-card); font:400 11.5px/1.55 var(--mono); word-break:break-word}
+.msg.orig{align-self:flex-end; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-wrap; background:var(--sunken-2); color:var(--body)}
+.msg-when{align-self:flex-end; margin-top:-3px; font:500 10.5px var(--sans); color:var(--faint)}
+.msg.res{align-self:flex-start; background:var(--card); color:var(--ink); box-shadow:var(--sh-card), var(--hl)}
+.msg-preset{display:flex; align-items:center; gap:7px; margin-bottom:5px; font:600 11px var(--sans); color:var(--stone)}
+.msg-text{display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-wrap}
+.last-empty{margin:auto 0; padding:0 6px; text-align:center; font:400 12.5px/1.7 var(--sans); color:var(--dim)}
+.last-empty kbd{margin:0 2px}
+.last-go{margin-top:auto; display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 7px 7px 13px; border:0; border-radius:var(--r-ctl); cursor:pointer;
+  background:var(--card); box-shadow:var(--sh-card), var(--hl); font:500 12px var(--sans); color:var(--dim); transition:transform .4s var(--spring), box-shadow .2s, color .2s}
+.last-go:hover{transform:translateY(-1px); box-shadow:var(--sh-lift), var(--hl); color:var(--ink)}
+.last-go:active{transform:scale(.98); transition-duration:.08s}
+.go-ico{width:28px; height:28px; display:grid; place-items:center; border-radius:calc(var(--r-ctl) - 2px); background:var(--sunken); color:var(--ink); transition:transform .35s var(--spring)}
+.last-go:hover .go-ico{transform:translateX(2px)}
 
-/* Gastos por mês: rótulo + trilho + valor. */
-.mrow{display:flex; align-items:center; gap:14px; margin-bottom:8px; font-size:12px}
-.mrow .mx{width:34px; flex:none; color:var(--stone)}
-.mrow.cur .mx{font-weight:600; color:var(--ink)}
-.mrow .mt{flex:1; height:8px; overflow:hidden; background:var(--track); border-radius:3px}
-.mrow .mf{display:block; height:100%; background:var(--bar-mute); border-radius:3px; transition:width .35s var(--ease-out-expo)}
-.mrow.cur .mf{background:var(--ink)}
-.mrow .mv{width:112px; flex:none; text-align:right; color:var(--body); font-variant-numeric:tabular-nums}
-.hint{margin-top:4px; font-family:var(--sans); font-size:12px; color:var(--faint)}
+.sum-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:22px 0 12px}
+.sum-head h2{font:600 19px/1.1 var(--sans); letter-spacing:-.025em}
+.sum{display:grid; grid-template-columns:1.1fr 1.12fr .8fr; gap:12px; min-height:178px}
+.sum-card{display:flex; flex-direction:column; gap:10px; min-width:0; padding:14px; border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.sum-k{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 11.5px var(--sans); color:var(--stone)}
+.sum-v{margin-top:6px; white-space:nowrap; font:600 24px/1 var(--sans); letter-spacing:-.04em; font-variant-numeric:tabular-nums}
+.sum-empty{flex:1; display:flex; align-items:center; font:400 12px/1.5 var(--sans); color:var(--stone)}
+.tok-rows{flex:1; display:flex; flex-direction:column; justify-content:center; gap:6px}
+.tok-row{display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset); font:500 11.5px var(--sans); color:var(--dim)}
+.tok-row span::first-letter{text-transform:uppercase}
+.tok-row i{flex:none; width:8px; height:8px; border-radius:2px}
+.tok-row i.tok-in{background:var(--ink)}
+.tok-row i.tok-out{background:var(--bar-fill)}
+.tok-row b{margin-left:auto; font:600 12.5px var(--mono); color:var(--ink); font-variant-numeric:tabular-nums}
+.tok-row small{width:34px; text-align:right; font:500 11px var(--mono); color:var(--faint)}
+.bars{flex:1; min-height:74px; display:flex; align-items:stretch; justify-content:space-between; gap:4px; padding:0 4px}
+.bar{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px}
+.bar-trk{flex:1; width:9px; display:flex; align-items:flex-end; border-radius:3px; background:var(--bar-track); overflow:hidden}
+.bar-fill{display:block; width:100%; border-radius:3px; background:var(--bar-fill)}
+.bar.cur .bar-fill{background:var(--ink)}
+.bar-m{font:500 9.5px var(--mono); color:var(--faint)}
+.bar.cur .bar-m{font-weight:600; color:var(--ink)}
+.sum-dark{position:relative; display:flex; flex-direction:column; justify-content:flex-end; min-width:0; padding:14px; border-radius:var(--r-card); overflow:hidden;
+  background:linear-gradient(160deg, var(--dark-1), var(--dark-2)); box-shadow:var(--sh-float), inset 0 1px 0 oklch(1 0 0 / .13); color:oklch(0.99 0 0)}
+.sum-dark .sum-k{color:oklch(1 0 0 / .68)}
+.sum-dark small{display:block; margin-top:5px; font:500 10.5px var(--sans); color:oklch(1 0 0 / .64)}
+.spark{position:absolute; top:14px; left:12px; width:calc(100% - 24px); height:56px; color:oklch(1 0 0 / .92); overflow:visible}
 
-/* Sua configuração: linhas chave → valor que levam à aba correspondente. */
-.setup-list{border-top:1px solid var(--line)}
-.setup-row{display:flex; align-items:center; gap:14px; width:100%; min-height:44px; padding:8px 6px; cursor:pointer; text-align:left; font-size:13px; color:var(--body); background:transparent; border:0; border-bottom:1px solid var(--line); transition:background .15s}
-.setup-row:hover{background:var(--surface-soft)}
-.setup-row:focus-visible{outline-offset:-2px}
-.setup-k{width:160px; flex:none; font-family:var(--sans); color:var(--stone)}
-.setup-v{flex:1; min-width:0; display:flex; align-items:center; gap:8px; color:var(--ink)}
-.setup-v svg{flex:none}
-.setup-txt{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.setup-chev{flex:none; color:var(--faint); transition:transform .18s var(--ease-out), color .18s}
-.setup-row:hover .setup-chev{transform:translateX(2px); color:var(--ink)}
+.inicio{display:flex; flex-direction:column; gap:30px}
 
 /* ── Histórico (timeline em acordeon) ────────────────────────────────────── */
 .timeline{display:flex; flex-direction:column; gap:24px}
