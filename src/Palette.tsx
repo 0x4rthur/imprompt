@@ -56,6 +56,9 @@ export default function Palette() {
   const paletteRef = useRef<HTMLDivElement>(null);
   const copiedTimer = useRef(0);
   const lastHeight = useRef(0);
+  // "Aplicar" em andamento (animação de saída → esconder → colar): um 2º Enter,
+  // R ou clique nesse meio-tempo não pode colar de novo nem refazer escondido.
+  const applying = useRef(false);
 
   // refs com os valores atuais (pro handler de teclado e o refine não pegarem
   // closures velhas).
@@ -133,6 +136,7 @@ export default function Palette() {
     // Janela reusada num novo gatilho → texto novo: reseta o estado E refaz os
     // rótulos (settings podem ter mudado — BUG-4) e o foco do diálogo (ROB-5).
     const un = listen<string>("captured-text", (e) => {
+      applying.current = false;
       setCaptured(e.payload);
       setRefined(null);
       setError(false);
@@ -159,7 +163,7 @@ export default function Palette() {
 
   const refine = useCallback(async () => {
     const text = capturedRef.current.trim();
-    if (!text || loadingRef.current) return;
+    if (!text || loadingRef.current || applying.current) return;
     setLoading(true); setRefined(null); setError(false); setCopied(false);
     try {
       const out = await invoke<string>("refine_text", { text, presetId: presetIdRef.current });
@@ -211,7 +215,8 @@ export default function Palette() {
   }, [refined]);
 
   const apply = useCallback(async () => {
-    if (refined == null || error) return;
+    if (refined == null || error || applying.current) return;
+    applying.current = true;
     // O popup encolhe e some antes de colar (o texto "vai" pro app de origem).
     if (!reducedMotion()) { setLeaving(true); await wait(LEAVE_MS); }
     await appWindow.hide();                 // devolve o foco pro app de origem antes de colar
@@ -222,6 +227,7 @@ export default function Palette() {
       // reexibe pra o usuário não perder o resultado e poder copiar manualmente
       // (botão Copiar), em vez de tudo sumir silenciosamente (ver auditoria ROB-6).
       console.error(e);
+      applying.current = false;
       setLeaving(false);
       await appWindow.show().catch(() => {});
     }
@@ -250,6 +256,9 @@ export default function Palette() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.ctrlKey || e.altKey || e.metaKey) return;
+      // Já aplicando: o popup está saindo, nenhuma tecla (nem a ativação nativa
+      // de um botão focado) muda o que vai ser colado.
+      if (applying.current) { e.preventDefault(); return; }
       if (e.key === "Escape") { e.preventDefault(); close(); }
       else if (e.key === "Enter") {
         // Enter num botão de ação focado (Refazer/Copiar/Aplicar/Expandir) ativa o
