@@ -599,7 +599,9 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 }
 
 /* ── Histórico: cada imprompt é um card que abre (altura animada) ─────────── */
-.history{display:flex; flex-direction:column; gap:22px}
+/* --h-time: coluna da hora (cabe "23:59"; no inglês, "11:59 PM"). O corpo aberto alinha depois dela. */
+.history{--h-time:44px; display:flex; flex-direction:column; gap:22px}
+:root[lang="en"] .history{--h-time:62px}
 .h-group{display:flex; flex-direction:column}
 .h-date{margin:0 0 8px 2px; font:700 10.5px var(--sans); letter-spacing:.09em; text-transform:uppercase; color:var(--stone)}
 .h-list{display:flex; flex-direction:column; gap:8px}
@@ -607,7 +609,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .h-item:hover{box-shadow:var(--sh-lift), var(--hl)}
 .h-head{width:100%; display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 10px 8px 14px; border:0; border-radius:var(--r-card); background:none; cursor:pointer; text-align:left; color:var(--ink)}
 .h-head:focus-visible{outline-offset:-2px}
-.h-time{width:44px; flex:none; white-space:nowrap; font:500 12px var(--mono); color:var(--faint); font-variant-numeric:tabular-nums}
+.h-time{width:var(--h-time); flex:none; white-space:nowrap; font:500 12px var(--mono); color:var(--faint); font-variant-numeric:tabular-nums}
 .h-prev{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 12px var(--mono); color:var(--dim); transition:opacity .25s}
 .h-item.open .h-prev{opacity:.45}
 .h-chev{flex:none; width:28px; height:28px; display:grid; place-items:center; border-radius:calc(var(--r-ctl) - 2px); background:var(--sunken); color:var(--stone); transition:transform .55s var(--spring)}
@@ -615,7 +617,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .h-body{display:grid; grid-template-rows:0fr; transition:grid-template-rows .5s var(--out)}
 .h-item.open .h-body{grid-template-rows:1fr}
 .h-inner{overflow:hidden; min-height:0}
-.h-pad{display:flex; flex-direction:column; gap:10px; padding:2px 14px 14px 70px; opacity:0; transform:translateY(-4px); transition:opacity .2s, transform .45s var(--spring)}
+.h-pad{display:flex; flex-direction:column; gap:10px; padding:2px 14px 14px calc(var(--h-time) + 26px); opacity:0; transform:translateY(-4px); transition:opacity .2s, transform .45s var(--spring)}
 .h-item.open .h-pad{opacity:1; transform:none; transition-delay:.06s}
 .h-block{padding:10px 12px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset)}
 .h-block.res{background:transparent; box-shadow:inset 0 0 0 1px var(--line-2)}
@@ -730,7 +732,8 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .conn{display:flex; flex-direction:column; align-items:center; gap:6px; width:100%; padding:6px 0 4px; border:0; background:none; cursor:pointer; text-align:center;
   font:600 10.5px/1.15 var(--sans); color:var(--rail-lbl)}
 .conn:disabled{cursor:default}
-.conn-ico{position:relative; width:42px; height:42px; display:grid; place-items:center; border-radius:var(--r-tile); background:oklch(1 0 0 / .93); transition:transform .35s var(--spring)}
+.conn-ico{position:relative; width:42px; height:42px; display:grid; place-items:center; border-radius:var(--r-tile); background:oklch(1 0 0 / .93); color:oklch(0.21 0.006 286); transition:transform .35s var(--spring)}
+/* Logos monocromáticos (xAI, OpenRouter) herdam a cor: escuros no bloco claro do menu. */
 .conn:hover:not(:disabled) .conn-ico{transform:translateY(-1px)}
 .conn:active:not(:disabled) .conn-ico{transform:scale(.94)}
 .conn-dot{position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; box-shadow:0 0 0 2.5px var(--rail-2)}
