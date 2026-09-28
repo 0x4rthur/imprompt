@@ -174,14 +174,6 @@
   --focus-ring:oklch(0.955 0.003 286 / .18);
 }
 
-/* Ponte temporária da migração: nomes antigos → tokens novos (sai no fim). */
-:root{
-  --bg:var(--canvas); --bg-rail:var(--sunken); --surface-soft:var(--sunken); --surface-card:var(--sunken-2);
-  --track:var(--sunken-2); --knob:var(--card); --switch-off:var(--sunken-2); --text:var(--ink);
-  --rad-card:var(--r-card); --rad-btn:var(--r-ctl); --pill:9999px; --bar-in:var(--bar-track); --bar-mute:var(--bar-fill);
-  --shadow:var(--sh-float);
-}
-
 /* ── Base ────────────────────────────────────────────────────────────────── */
 *{box-sizing:border-box}
 html,body,#root{height:100%}
@@ -190,7 +182,6 @@ h1,h2,h3,p{margin:0}
 button,input,select,textarea{font:inherit; color:inherit}
 ::selection{background:oklch(0.72 0.17 150 / .28)}
 *:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:4px}
-.mono{font-family:var(--mono)}
 kbd{display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 7px; border-radius:var(--r-kbd); background:var(--card); box-shadow:var(--sh-key), var(--hl); font:600 11px/1 var(--mono); color:var(--ink); vertical-align:middle}
 .bm-bracket{fill:var(--bracket)}
 .bm-ink{fill:var(--ink)}
@@ -202,6 +193,9 @@ kbd{display:inline-flex; align-items:center; justify-content:center; min-width:2
 .cscroll-thumb.on{opacity:.32; pointer-events:auto}
 .cscroll-thumb.on:hover{opacity:.55}
 .cscroll-thumb.drag{opacity:.7; pointer-events:auto}
+
+/* Ponto do preset: o matiz da tarefa (--pc-h, presetColor.ts) só como marca. */
+.p-dot{flex:none; display:inline-block; width:8px; height:8px; border-radius:2px; background:oklch(var(--dot-l) var(--dot-c) var(--pc-h, 250))}
 
 /* ── Textos de apoio e erro ──────────────────────────────────────────────── */
 .help{margin-top:6px; max-width:66ch; font:400 12.5px/1.55 var(--sans); color:var(--dim)}
@@ -260,10 +254,10 @@ kbd{display:inline-flex; align-items:center; justify-content:center; min-width:2
 .switch:focus-visible{outline-offset:3px; border-radius:var(--r-ctl)}
 
 /* ── Campos: afundados; foco vira card com anel ──────────────────────────── */
-.input, .api-cfg input:not([type=checkbox]):not([type=range]), fieldset.api-fields select, .mp-input{width:100%; min-height:38px; padding:8px 12px; border:0; border-radius:var(--r-ctl);
+.input, .api-cfg input:not([type=checkbox]):not([type=range]), fieldset.api-fields select{width:100%; min-height:38px; padding:8px 12px; border:0; border-radius:var(--r-ctl);
   background:var(--sunken); box-shadow:var(--inset); font:500 12.5px/1.45 var(--mono); color:var(--ink); outline:none; transition:box-shadow .2s, background-color .2s}
-.input::placeholder, .api-cfg input::placeholder, .mp-input::placeholder{color:var(--faint)}
-.input:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus, .mp-input:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
+.input::placeholder, .api-cfg input::placeholder{color:var(--faint)}
+.input:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
 .input[readonly], .api-cfg input[readonly]:not([type=checkbox]):not([type=range]){background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
 .input[readonly]:focus, .api-cfg input[readonly]:not([type=checkbox]):not([type=range]):focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
 select.input, fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
@@ -315,18 +309,15 @@ fieldset.api-fields:disabled{opacity:.72}
 .swap{display:inline-flex; align-items:center; gap:6px}
 
 /* ── Avisos globais (permissão / atualização) e chamado de primeiro uso ──── */
-.banner, .callout{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border-radius:var(--r-card)}
+.banner{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border-radius:var(--r-card)}
 .banner{margin:0 0 14px; background:var(--amber-soft); box-shadow:inset 0 0 0 1px var(--amber-line)}
 .banner.update{background:var(--card); box-shadow:var(--sh-card), var(--hl)}
-.banner-text strong, .callout-text strong{font:600 13.5px var(--sans); color:var(--ink)}
-.banner-text p, .callout-text p{margin-top:3px; font:400 12.5px/1.5 var(--sans); color:var(--amber-fg)}
+.banner-text strong{font:600 13.5px var(--sans); color:var(--ink)}
+.banner-text p{margin-top:3px; font:400 12.5px/1.5 var(--sans); color:var(--amber-fg)}
 .banner.update .banner-text p{color:var(--dim)}
 .banner .update-status{margin:3px 0 0}
-.banner button, .callout button{flex:none}
-.callout{background:var(--card); box-shadow:var(--sh-card), var(--hl)}
-.callout-text p{color:var(--dim)}
+.banner button{flex:none}
 
-/* ═══ Seções antigas (migradas tarefa a tarefa) ═══ */
 /* ── Casca: menu grafite flutuante + coluna de conteúdo ─────────────────── */
 /* A janela roda SEM decoração nativa (decorations:false): barra de título e
    controles são desenhados aqui. O menu é um bloco flutuante à esquerda; a
@@ -374,6 +365,15 @@ fieldset.api-fields:disabled{opacity:.72}
 .nav-ico svg{position:relative}
 .nav-label{max-width:100%; overflow-wrap:anywhere}
 
+/* Janela baixa (perto do mínimo de 600px): o menu encolhe pra caber inteiro. */
+@media (max-height: 680px){
+  .rail{padding:10px 8px 10px}
+  .rail-brand{height:28px; margin-bottom:4px}
+  .nav-item, .conn{gap:4px; padding:4px 0 5px}
+  .nav-ico, .conn-ico{width:36px; height:36px}
+  .rail-foot{padding-top:6px}
+}
+
 /* Conteúdo rolável */
 .main{flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-gutter:stable}
 .main-inner{max-width:780px; padding:2px 28px 28px}
@@ -382,26 +382,6 @@ fieldset.api-fields:disabled{opacity:.72}
 .page-head{margin:2px 0 18px}
 .page-head h1{font:600 38px/1.02 var(--sans); letter-spacing:-.045em; color:var(--ink)}
 .page-head p{margin-top:8px; font:400 13.5px/1.5 var(--sans); color:var(--dim)}
-
-/* ── Páginas de configuração: seções separadas por fios (sem caixa) ──────── */
-.field{padding:24px 0; border-top:1px solid var(--line)}
-.field:first-child{padding-top:0; border-top:0}
-
-/* Título de seção: um sistema só, em todas as telas. Os colchetes ecoam o logo
-   [I]; ficam fora do nome acessível (alt vazio no content). */
-.sec-title{display:block; margin:0 0 12px; font-family:var(--mono); font-size:13.5px; font-weight:600; letter-spacing:-.005em; color:var(--ink)}
-.sec-title::before{content:"[" / ""; color:var(--ghost); font-weight:500; margin-right:.5em}
-.sec-title::after{content:"]" / ""; color:var(--ghost); font-weight:500; margin-left:.5em}
-.sec-meta{font-weight:500; color:var(--stone); margin-left:.6em}
-
-.sub-field{margin-top:16px}
-.notes .help:first-child{margin-top:0}
-
-/* ── Controles ───────────────────────────────────────────────────────────── */
-
-.p-dot{flex:none; display:inline-block; width:8px; height:8px; border-radius:2px; background:oklch(var(--dot-l) var(--dot-c) var(--pc-h, 250))}
-
-
 
 /* ── API: provedores, privacidade, ficha do modelo, barra de ação ────────── */
 fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
@@ -421,6 +401,8 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .privacy.warn{color:var(--amber-fg); background:var(--amber-soft)}
 .privacy strong{font:600 11.5px var(--mono)}
 .card-label{margin-bottom:12px}
+.sub-field{margin-top:2px}
+.notes .help:first-child{margin-top:0}
 
 .test-ok{display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border-radius:7px; background:var(--mint-soft); color:var(--mint-fg); font:600 11.5px var(--sans); animation:ok-pop .6s var(--spring)}
 @keyframes ok-pop{from{opacity:0; transform:scale(.7)} to{opacity:1; transform:none}}
@@ -530,8 +512,8 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .hero{margin:2px 0 8px; font:600 44px/1.02 var(--sans); letter-spacing:-.05em; color:var(--ink); text-wrap:balance}
 .lead{margin:0 0 18px; font:400 13.5px/1.5 var(--sans); color:var(--dim)}
 
-.gesture{position:relative; flex:1; display:flex; flex-direction:column; min-height:128px; padding:15px 16px 14px; border-radius:var(--r-card); background:var(--sunken); box-shadow:var(--inset)}
-.gesture-title{max-width:250px; font:500 14px/1.35 var(--sans); color:var(--ink)}
+.gesture{position:relative; flex:1; display:flex; flex-direction:column; min-height:128px; padding:15px 66px 14px 16px; border-radius:var(--r-card); background:var(--sunken); box-shadow:var(--inset)}
+.gesture-title{font:500 14px/1.35 var(--sans); color:var(--ink)}
 .gesture-keys{display:flex; align-items:center; gap:7px; margin-top:11px}
 .gesture-keys kbd{min-width:36px; height:31px; padding:0 10px; font-size:12.5px}
 .gesture-keys .plus{font:500 13px var(--mono); color:var(--faint)}
@@ -542,7 +524,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
   background:var(--ink); color:var(--on-ink); box-shadow:var(--sh-ink); cursor:pointer; transition:transform .4s var(--spring)}
 .gesture-go:hover{transform:translateY(-2px) rotate(-4deg)}
 .gesture-go:active{transform:scale(.92); transition-duration:.08s}
-.gesture.setup{gap:6px; background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.gesture.setup{gap:6px; padding-right:16px; background:var(--card); box-shadow:var(--sh-card), var(--hl)}
 .gesture.setup .gesture-title{max-width:none; font-size:15px; font-weight:600}
 .gesture-body{max-width:44ch; font:400 12.5px/1.5 var(--sans); color:var(--dim)}
 .gesture.setup .btn-dl{align-self:flex-start; margin-top:auto}
@@ -606,6 +588,15 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .sum-dark .sum-k{color:oklch(1 0 0 / .68)}
 .sum-dark small{display:block; margin-top:5px; font:500 10.5px var(--sans); color:oklch(1 0 0 / .64)}
 .spark{position:absolute; top:14px; left:12px; width:calc(100% - 24px); height:56px; color:oklch(1 0 0 / .92); overflow:visible}
+
+/* Janela estreita (perto do mínimo de 720px): o painel do último imprompt desce
+   pra baixo da coluna principal e o card escuro ocupa a linha inteira. */
+@media (max-width: 860px){
+  .home-top{grid-template-columns:minmax(0, 1fr)}
+  .last{min-height:0}
+  .sum{grid-template-columns:repeat(2, minmax(0, 1fr))}
+  .sum-dark{grid-column:1 / -1; min-height:120px}
+}
 
 /* ── Histórico: cada imprompt é um card que abre (altura animada) ─────────── */
 .history{display:flex; flex-direction:column; gap:22px}
@@ -758,9 +749,6 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .loading-brand{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px}
 .loading-brand .lb-text{font:500 12.5px var(--sans); letter-spacing:.02em; color:var(--stone)}
 
-/* ── Movimento de entrada das páginas ───────────────────────────────────── */
-@keyframes tab-in{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
-
 /* ============================================================================
    POPUP / paleta de refino  (Palette.tsx)
    Janela opaca (sombra nativa): cabeçalho de arraste, corpo rolável (texto
@@ -870,7 +858,8 @@ kbd.enter{height:18px; min-width:0; padding:0 5px; font-size:10px; color:inherit
 
 /* ── Movimento reduzido ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce){
-  *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important}
+  *, *::before, *::after{animation-duration:.01ms !important; animation-delay:0s !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; transition-delay:0s !important; scroll-behavior:auto !important}
+  .conn-dot.ok::after{animation:none}
   .nav-item:hover .ico-pie .pie-main, .nav-item:hover .ico-pie .pie-slice{animation:none}
   .nav-item:is(:hover, :focus-visible) .ico-settings, .nav-item:is(:hover, :focus-visible) .ico-kbd .kbd-space{transform:none}
   .prov-tile:hover .ico-openai .oai-draw, .prov-tile:hover .ico-xai path, .prov-tile:hover .ico-deepseek{animation:none}

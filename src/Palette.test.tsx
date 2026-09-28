@@ -57,6 +57,20 @@ it("number keys pick presets and only the first nine get a number", async () => 
   expect(screen.queryByText("10")).toBeNull();
 });
 
+it("brings a preset picked by number into view", async () => {
+  const seen: string[] = [];
+  const original = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (this: Element) { seen.push(this.textContent ?? ""); };
+  try {
+    render(<Palette />);
+    await screen.findByText("Preset 10");
+    fireEvent.keyDown(window, { key: "9" });
+    expect(seen.some((text) => text.includes("Preset 8"))).toBe(true);
+  } finally {
+    Element.prototype.scrollIntoView = original;
+  }
+});
+
 it("an error keeps Enter on retry instead of applying", async () => {
   backend(() => Promise.reject("Invalid key"));
   render(<Palette />);
