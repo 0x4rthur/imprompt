@@ -305,7 +305,7 @@ fieldset.api-fields:disabled{opacity:.72}
 .card .switch-row + .help{margin-top:8px}
 .badge{flex:none; padding:3px 7px; border-radius:6px; font:700 9.5px var(--sans); letter-spacing:.07em; text-transform:uppercase; color:var(--stone); background:var(--sunken); box-shadow:var(--inset)}
 .badge.ink{color:var(--on-ink); background:var(--ink); box-shadow:none}
-.swap-btn{overflow:hidden}
+.swap-btn{position:relative; overflow:hidden}
 .swap{display:inline-flex; align-items:center; gap:6px}
 
 /* ── Avisos globais (permissão / atualização) e chamado de primeiro uso ──── */
@@ -616,7 +616,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .h-item.open .h-chev{transform:rotate(180deg)}
 .h-body{display:grid; grid-template-rows:0fr; transition:grid-template-rows .5s var(--out)}
 .h-item.open .h-body{grid-template-rows:1fr}
-.h-inner{overflow:hidden; min-height:0}
+.h-inner{overflow:clip; min-height:0}
 .h-pad{display:flex; flex-direction:column; gap:10px; padding:2px 14px 14px calc(var(--h-time) + 26px); opacity:0; transform:translateY(-4px); transition:opacity .2s, transform .45s var(--spring)}
 .h-item.open .h-pad{opacity:1; transform:none; transition-delay:.06s}
 .h-block{padding:10px 12px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset)}
@@ -649,7 +649,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .pl-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 13px var(--sans); color:var(--ink)}
 .pl-acc{display:grid; grid-template-rows:0fr; transition:grid-template-rows .5s var(--out)}
 .pl-acc.open{grid-template-rows:1fr}
-.pl-acc-inner{overflow:hidden; min-height:0}
+.pl-acc-inner{overflow:clip; min-height:0}
 .pl-form{display:flex; flex-direction:column; gap:8px; margin:0 4px 12px; padding:12px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset)}
 .pl-new .pl-form{margin:12px 0 0}
 .pl-form .input{background:var(--card); box-shadow:var(--sh-card), var(--hl)}

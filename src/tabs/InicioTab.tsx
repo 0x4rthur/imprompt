@@ -34,10 +34,12 @@ type Metric = "cost" | "count";
 // Reusa as chaves canônicas mod.* (Ctrl/Alt/Shift); traduzidas no render.
 const MOD_LABEL: Record<Settings["trigger_modifier"], Key> = { ctrl: "mod.ctrl", alt: "mod.alt", shift: "mod.shift" };
 
-// Custo em US$ conforme o locale: 4 casas pra centavos, 2 acima de $1.
-function fmtCost(c: number, localeTag: string): string {
+// Custo em US$ conforme o locale: 4 casas pra centavos, 2 acima de $1. Na
+// contagem animada, as casas vêm do valor final (`target`), pra o número não
+// mudar de largura no meio da contagem.
+function fmtCost(c: number, localeTag: string, target = c): string {
   const v = Number.isFinite(c) ? c : 0;
-  const digits = v < 1 ? 4 : 2;
+  const digits = (Number.isFinite(target) ? target : 0) < 1 ? 4 : 2;
   return v.toLocaleString(localeTag, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 // Tokens abreviados: 12900 → "12,9k" (pt-BR) / "12.9k" (en-US); <1000 mostra cru.
@@ -124,7 +126,7 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
   const sparkEnd = spark ? spark.split(" ").pop()!.split(",").map(Number) : null;
 
   const monthLabel = metric === "cost" ? t("inicio.spend") : t("inicio.count.month");
-  const monthValue = metric === "cost" ? `~US$ ${fmtCost(costUp, localeTag)}` : String(Math.round(countUp));
+  const monthValue = metric === "cost" ? `~US$ ${fmtCost(costUp, localeTag, custo)}` : String(Math.round(countUp));
   const monthsAria = metric === "cost"
     ? t("inicio.spend.aria", { list: months.map((m) => `${monthShort(m.month, localeTag)} ~US$ ${fmtCost(m.cost_usd, localeTag)}`).join(", ") })
     : t("inicio.count.aria", { list: months.map((m) => `${monthShort(m.month, localeTag)} ${m.refinements}`).join(", ") });

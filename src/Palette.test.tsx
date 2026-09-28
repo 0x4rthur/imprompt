@@ -5,8 +5,15 @@ import { invoke } from "@tauri-apps/api/core";
 
 const hide = vi.fn(() => Promise.resolve());
 const show = vi.fn(() => Promise.resolve());
+// Guarda o listener de cada evento, pra simular a janela sendo reusada (captured-text).
+const events = vi.hoisted(() => new Map<string, (e: { payload: string }) => void>());
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(() => Promise.resolve(() => {})) }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn((name: string, cb: (e: { payload: string }) => void) => {
+    events.set(name, cb);
+    return Promise.resolve(() => {});
+  }),
+}));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => ({ hide, show }) }));
 vi.mock("./autoscroll", () => ({ initAutoScrollbars: () => () => {} }));
 import Palette from "./Palette";
@@ -73,6 +80,24 @@ it("a second Enter while the popup is leaving does not deliver twice", async () 
   }
 });
 
+it("a popup reused after an Apply starts fresh and Enter works again", async () => {
+  render(<Palette />);
+  await screen.findByText("make this better");
+  fireEvent.keyDown(window, { key: "Enter" });
+  await screen.findByText("Better text");
+  fireEvent.keyDown(window, { key: "Enter" });
+  await waitFor(() => expect(hide).toHaveBeenCalled());
+  // Novo Ctrl+C×2: o backend reusa a janela e manda o texto novo.
+  act(() => events.get("captured-text")!({ payload: "second text" }));
+  expect(screen.getByText("second text")).toBeTruthy();
+  expect(screen.queryByText("Better text")).toBeNull();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await screen.findByText("Better text");
+  expect(invoke).toHaveBeenCalledWith("refine_text", { text: "second text", presetId: "p0" });
+  fireEvent.keyDown(window, { key: "Enter" });
+  await waitFor(() => expect(vi.mocked(invoke).mock.calls.filter(([c]) => c === "deliver_result")).toHaveLength(2));
+});
+
 it("a failed delivery brings the popup back and Enter applies again", async () => {
   let attempts = 0;
   backend(async () => "Better text", async () => {
@@ -128,6 +153,15 @@ it("an error keeps Enter on retry instead of applying", async () => {
   fireEvent.keyDown(window, { key: "Enter" });
   await waitFor(() => expect(vi.mocked(invoke).mock.calls.filter(([c]) => c === "refine_text")).toHaveLength(2));
   expect(vi.mocked(invoke).mock.calls.some(([c]) => c === "deliver_result")).toBe(false);
+});
+
+it("with reduced motion Esc hides the window at once", async () => {
+  // Sem matchMedia (jsdom) conta como movimento reduzido: não há saída animada
+  // pra esperar.
+  render(<Palette />);
+  await screen.findByText("make this better");
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(hide).toHaveBeenCalledTimes(1);
 });
 
 it("copy confirms and Esc hides the window", async () => {

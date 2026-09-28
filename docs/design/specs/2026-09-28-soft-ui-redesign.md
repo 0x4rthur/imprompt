@@ -57,7 +57,7 @@ manter ≥ 4.5:1 sobre `--canvas` (mais escuro que o fundo antigo).
 
 - `--sans`: Plus Jakarta Sans (400/500/600/700, latin + latin-ext, empacotada via @fontsource).
 - `--mono`: JetBrains Mono (inalterada).
-- Escala: título de página 38px/600 (Início: 46px), −0.045em; h2 19px; título de card 14.5px/600;
+- Escala: título de página 38px/600 (Início: 44px — o mockup usava 46; 44 mantém "Connect your API." numa linha até a janela estreitar pra 860px), −0.045em; h2 19px; título de card 14.5px/600;
   corpo 13px; ajuda 12.5px; rótulos 11.5px; micro-rótulo 10–10.5px maiúsculo espaçado.
 - Números: `font-variant-numeric: tabular-nums`.
 - Os colchetes `[ Título ]` saem dos títulos de seção (o `[I]` fica no menu e no popup).
