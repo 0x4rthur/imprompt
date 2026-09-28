@@ -86,7 +86,7 @@ function TriggerRecorder({ settings, update }: Props) {
 export default function GatilhoTab({ settings, update }: Props) {
   const { t } = useT();
   return (
-    <div className="page-stack">
+    <div className="page-stack page-fill">
       {/* Atalho de ativação — gravado direto pelo teclado */}
       <section className="card" data-enter>
         <div className="card-head"><h2 className="card-title">{t("gatilho.label")}</h2></div>
