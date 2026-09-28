@@ -328,6 +328,7 @@ const en = {
   // Toggle de idioma.
   "geral.language": "Language",
   "geral.language.help": "Choose the interface language.",
+  "geral.version.installed": "installed",
   "geral.theme": "Theme",
   "geral.theme.system": "System",
   "geral.theme.light": "Light",
@@ -607,6 +608,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "geral.autostart.off.help": "Abra o Imprompt manualmente quando quiser usá-lo.",
   "geral.language": "Idioma",
   "geral.language.help": "Escolha o idioma da interface.",
+  "geral.version.installed": "instalada",
   "geral.theme": "Tema",
   "geral.theme.system": "Sistema",
   "geral.theme.light": "Claro",
