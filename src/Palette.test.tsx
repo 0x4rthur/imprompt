@@ -16,13 +16,14 @@ const presets = Array.from({ length: 11 }, (_, i) => ({
 }));
 const SETTINGS = { default_preset: "p0", output: "replace", api_model: "gpt-x", locale: "en", theme: "system" };
 
-function backend(refine: () => Promise<string>) {
+function backend(refine: () => Promise<string>, deliver: () => Promise<unknown> = async () => null) {
   vi.mocked(invoke).mockImplementation(async (cmd: string) => {
     switch (cmd) {
       case "list_presets": return presets;
       case "get_captured_text": return "make this better";
       case "get_settings": return SETTINGS;
       case "refine_text": return refine();
+      case "deliver_result": return deliver();
       default: return null;
     }
   });
@@ -45,6 +46,53 @@ it("Enter refines, then Enter applies the result", async () => {
   fireEvent.keyDown(window, { key: "Enter" });
   await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text" }));
   expect(hide).toHaveBeenCalled();
+});
+
+it("a second Enter while the popup is leaving does not deliver twice", async () => {
+  // Movimento ligado: o "Aplicar" espera a animação de saída antes de colar.
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false, media: "", onchange: null,
+    addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+    dispatchEvent: () => false,
+  }));
+  try {
+    render(<Palette />);
+    await screen.findByText("make this better");
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByText("Better text");
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "r" });
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text" }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
+    const calls = vi.mocked(invoke).mock.calls.map(([c]) => c);
+    expect(calls.filter((c) => c === "deliver_result")).toHaveLength(1);
+    expect(calls.filter((c) => c === "refine_text")).toHaveLength(1);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("a failed delivery brings the popup back and Enter applies again", async () => {
+  let attempts = 0;
+  backend(async () => "Better text", async () => {
+    attempts++;
+    if (attempts === 1) throw "paste blocked";
+    return null;
+  });
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    render(<Palette />);
+    await screen.findByText("make this better");
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByText("Better text");
+    fireEvent.keyDown(window, { key: "Enter" });
+    await waitFor(() => expect(show).toHaveBeenCalled());
+    fireEvent.keyDown(window, { key: "Enter" });
+    await waitFor(() => expect(attempts).toBe(2));
+  } finally {
+    quiet.mockRestore();
+  }
 });
 
 it("number keys pick presets and only the first nine get a number", async () => {
