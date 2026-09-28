@@ -264,8 +264,8 @@ kbd{display:inline-flex; align-items:center; justify-content:center; min-width:2
   background:var(--sunken); box-shadow:var(--inset); font:500 12.5px/1.45 var(--mono); color:var(--ink); outline:none; transition:box-shadow .2s, background-color .2s}
 .input::placeholder, .api-cfg input::placeholder, .mp-input::placeholder{color:var(--faint)}
 .input:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus, .mp-input:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
-.input[readonly], .api-cfg input[readonly]{background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
-.input[readonly]:focus, .api-cfg input[readonly]:focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
+.input[readonly], .api-cfg input[readonly]:not([type=checkbox]):not([type=range]){background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
+.input[readonly]:focus, .api-cfg input[readonly]:not([type=checkbox]):not([type=range]):focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
 select.input, fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a95' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center}
@@ -386,8 +386,6 @@ fieldset.api-fields:disabled{opacity:.72}
 /* ── Páginas de configuração: seções separadas por fios (sem caixa) ──────── */
 .field{padding:24px 0; border-top:1px solid var(--line)}
 .field:first-child{padding-top:0; border-top:0}
-fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
-fieldset.api-fields + .field{border-top:1px solid var(--line)}
 
 /* Título de seção: um sistema só, em todas as telas. Os colchetes ecoam o logo
    [I]; ficam fora do nome acessível (alt vazio no content). */
@@ -417,50 +415,63 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
 
 
 /* ── API: provedores, privacidade, ficha do modelo, barra de ação ────────── */
-.prov-grid{display:flex; flex-wrap:wrap; gap:8px}
-.prov-pill{position:relative; display:inline-flex; align-items:center; gap:8px; min-height:34px; padding:6px 12px; cursor:pointer; font-size:13px; font-weight:500; color:var(--dim); background:var(--bg); border:1px solid var(--line-2); border-radius:var(--rad-btn); transition:background .18s var(--ease-out), border-color .18s var(--ease-out), color .18s var(--ease-out), box-shadow .18s var(--ease-out)}
-.prov-pill svg{flex:none}
-.prov-pill:hover{border-color:var(--stone); color:var(--ink)}
-.prov-pill.on{color:var(--ink); background:var(--surface-soft); border-color:var(--ink); box-shadow:inset 0 0 0 1px var(--ink)}
+fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
+.prov-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(86px, 1fr)); gap:8px}
+.prov-tile{position:relative; display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; padding:11px 2px 10px; border:0; border-radius:var(--r-tile); cursor:pointer;
+  background:var(--sunken); box-shadow:var(--inset); font:500 11px var(--sans); color:var(--dim); transition:color .25s, transform .4s var(--spring)}
+.prov-tile:hover{color:var(--ink); transform:translateY(-1px)}
+.prov-tile:active{transform:scale(.96); transition-duration:.08s}
+.prov-tile.on{color:var(--ink); font-weight:600}
+.provider-ring{position:absolute; inset:0; border-radius:var(--r-tile); background:var(--card); box-shadow:0 0 0 2px var(--ink), var(--sh-lift)}
+.prov-logo{position:relative; width:36px; height:36px; display:grid; place-items:center; border-radius:calc(var(--r-tile) - 2px); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.prov-logo svg{flex:none}
+.prov-name{position:relative; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
-.privacy{display:flex; align-items:flex-start; gap:8px; margin-top:14px; padding:9px 12px; font-family:var(--sans); font-size:13px; line-height:1.5; border-radius:var(--rad-btn)}
-.privacy svg{flex:none; margin-top:3px}
-.privacy.warn{color:var(--amber-fg); background:var(--amber-soft); border:1px solid var(--amber-line)}
-.privacy strong{font-family:var(--mono); font-weight:600; font-size:12.5px}
+.privacy{display:flex; align-items:center; gap:9px; margin-top:12px; padding:9px 12px; border-radius:var(--r-ctl); font:500 12px/1.45 var(--sans)}
+.privacy svg{flex:none}
+.privacy.warn{color:var(--amber-fg); background:var(--amber-soft)}
+.privacy strong{font:600 11.5px var(--mono)}
+.card-label{margin-bottom:12px}
 
-.test-ok{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:500; color:var(--mint-fg)}
-.test-ok .plug-ico{flex:none; animation:plug-pop .42s var(--ease-out-expo)}
-@keyframes plug-pop{0%{transform:scale(.6); opacity:0} 100%{transform:scale(1); opacity:1}}
+.test-ok{display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border-radius:7px; background:var(--mint-soft); color:var(--mint-fg); font:600 11.5px var(--sans); animation:ok-pop .6s var(--spring)}
+@keyframes ok-pop{from{opacity:0; transform:scale(.7)} to{opacity:1; transform:none}}
+.test-ok .plug-ico{flex:none}
+.spin{width:13px; height:13px; border-radius:50%; border:2px solid color-mix(in oklch, var(--on-ink) 35%, transparent); border-top-color:var(--on-ink); animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.shake{animation:shake .42s ease-out}
+@keyframes shake{0%, 100%{transform:none} 20%{transform:translateX(-5px)} 45%{transform:translateX(4px)} 70%{transform:translateX(-2px)}}
 
-/* Ficha do modelo (descrição, benchmark, preços). */
-.model-info{margin-top:10px; padding:13px 14px 12px; font-size:12.5px; line-height:1.5; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card)}
-.model-info-heading{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px}
-.model-info-heading strong{font-size:13px; font-weight:600; color:var(--ink)}
-.model-info>p{margin-top:5px; font-family:var(--sans); font-size:13px; color:var(--dim)}
-.model-prices{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 22px; margin:12px 0 0}
-.model-prices div{display:flex; gap:8px; align-items:baseline}
-.model-prices dt{font-size:11.5px; color:var(--stone)}
-.model-prices dd{margin:0; font-weight:600; color:var(--ink)}
-.model-prices>span{font-size:11px; color:var(--stone)}
-.model-price-details{margin-top:10px; font-family:var(--sans); font-size:12.5px; color:var(--dim)}
-.model-price-details summary{cursor:pointer; color:var(--stone); width:fit-content}
-.model-price-details summary:hover{color:var(--ink)}
-.model-price-details p{margin-top:6px; max-width:68ch}
-.model-price-details a{display:inline-block; margin-top:6px; color:var(--ink); text-decoration:underline; text-decoration-color:var(--ghost); text-underline-offset:3px; overflow-wrap:anywhere}
-.model-price-details a:hover{text-decoration-color:currentColor}
-.model-benchmark{margin:12px 0 0}
-.bench{display:flex; flex-wrap:wrap; gap:10px 28px}
-.bench-axis{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--dim)}
-.bench-axis small{font-size:11px; color:var(--stone)}
-.bench-dots{display:flex; gap:3px}
-.bench-dot{width:14px; height:5px; border-radius:2px; background:var(--track)}
+/* Ficha do modelo (descrição, benchmark em mini-cards, preços). */
+.model-info{margin-top:12px; padding:14px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset); font:400 12.5px/1.5 var(--sans); animation:fade-soft .3s var(--out)}
+.model-info-heading{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 10px}
+.model-info-heading strong{font:600 13.5px var(--sans); color:var(--ink)}
+.model-info>p{margin-top:5px; color:var(--dim)}
+.model-benchmark{margin-top:12px}
+.bench{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px}
+.bench-axis{display:flex; flex-direction:column; gap:2px; min-width:0; padding:10px 11px; border-radius:calc(var(--r-ctl) - 1px); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.bench-k{font:500 11px var(--sans); color:var(--stone)}
+.bench-k::first-letter, .bench-v::first-letter{text-transform:uppercase}
+.bench-v{font:600 12.5px var(--sans); color:var(--ink)}
+.bench-v small{margin-left:6px; font:500 10.5px var(--mono); color:var(--faint)}
+.bench-dots{display:flex; gap:3px; margin-top:6px}
+.bench-dot{flex:1; height:5px; border-radius:2px; background:var(--bar-track)}
 .bench-dots.lvl-1 .bench-dot.on{background:var(--danger)}
 .bench-dots.lvl-2 .bench-dot.on{background:var(--amber)}
 .bench-dots.lvl-3 .bench-dot.on{background:var(--mint)}
+.model-prices{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 22px; margin:12px 0 0}
+.model-prices div{display:flex; gap:6px; align-items:baseline}
+.model-prices dt{font:500 11.5px var(--sans); color:var(--stone)}
+.model-prices dd{margin:0; font:600 12.5px var(--mono); color:var(--ink)}
+.model-prices>span{font:500 11px var(--sans); color:var(--stone)}
+.model-price-details a{display:inline-block; margin-top:6px; color:var(--ink); text-decoration:underline; text-decoration-color:var(--ghost); text-underline-offset:3px; overflow-wrap:anywhere}
+.model-price-details a:hover{text-decoration-color:currentColor}
 
-/* Barra de ação presa ao rodapé da área rolável (aba API). */
-.apply-bar{position:sticky; bottom:0; z-index:5; margin:4px -36px -40px; padding:12px 36px 14px; background:var(--bg); border-top:1px solid var(--line)}
-.apply-bar .field-err{margin:0 0 10px}
+/* Barra de ação flutuante presa ao rodapé da área rolável (aba API). */
+/* A "prateleira" (sombra sólida na cor do fundo) esconde o conteúdo que rola
+   na fresta abaixo da barra. */
+.apply-bar{position:sticky; bottom:12px; z-index:5; display:flex; flex-direction:column; gap:10px; padding:10px; border-radius:calc(var(--r-card) + 2px); background:var(--card);
+  box-shadow:var(--sh-float), var(--hl), 0 16px 0 4px var(--canvas)}
+.apply-bar .field-err{margin:0}
 
 /* ── Ícones da navegação: micro-animação no hover/foco do item ───────────── */
 .ico-plug path{transition:transform .3s var(--ease-out), opacity .3s var(--ease-out)}
@@ -492,33 +503,33 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
 /* Logos dos provedores: animam no hover da pílula (readaptadas do itshover). */
 .ico path{transition:transform .25s ease-in-out, opacity .25s ease-in-out}
 .ico-openai .oai-draw{stroke-dasharray:1 1}
-.prov-pill:hover .ico-openai .oai-draw{animation:oai-draw .8s ease-in-out both}
-.prov-pill:hover .ico-openai .oai-draw:nth-of-type(2){animation-delay:.05s}
-.prov-pill:hover .ico-openai .oai-draw:nth-of-type(3){animation-delay:.1s}
-.prov-pill:hover .ico-openai .oai-draw:nth-of-type(4){animation-delay:.15s}
-.prov-pill:hover .ico-openai .oai-draw:nth-of-type(5){animation-delay:.2s}
-.prov-pill:hover .ico-openai .oai-draw:nth-of-type(6){animation-delay:.25s}
+.prov-tile:hover .ico-openai .oai-draw{animation:oai-draw .8s ease-in-out both}
+.prov-tile:hover .ico-openai .oai-draw:nth-of-type(2){animation-delay:.05s}
+.prov-tile:hover .ico-openai .oai-draw:nth-of-type(3){animation-delay:.1s}
+.prov-tile:hover .ico-openai .oai-draw:nth-of-type(4){animation-delay:.15s}
+.prov-tile:hover .ico-openai .oai-draw:nth-of-type(5){animation-delay:.2s}
+.prov-tile:hover .ico-openai .oai-draw:nth-of-type(6){animation-delay:.25s}
 @keyframes oai-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 .ico-anthropic .ant-i{transform-box:fill-box; transform-origin:center}
-.prov-pill:hover .ico-anthropic .ant-i{transform:skewX(-12deg) scaleY(1.1)}
+.prov-tile:hover .ico-anthropic .ant-i{transform:skewX(-12deg) scaleY(1.1)}
 .ico-gemini{transform-origin:center; transition:transform .7s ease-in-out}
-.prov-pill:hover .ico-gemini{transform:rotate(180deg) scale(.9)}
+.prov-tile:hover .ico-gemini{transform:rotate(180deg) scale(.9)}
 .ico-xai path{transform-box:fill-box; transform-origin:center}
-.prov-pill:hover .ico-xai .xai-1{animation:xai-1 .55s ease-in-out}
-.prov-pill:hover .ico-xai .xai-2{animation:xai-2 .55s ease-in-out}
-.prov-pill:hover .ico-xai .xai-3{animation:xai-3 .55s ease-in-out}
-.prov-pill:hover .ico-xai .xai-4{animation:xai-4 .55s ease-in-out}
+.prov-tile:hover .ico-xai .xai-1{animation:xai-1 .55s ease-in-out}
+.prov-tile:hover .ico-xai .xai-2{animation:xai-2 .55s ease-in-out}
+.prov-tile:hover .ico-xai .xai-3{animation:xai-3 .55s ease-in-out}
+.prov-tile:hover .ico-xai .xai-4{animation:xai-4 .55s ease-in-out}
 @keyframes xai-1{0%,100%{transform:translate(0,0)}45%{transform:translate(-3px,-1.5px)}}
 @keyframes xai-2{0%,100%{transform:translate(0,0)}45%{transform:translate(-2px,2px)}}
 @keyframes xai-3{0%,100%{transform:translate(0,0)}45%{transform:translate(3px,-2px)}}
 @keyframes xai-4{0%,100%{transform:translate(0,0)}45%{transform:translate(2px,1.5px)}}
 .ico-deepseek{transform-origin:center}
-.prov-pill:hover .ico-deepseek{animation:ds-wiggle .55s ease-in-out}
+.prov-tile:hover .ico-deepseek{animation:ds-wiggle .55s ease-in-out}
 @keyframes ds-wiggle{0%,100%{transform:rotate(0)}30%{transform:rotate(-8deg)}65%{transform:rotate(6deg)}}
 .ico-openrouter{transform-origin:center; transition:transform .25s ease-in-out}
-.prov-pill:hover .ico-openrouter{transform:scale(1.12)}
-.prov-pill:hover .ico-code .br-l{transform:translateX(-3px)}
-.prov-pill:hover .ico-code .br-r{transform:translateX(3px)}
+.prov-tile:hover .ico-openrouter{transform:scale(1.12)}
+.prov-tile:hover .ico-code .br-l{transform:translateX(-3px)}
+.prov-tile:hover .ico-code .br-r{transform:translateX(3px)}
 
 /* ── Início ──────────────────────────────────────────────────────────────── */
 /* Topo em duas colunas de MESMA altura (stretch): à esquerda o título de estado,
@@ -811,6 +822,6 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
   *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important}
   .nav-item:hover .ico-pie .pie-main, .nav-item:hover .ico-pie .pie-slice{animation:none}
   .nav-item:is(:hover, :focus-visible) .ico-settings, .nav-item:is(:hover, :focus-visible) .ico-kbd .kbd-space{transform:none}
-  .prov-pill:hover .ico-openai .oai-draw, .prov-pill:hover .ico-xai path, .prov-pill:hover .ico-deepseek{animation:none}
+  .prov-tile:hover .ico-openai .oai-draw, .prov-tile:hover .ico-xai path, .prov-tile:hover .ico-deepseek{animation:none}
   .rec-caret, .conn-dot.busy, .result-skel span{animation:none}
 }

@@ -11,6 +11,9 @@ import { Trans } from "../i18n/Trans";
 import { CATALOG_CHECKED_AT, CATEGORY_KEYS, PROVIDERS, exampleRefinementCost, formatModelPrice, formatRefinementCost, modelPrice } from "../modelCatalog";
 import type { Provider } from "../modelCatalog";
 import ModelBenchmark from "../ModelBenchmark";
+import { motion } from "motion/react";
+import { spring } from "../motion";
+import { ArrowOutIcon, ChevronDownIcon, LockIcon } from "../ui/icons";
 
 const CUSTOM = "custom";
 const MODEL_CUSTOM = "__custom__";
@@ -25,33 +28,10 @@ function hostOf(url: string): string {
 }
 
 // ── Ícones de linha, monocromáticos (herdam a cor via currentColor) ──
-function LockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="11" width="14" height="10" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
-}
-function ArrowOutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 17 17 7" />
-      <path d="M9 7h8v8" />
-    </svg>
-  );
-}
-function ChevronIcon() {
-  return (
-    <svg className="dd-chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
 // Glifo do provedor "Personalizado" (código { } ); os colchetes abrem no hover.
 function CustomGlyph() {
   return (
-    <svg className="ico ico-code" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="ico ico-code" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path className="br-r" d="m16 18 6-6-6-6" />
       <path className="br-l" d="m8 6-6 6 6 6" />
     </svg>
@@ -88,7 +68,7 @@ function ModelInfo({ provider, modelId }: { provider?: Provider; modelId: string
         <div><dt>{t("motor.models.output")}</dt><dd>{formatModelPrice(price.output_per_1m, locale)}</dd></div>
         <span>{t("motor.models.unit")}</span>
       </dl>
-      <details className="model-price-details">
+      <details className="model-price-details help-more">
         <summary>{t("motor.models.pricingDetails")}</summary>
         <p>{t("motor.models.priceBasis")}</p>
         {provider.note && <p>{provider.note[locale]}</p>}
@@ -163,7 +143,7 @@ function Dropdown({ value, options, onSelect, ariaLabel }: { value: string; opti
         }}
       >
         <span className="dd-val">{current?.label ?? value}</span>
-        <ChevronIcon />
+        <ChevronDownIcon size={14} className="dd-chev" />
       </button>
       {open && (
         <ul
@@ -347,40 +327,33 @@ export default function MotorTab({ settings, apply }: Props) {
   })();
 
   return (
-    <section className="card">
-      <fieldset className="api-cfg api-fields" disabled={apiBusy} aria-label={t("motor.connection")}>
-        {/* Provedor: define o endpoint e, portanto, pra onde o texto vai. */}
-        <div className="field">
-          <h2 className="sec-title" id="api-provider-title">{t("motor.provider")}</h2>
+    <div className="page-stack">
+      <fieldset className="api-cfg api-fields page-stack" disabled={apiBusy} aria-label={t("motor.connection")}>
+        {/* Provedor: define o endpoint e, portanto, pra onde o texto vai. O contorno
+            (layoutId) desliza até o provedor escolhido. */}
+        <section className="card" data-enter>
+          <div className="card-head"><h2 className="card-title" id="api-provider-title">{t("motor.provider")}</h2></div>
           <div className="prov-grid" role="group" aria-labelledby="api-provider-title">
-            {PROVIDERS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                aria-label={p.label}
-                aria-pressed={activeProvider === p.id}
-                className={"prov-pill" + (activeProvider === p.id ? " on" : "")}
-                onClick={() => onProviderSelect(p.id)}
-              >
-                <ApiProviderIcon host={hostOf(p.base)} size={17} />
-                <span>{p.label}</span>
-              </button>
-            ))}
-            <button
-              type="button"
-              aria-pressed={isCustom}
-              className={"prov-pill" + (isCustom ? " on" : "")}
-              onClick={() => onProviderSelect(CUSTOM)}
-              title={t("motor.custom.title")}
-            >
-              <CustomGlyph />
-              <span>{t("motor.custom")}</span>
+            {PROVIDERS.map((p) => {
+              const on = activeProvider === p.id;
+              return (
+                <button key={p.id} type="button" aria-label={p.label} aria-pressed={on} className={"prov-tile" + (on ? " on" : "")} onClick={() => onProviderSelect(p.id)}>
+                  {on && <motion.span className="provider-ring" layoutId="provider-ring" transition={spring.snappy} aria-hidden="true" />}
+                  <span className="prov-logo"><ApiProviderIcon host={hostOf(p.base)} size={18} /></span>
+                  <span className="prov-name">{p.label}</span>
+                </button>
+              );
+            })}
+            <button type="button" aria-pressed={isCustom} className={"prov-tile" + (isCustom ? " on" : "")} onClick={() => onProviderSelect(CUSTOM)} title={t("motor.custom.title")}>
+              {isCustom && <motion.span className="provider-ring" layoutId="provider-ring" transition={spring.snappy} aria-hidden="true" />}
+              <span className="prov-logo"><CustomGlyph /></span>
+              <span className="prov-name">{t("motor.custom")}</span>
             </button>
           </div>
 
           {/* Indicador de privacidade: segue o provedor que está sendo configurado. */}
           <p className="privacy warn">
-            <ArrowOutIcon /> <span><Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} /></span>
+            <ArrowOutIcon size={14} /> <span><Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} /></span>
           </p>
 
           {isCustom && (
@@ -409,11 +382,11 @@ export default function MotorTab({ settings, apply }: Props) {
             />
             {!isCustom && <span className="api-hint">{t("motor.baseUrl.hint")}</span>}
           </div>
-        </div>
+        </section>
 
         {/* Modelo: lista curada (ou id próprio) + ficha com benchmark e preços. */}
-        <div className="field">
-          <h2 className="sec-title">{t("motor.model")}</h2>
+        <section className="card" data-enter>
+          <div className="card-head"><h2 className="card-title">{t("motor.model")}</h2></div>
           {recModels.length > 0 && (
             <Dropdown ariaLabel={t("motor.model")} value={modelDropValue} options={modelOptions} onSelect={onModelSelect} />
           )}
@@ -432,11 +405,11 @@ export default function MotorTab({ settings, apply }: Props) {
           )}
           <ModelInfo provider={provider} modelId={apiModel} />
           <p className="help" data-testid="model-cost-note">{costNote}</p>
-        </div>
+        </section>
 
         {/* Chave: vai pro cofre do sistema, uma por endpoint. */}
-        <div className="field">
-          <label className="sec-title" htmlFor="api-key">{t("motor.apiKey")}</label>
+        <section className="card" data-enter>
+          <label className="card-title card-label" htmlFor="api-key">{t("motor.apiKey")}</label>
           <input
             id="api-key"
             type="password"
@@ -449,36 +422,37 @@ export default function MotorTab({ settings, apply }: Props) {
           <span className="api-hint">{t("motor.apiKey.scope")}</span>
           {keySaved && (
             <span className="api-saved">
-              <LockIcon /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
+              <LockIcon size={13} /> {keyMasked ? t("motor.apiKey.savedMasked", { masked: keyMasked }) : t("motor.apiKey.saved")}
             </span>
           )}
-        </div>
+        </section>
 
-        <div className="field">
+        <section className="card" data-enter>
           <label className="switch-row">
-            <span className="sec-title">{t("motor.fastMode")}</span>
+            <span className="card-title">{t("motor.fastMode")}</span>
             <input type="checkbox" className="switch" checked={fastMode} onChange={(event) => { setFastMode(event.target.checked); setResult(null); }} />
           </label>
           <p className="help">{t("motor.fastMode.help")}</p>
-        </div>
+        </section>
       </fieldset>
 
-      <div className="field notes">
+      <section className="card notes" data-enter>
         <p className="help">{t("motor.help")}</p>
         <details className="help-more">
           <summary>{t("motor.more.summary")}</summary>
           <p>{t("motor.more.body")}</p>
         </details>
-      </div>
+      </section>
 
-      {/* Barra de ação presa ao rodapé da área rolável: o formulário é longo e a
-          ação principal (e o resultado do teste) fica sempre à vista. */}
+      {/* Barra de ação flutuante presa ao rodapé da área rolável: o formulário é
+          longo e a ação principal (e o resultado do teste) fica sempre à vista. */}
       <div className="apply-bar">
         {!apiBusy && result && !result.ok && (
-          <div className="field-err" role="alert">{result.msg}</div>
+          <div className="field-err shake" role="alert">{result.msg}</div>
         )}
         <div className="api-row">
           <button className="btn-dl primary" disabled={apiBusy} onClick={applyApi}>
+            {apiBusy && <span className="spin" aria-hidden="true" />}
             {apiBusy ? t("motor.testing") : t("motor.applyTest")}
           </button>
           {!apiBusy && result?.ok && (
@@ -486,6 +460,6 @@ export default function MotorTab({ settings, apply }: Props) {
           )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
