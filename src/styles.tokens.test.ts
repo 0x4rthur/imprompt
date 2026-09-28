@@ -2,10 +2,11 @@
 //
 // O tema escuro sobrescreve os tokens em :root[data-theme="dark"]; um token que
 // só existe no claro vaza a cor clara pro escuro (texto ilegível, card branco).
-import { readFileSync } from "node:fs";
+/// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
+import raw from "./styles.css?raw";
 
-const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const css = raw.replace(/\r\n/g, "\n");
 
 function tokens(selector: string): string[] {
   const start = css.indexOf(selector + "{");
