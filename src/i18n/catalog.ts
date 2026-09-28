@@ -316,6 +316,7 @@ const en = {
   "popup.action.apply": "Apply",
   "popup.action.copy": "Copy",
   "popup.action.copy.title": "Copy to the clipboard",
+  "popup.action.copied": "Copied",
   "popup.action.redo": "Redo",
   "popup.action.redo.title": "Do it again",
 
@@ -598,6 +599,7 @@ const ptBR: Record<keyof typeof en, string> = {
   "popup.action.apply": "Aplicar",
   "popup.action.copy": "Copiar",
   "popup.action.copy.title": "Copiar para a área de transferência",
+  "popup.action.copied": "Copiado",
   "popup.action.redo": "Refazer",
   "popup.action.redo.title": "Fazer de novo",
 
