@@ -6,67 +6,86 @@
     <title>Imprompt</title>
     <script src="/theme.js"></script>
     <style>
-      /* Mesmo sistema do app (styles.css), inline pra janela abrir sem esperar o
-         bundle: claro "Mono / Cream" ou escuro "Mono / Ink", conforme data-theme
-         (public/theme.js: Sistema/Claro/Escuro, escolhido em Geral).
-         Janela OPACA — sem transparência, pra não revelar o desktop atrás (o
-         "vidro"). A sombra é nativa da janela. */
+      /* Janelinha "Imprompting…" (modo instantâneo). Mesmo sistema do app
+         (styles.css), inline pra abrir sem esperar o bundle: claro "Mono / Cream"
+         ou escuro "Mono / Ink", conforme data-theme (public/theme.js: Sistema /
+         Claro / Escuro, escolhido em Configurações). Janela OPACA (sem
+         transparência, pra não revelar o desktop atrás); a sombra é nativa.
+
+         O logo [I] anima: os colchetes se abrem, aparece uma linha cinza de
+         texto, o "I" passa da esquerda pra direita "lendo" (a linha escurece
+         atrás dele) e os colchetes se fecham. 2,4 s por ciclo. */
       :root{
         color-scheme:light;
-        --bg:oklch(0.992 0.002 286);
-        --edge:oklch(0.21 0.006 286 / .16);
+        --card:oklch(0.995 0.001 286);
+        --edge:oklch(0.21 0.006 286 / .14);
         --ink:oklch(0.21 0.006 286);
-        --bracket:oklch(0.82 0.008 286);
+        --bracket:oklch(0.74 0.008 286);
+        --line:oklch(0.21 0.006 286 / .13);
+        --read:oklch(0.21 0.006 286 / .55);
+        --hl:inset 0 1px 0 oklch(1 0 0 / .95);
       }
       :root[data-theme="dark"]{
         color-scheme:dark;
-        --bg:oklch(0.185 0.005 286);
+        --card:oklch(0.235 0.006 286);
         --edge:oklch(0.98 0.003 286 / .14);
         --ink:oklch(0.955 0.003 286);
-        --bracket:oklch(0.48 0.010 286);
+        --bracket:oklch(0.52 0.010 286);
+        --line:oklch(1 0 0 / .13);
+        --read:oklch(0.955 0.003 286 / .6);
+        --hl:inset 0 1px 0 oklch(1 0 0 / .07);
       }
       html,body{margin:0; height:100%; overflow:hidden}
-      body{ background:var(--bg); border:1px solid var(--edge); box-sizing:border-box }
-      .imprompting{
-        display:flex; align-items:center; justify-content:center; gap:11px;
-        height:100%; box-sizing:border-box; padding:0 16px;
-        font-family:ui-monospace,"Cascadia Code",SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
-      }
-      .glyph{line-height:0; display:inline-flex}
-      .glyph .b{fill:var(--bracket)}
-      .glyph .i{fill:var(--ink)}
-      .text{ font-size:13px; font-weight:600; color:var(--ink) }
-      /* Três quadradinhos de cantos levemente arredondados, piscando em sequência. */
-      .dots{display:inline-flex; gap:3px}
-      .dots i{width:5px; height:5px; border-radius:1.5px; background:var(--ink); animation:blinkdot 1.1s infinite}
-      .dots i:nth-child(2){animation-delay:.18s}
-      .dots i:nth-child(3){animation-delay:.36s}
-      @keyframes blinkdot{0%,40%{opacity:1}60%,100%{opacity:.18}}
+      body{background:var(--card); box-shadow:inset 0 0 0 1px var(--edge), var(--hl); box-sizing:border-box}
+      .imprompting{display:flex; align-items:center; gap:10px; height:100%; box-sizing:border-box; padding:0 14px 0 12px; color:var(--ink);
+        font-family:'Plus Jakarta Sans', "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing:antialiased}
+      .text{font-size:13px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
+      .dots{display:inline-flex; gap:3px; margin-left:auto}
+      .dots i{width:4px; height:4px; border-radius:1.5px; background:currentColor; animation:dot 1s infinite}
+      .dots i:nth-child(2){animation-delay:.15s}
+      .dots i:nth-child(3){animation-delay:.3s}
+      @keyframes dot{0%, 60%, 100%{opacity:.25; transform:none} 30%{opacity:1; transform:translateY(-2px)}}
+
+      /* Logo animado. Estado base = logo fechado (é o que fica com movimento
+         reduzido); as animações abrem, leem e fecham. */
+      .lg{flex:none; overflow:visible}
+      .lg .b{fill:var(--bracket)}
+      .lg .i{fill:var(--ink)}
+      .lg .ln rect{fill:var(--line)}
+      .lg .rd rect{fill:var(--read)}
+      .lg .lb, .lg .rb, .lg .ib{transform-box:view-box; transform:translateX(29px)}
+      .lg .ln, .lg .rd{opacity:0}
+      .lg .mr{transform-box:view-box; transform-origin:22px 0}
+      .lg .lb{animation:lg-lb 2.4s infinite}
+      .lg .rb{animation:lg-rb 2.4s infinite}
+      .lg .ib{animation:lg-ib 2.4s infinite}
+      .lg .ln, .lg .rd{animation:lg-bar 2.4s infinite}
+      .lg .mr{animation:lg-read 2.4s infinite}
+      @keyframes lg-lb{0%{transform:translateX(29px); animation-timing-function:cubic-bezier(.7, 0, .3, 1)} 16%{transform:translateX(0)} 74%{transform:translateX(0); animation-timing-function:cubic-bezier(.7, 0, .3, 1)} 90%, 100%{transform:translateX(29px)}}
+      @keyframes lg-rb{0%{transform:translateX(29px); animation-timing-function:cubic-bezier(.7, 0, .3, 1)} 16%{transform:translateX(58px)} 74%{transform:translateX(58px); animation-timing-function:cubic-bezier(.7, 0, .3, 1)} 90%, 100%{transform:translateX(29px)}}
+      @keyframes lg-ib{0%{transform:translateX(29px); animation-timing-function:cubic-bezier(.7, 0, .3, 1)} 16%{transform:translateX(-2px)} 22%{transform:translateX(-2px); animation-timing-function:cubic-bezier(.45, 0, .55, 1)} 68%{transform:translateX(60px)} 74%{transform:translateX(60px); animation-timing-function:cubic-bezier(.7, 0, .3, 1)} 90%, 100%{transform:translateX(29px)}}
+      @keyframes lg-bar{0%, 9%{opacity:0} 18%, 70%{opacity:1} 82%, 100%{opacity:0}}
+      @keyframes lg-read{0%, 22%{transform:scaleX(.09); animation-timing-function:cubic-bezier(.45, 0, .55, 1)} 68%, 100%{transform:scaleX(.91)}}
       @media (prefers-reduced-motion:reduce){ *{animation:none !important} }
     </style>
   </head>
   <body>
-    <div class="imprompting" role="status">
-      <span class="glyph">
-        <svg viewBox="0 0 62 40" width="33" height="21" aria-hidden="true">
-          <g class="b">
-            <rect x="2" y="4" width="5" height="32"/>
-            <rect x="2" y="4" width="14" height="5"/>
-            <rect x="2" y="31" width="14" height="5"/>
-            <rect x="55" y="4" width="5" height="32"/>
-            <rect x="46" y="4" width="14" height="5"/>
-            <rect x="46" y="31" width="14" height="5"/>
-          </g>
-          <g class="i">
-            <rect x="28.5" y="4" width="5" height="32"/>
-            <rect x="22" y="4" width="18" height="5"/>
-            <rect x="22" y="31" width="18" height="5"/>
-          </g>
-        </svg>
-      </span>
-      <span class="text">Imprompting…</span>
+    <div class="imprompting" role="status" aria-label="Imprompting">
+      <svg class="lg" viewBox="0 0 120 40" width="66" height="22" aria-hidden="true">
+        <defs><mask id="read"><rect class="mr" x="22" y="0" width="76" height="40" fill="#fff" /></mask></defs>
+        <g class="ln"><rect x="22" y="15" width="76" height="3.6" rx="1.8" /><rect x="22" y="22" width="52" height="3.6" rx="1.8" /></g>
+        <g class="rd" mask="url(#read)"><rect x="22" y="15" width="76" height="3.6" rx="1.8" /><rect x="22" y="22" width="52" height="3.6" rx="1.8" /></g>
+        <g class="lb b"><rect x="2" y="4" width="5" height="32" /><rect x="2" y="4" width="14" height="5" /><rect x="2" y="31" width="14" height="5" /></g>
+        <g class="rb b"><rect x="55" y="4" width="5" height="32" /><rect x="46" y="4" width="14" height="5" /><rect x="46" y="31" width="14" height="5" /></g>
+        <g class="ib i"><rect x="28.5" y="4" width="5" height="32" /><rect x="22" y="4" width="18" height="5" /><rect x="22" y="31" width="18" height="5" /></g>
+      </svg>
+      <span class="text">Imprompting</span>
       <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
     </div>
+    <script type="module">
+      // Mesma fonte do app (Plus Jakarta Sans), empacotada; até carregar, usa a do sistema.
+      import "./src/fonts.ts";
+    </script>
     <script>document.addEventListener("contextmenu", function (e) { e.preventDefault(); });</script>
   </body>
 </html>
