@@ -235,8 +235,8 @@ kbd{display:inline-flex; align-items:center; justify-content:center; min-width:2
   font:500 12px var(--sans); color:var(--dim); cursor:pointer; white-space:nowrap; transition:background-color .2s, color .2s, transform .35s var(--spring)}
 .btn-ghost:hover{background:var(--sunken); color:var(--ink)}
 .btn-ghost:active{transform:scale(.97)}
-.card .btn-dl:not(.primary):not(.danger){background:var(--sunken); box-shadow:none}
-.card .btn-dl:not(.primary):not(.danger):hover{background:var(--sunken-2)}
+:is(.card, .h-item) .btn-dl:not(.primary):not(.danger){background:var(--sunken); box-shadow:none}
+:is(.card, .h-item) .btn-dl:not(.primary):not(.danger):hover{background:var(--sunken-2)}
 
 /* ── Seletor segmentado: trilho afundado + peça clara que desliza (Segmented.tsx) ── */
 .seg{position:relative; display:inline-flex; flex-wrap:wrap; gap:2px; padding:3px; border-radius:calc(var(--r-ctl) + 3px); background:var(--sunken); box-shadow:var(--inset)}
@@ -298,6 +298,13 @@ fieldset.api-fields:disabled{opacity:.72}
 .model-option-title{display:flex; align-items:center; justify-content:space-between; gap:8px; font:500 12.5px var(--mono); color:var(--ink); overflow-wrap:anywhere}
 .model-option-detail{display:block; margin-top:3px; font:500 11px var(--sans); color:var(--stone)}
 .model-tag{flex-shrink:0; display:inline-block; padding:3px 8px; border-radius:6px; background:var(--mint-soft); color:var(--mint-fg); font:600 10.5px var(--sans); white-space:nowrap}
+
+/* ── Cards, etiquetas e trocas animadas ─────────────────────────────────── */
+.card{padding:18px; border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.tag{flex:none; display:inline-block; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:3px 8px; border-radius:6px;
+  font:600 10.5px var(--sans); letter-spacing:.01em; color:oklch(var(--tag-fg-l) var(--tag-fg-c) var(--pc-h, 255)); background:oklch(var(--tag-bg-l) var(--tag-bg-c) var(--pc-h, 255))}
+.swap-btn{overflow:hidden}
+.swap{display:inline-flex; align-items:center; gap:6px}
 
 /* ── Avisos globais (permissão / atualização) e chamado de primeiro uso ──── */
 .banner, .callout{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border-radius:var(--r-card)}
@@ -369,7 +376,6 @@ fieldset.api-fields:disabled{opacity:.72}
 .page-head p{margin-top:8px; font:400 13.5px/1.5 var(--sans); color:var(--dim)}
 
 /* ── Páginas de configuração: seções separadas por fios (sem caixa) ──────── */
-.card{animation:tab-in .2s var(--ease-out) both}
 .field{padding:24px 0; border-top:1px solid var(--line)}
 .field:first-child{padding-top:0; border-top:0}
 fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
@@ -603,36 +609,34 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
 .sum-dark small{display:block; margin-top:5px; font:500 10.5px var(--sans); color:oklch(1 0 0 / .64)}
 .spark{position:absolute; top:14px; left:12px; width:calc(100% - 24px); height:56px; color:oklch(1 0 0 / .92); overflow:visible}
 
-.inicio{display:flex; flex-direction:column; gap:30px}
-
-/* ── Histórico (timeline em acordeon) ────────────────────────────────────── */
-.timeline{display:flex; flex-direction:column; gap:24px}
-.tl-group-date{margin:0 0 8px; padding:0 6px; font-size:11.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--stone)}
-.tl-list{border-top:1px solid var(--line)}
-.tl-empty{padding:22px 0; font-family:var(--sans); font-size:13.5px; line-height:1.6; color:var(--stone); border-top:1px solid var(--line)}
-.tl-time{width:64px; flex:none; font-size:12px; color:var(--faint); white-space:nowrap; font-variant-numeric:tabular-nums}
-/* Tag por tarefa: tinta clara de fundo + texto/borda do mesmo matiz (legível nos
-   dois temas via --tag-*). */
-.tl-preset{flex:none; display:inline-block; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 8px; font-size:11px; font-weight:600; letter-spacing:.03em; color:oklch(var(--tag-fg-l) var(--tag-fg-c) var(--pc-h, 255)); background:oklch(var(--tag-bg-l) var(--tag-bg-c) var(--pc-h, 255)); border:1px solid oklch(var(--tag-bd-l) var(--tag-bd-c) var(--pc-h, 255)); border-radius:4px}
-.acc{border-bottom:1px solid var(--line)}
-.acc-head{display:flex; align-items:center; gap:14px; width:100%; min-height:44px; padding:8px 6px; cursor:pointer; text-align:left; background:transparent; border:0; border-radius:var(--rad-btn); transition:background .15s}
-.acc-head:hover{background:var(--surface-soft)}
-.acc-head:focus-visible{outline-offset:-2px}
-.acc-prev{flex:1; min-width:0; font-size:12.5px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.acc.open .acc-prev{color:var(--faint)}
-.acc-chev{flex:none; width:14px; height:14px; color:var(--faint); transition:transform .25s var(--ease-out-expo)}
-.acc.open .acc-chev{transform:rotate(180deg)}
-.acc-body{display:grid; grid-template-rows:0fr; transition:grid-template-rows .26s var(--ease-out-expo)}
-.acc.open .acc-body{grid-template-rows:1fr}
-.acc-inner{overflow:hidden; min-height:0}
-.acc-pad{display:flex; flex-direction:column; gap:12px; padding:4px 6px 16px 84px}
-.tl-block{display:flex; flex-direction:column; gap:4px}
-.tl-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--stone)}
-.tl-label.ok{color:var(--mint-fg)}
-.tl-line{font-size:12.5px; line-height:1.6; white-space:pre-wrap; word-break:break-word}
-.tl-line.orig{color:var(--dim)}
-.tl-line.res{color:var(--ink)}
-.tl-actions{display:flex; gap:8px}
+/* ── Histórico: cada imprompt é um card que abre (altura animada) ─────────── */
+.history{display:flex; flex-direction:column; gap:22px}
+.h-group{display:flex; flex-direction:column}
+.h-date{margin:0 0 8px 2px; font:700 10.5px var(--sans); letter-spacing:.09em; text-transform:uppercase; color:var(--stone)}
+.h-list{display:flex; flex-direction:column; gap:8px}
+.h-item{border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card), var(--hl); overflow:hidden; transition:box-shadow .25s}
+.h-item:hover{box-shadow:var(--sh-lift), var(--hl)}
+.h-head{width:100%; display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 10px 8px 14px; border:0; border-radius:var(--r-card); background:none; cursor:pointer; text-align:left; color:var(--ink)}
+.h-head:focus-visible{outline-offset:-2px}
+.h-time{width:44px; flex:none; white-space:nowrap; font:500 12px var(--mono); color:var(--faint); font-variant-numeric:tabular-nums}
+.h-prev{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 12px var(--mono); color:var(--dim); transition:opacity .25s}
+.h-item.open .h-prev{opacity:.45}
+.h-chev{flex:none; width:28px; height:28px; display:grid; place-items:center; border-radius:calc(var(--r-ctl) - 2px); background:var(--sunken); color:var(--stone); transition:transform .55s var(--spring)}
+.h-item.open .h-chev{transform:rotate(180deg)}
+.h-body{display:grid; grid-template-rows:0fr; transition:grid-template-rows .5s var(--out)}
+.h-item.open .h-body{grid-template-rows:1fr}
+.h-inner{overflow:hidden; min-height:0}
+.h-pad{display:flex; flex-direction:column; gap:10px; padding:2px 14px 14px 70px; opacity:0; transform:translateY(-4px); transition:opacity .2s, transform .45s var(--spring)}
+.h-item.open .h-pad{opacity:1; transform:none; transition-delay:.06s}
+.h-block{padding:10px 12px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset)}
+.h-block.res{background:transparent; box-shadow:inset 0 0 0 1px var(--line-2)}
+.h-lbl{font:700 10px var(--sans); letter-spacing:.08em; text-transform:uppercase; color:var(--stone)}
+.h-lbl.ok{color:var(--mint-fg)}
+.h-text{margin:5px 0 0; white-space:pre-wrap; word-break:break-word; font:400 12px/1.6 var(--mono); color:var(--body)}
+.h-block.res .h-text{color:var(--ink)}
+.h-actions{display:flex; gap:8px}
+.h-empty{padding:28px 24px; text-align:center}
+.h-empty p{max-width:44ch; margin:0 auto; font:400 13px/1.6 var(--sans); color:var(--dim)}
 
 /* ── Presets ─────────────────────────────────────────────────────────────── */
 .mypresets{display:flex; flex-direction:column; margin-top:14px; border-top:1px solid var(--line)}
