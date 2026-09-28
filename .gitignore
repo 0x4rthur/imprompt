@@ -29,3 +29,5 @@ reference/
 # editor
 .vscode/
 .idea/
+# companion visual do brainstorming (mockups locais)
+.superpowers/
