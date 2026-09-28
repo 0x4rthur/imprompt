@@ -18,7 +18,8 @@ import type { Key } from "../i18n/catalog";
 import BrandMark from "../BrandMark";
 import Segmented from "../ui/Segmented";
 import { ArrowRightIcon, ClipboardIcon, KeyboardIcon, ReplaceIcon, ThemeIcon } from "../ui/icons";
-import { ease, reducedMotion, spring, useCountUp } from "../motion";
+import { ease, reducedMotion, spring } from "../motion";
+import CountUp from "../ui/CountUp";
 import { formatMoney, isLowBalance } from "../BalanceLine";
 
 type Props = {
@@ -33,6 +34,8 @@ type Props = {
 };
 
 type Metric = "cost" | "count";
+
+let introPlayed = false;
 
 // Reusa as chaves canônicas mod.* (Ctrl/Alt/Shift); traduzidas no render.
 const MOD_LABEL: Record<Settings["trigger_modifier"], Key> = { ctrl: "mod.ctrl", alt: "mod.alt", shift: "mod.shift" };
@@ -88,7 +91,13 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
   const lowBalance = balance?.kind === "remaining" && isLowBalance(balance)
     ? t("inicio.tile.lowBalance", { amount: formatMoney(balance.amount, balance.currency, localeTag) })
     : null;
-  const [animate] = useState(() => !reducedMotion());
+  // As barras, a linha e o título crescem só na 1ª visita da sessão; ao voltar
+  // pra aba eles já aparecem prontos (menos trabalho a cada clique em Início).
+  const [animate] = useState(() => {
+    const first = !introPlayed;
+    introPlayed = true;
+    return first && !reducedMotion();
+  });
   const [metric, setMetric] = useState<Metric>("cost");
   const mod = t(MOD_LABEL[settings.trigger_modifier] ?? "mod.ctrl");
   const key = (settings.trigger_key || "c").toUpperCase();
@@ -114,9 +123,6 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
   const months = usageHistory.slice(-6);
   const values = months.map((m) => (metric === "cost" ? m.cost_usd : m.refinements));
   const max = Math.max(...values, 0);
-  const countUp = useCountUp(refinos);
-  const costUp = useCountUp(custo);
-  const tokUp = useCountUp(tokTotal);
 
   const defPreset = presets.find((p) => p.id === settings.default_preset);
   const host = hostOf(settings.api_base_url);
@@ -133,7 +139,11 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
   const sparkEnd = spark ? spark.split(" ").pop()!.split(",").map(Number) : null;
 
   const monthLabel = metric === "cost" ? t("inicio.spend") : t("inicio.count.month");
-  const monthValue = metric === "cost" ? `~US$ ${fmtCost(costUp, localeTag, custo)}` : String(Math.round(countUp));
+  // Os números contam sozinhos (CountUp escreve no próprio texto): a aba não
+  // re-renderiza a cada frame, e ao voltar pra ela o valor aparece pronto.
+  const monthValue = metric === "cost"
+    ? <CountUp id="home.cost" value={custo} format={(v) => `~US$ ${fmtCost(v, localeTag, custo)}`} />
+    : <CountUp id="home.count.month" value={refinos} format={(v) => String(Math.round(v))} />;
   const monthsAria = metric === "cost"
     ? t("inicio.spend.aria", { list: months.map((m) => `${monthShort(m.month, localeTag)} ~US$ ${fmtCost(m.cost_usd, localeTag)}`).join(", ") })
     : t("inicio.count.aria", { list: months.map((m) => `${monthShort(m.month, localeTag)} ${m.refinements}`).join(", ") });
@@ -221,7 +231,7 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
           )}
           <div>
             <div className="sum-k">{t("inicio.tokens.total")}</div>
-            <div className="sum-v">{fmtTok(tokUp, localeTag)}</div>
+            <div className="sum-v"><CountUp id="home.tokens" value={tokTotal} format={(v) => fmtTok(v, localeTag)} /></div>
           </div>
         </div>
 
@@ -268,7 +278,7 @@ export default function InicioTab({ settings, usage, usageHistory, presets, hist
             </svg>
           )}
           <div className="sum-k">{t("inicio.metric.count")}</div>
-          <div className="sum-v">{Math.round(countUp)}</div>
+          <div className="sum-v"><CountUp id="home.count" value={refinos} format={(v) => String(Math.round(v))} /></div>
           <small>{refinos > 0 ? t("inicio.count.each", { cost: fmtCost(custoMedio, localeTag) }) : t("inicio.count.none")}</small>
         </div>
       </div>
