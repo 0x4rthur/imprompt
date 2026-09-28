@@ -6,6 +6,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import type { Settings } from "../types";
 import { setLocale } from "../i18n";
 import { applyTheme } from "../theme";
+import Segmented from "../ui/Segmented";
 import { useT } from "../i18n/useT";
 import HandHeartIcon from "../HandHeartIcon";
 import UpdateStatus from "../UpdateStatus";
@@ -59,24 +60,24 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
       {/* Idioma da interface */}
       <div className="field">
         <h2 className="sec-title">{t("geral.language")}</h2>
-        <div className="seg" role="group" aria-label={t("geral.language")}>
-          <button aria-pressed={settings.locale === "en"} className={settings.locale === "en" ? "active" : ""}
-                  onClick={() => { setLocale("en"); update({ locale: "en" }); }}>English</button>
-          <button aria-pressed={settings.locale === "pt-BR"} className={settings.locale === "pt-BR" ? "active" : ""}
-                  onClick={() => { setLocale("pt-BR"); update({ locale: "pt-BR" }); }}>Português</button>
-        </div>
+        <Segmented
+          ariaLabel={t("geral.language")}
+          value={settings.locale}
+          onChange={(locale) => { setLocale(locale); update({ locale }); }}
+          options={[{ value: "en", label: "English" }, { value: "pt-BR", label: "Português" }]}
+        />
         <p className="help">{t("geral.language.help")}</p>
       </div>
 
       {/* Tema: segue o SO ou fixo em claro/escuro */}
       <div className="field">
         <h2 className="sec-title">{t("geral.theme")}</h2>
-        <div className="seg" role="group" aria-label={t("geral.theme")}>
-          {(["system", "light", "dark"] as const).map((th) => (
-            <button key={th} aria-pressed={settings.theme === th} className={settings.theme === th ? "active" : ""}
-                    onClick={() => { applyTheme(th); update({ theme: th }); }}>{t(`geral.theme.${th}`)}</button>
-          ))}
-        </div>
+        <Segmented
+          ariaLabel={t("geral.theme")}
+          value={settings.theme}
+          onChange={(theme) => { applyTheme(theme); update({ theme }); }}
+          options={(["system", "light", "dark"] as const).map((th) => ({ value: th, label: t(`geral.theme.${th}`) }))}
+        />
         <p className="help">{t("geral.theme.help")}</p>
       </div>
 

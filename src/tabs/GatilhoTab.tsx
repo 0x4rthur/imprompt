@@ -7,6 +7,7 @@ import type { Settings } from "../types";
 import { useT } from "../i18n/useT";
 import { Trans } from "../i18n/Trans";
 import type { Key } from "../i18n/catalog";
+import Segmented from "../ui/Segmented";
 
 type Props = {
   settings: Settings;
@@ -111,10 +112,12 @@ export default function GatilhoTab({ settings, update }: Props) {
       {/* Modo de ativação */}
       <div className="field">
         <h2 className="sec-title">{t("gatilho.when")}</h2>
-        <div className="seg" role="group" aria-label={t("gatilho.when")}>
-          <button aria-pressed={settings.mode === "instant"} className={settings.mode === "instant" ? "active" : ""} onClick={() => update({ mode: "instant" })}>{t("gatilho.when.instant")}</button>
-          <button aria-pressed={settings.mode === "popup"} className={settings.mode === "popup" ? "active" : ""} onClick={() => update({ mode: "popup" })}>{t("gatilho.when.popup")}</button>
-        </div>
+        <Segmented
+          ariaLabel={t("gatilho.when")}
+          value={settings.mode}
+          onChange={(mode) => update({ mode })}
+          options={[{ value: "instant", label: t("gatilho.when.instant") }, { value: "popup", label: t("gatilho.when.popup") }]}
+        />
         <p className="help">
           {settings.mode === "instant"
             ? t("gatilho.when.instant.help")
@@ -125,10 +128,12 @@ export default function GatilhoTab({ settings, update }: Props) {
       {/* Saída */}
       <div className="field">
         <h2 className="sec-title">{t("gatilho.output")}</h2>
-        <div className="seg" role="group" aria-label={t("gatilho.output")}>
-          <button aria-pressed={settings.output === "replace"} className={settings.output === "replace" ? "active" : ""} onClick={() => update({ output: "replace" })}>{t("gatilho.output.replace")}</button>
-          <button aria-pressed={settings.output === "clipboard"} className={settings.output === "clipboard" ? "active" : ""} onClick={() => update({ output: "clipboard" })}>{t("gatilho.output.clipboard")}</button>
-        </div>
+        <Segmented
+          ariaLabel={t("gatilho.output")}
+          value={settings.output}
+          onChange={(output) => update({ output })}
+          options={[{ value: "replace", label: t("gatilho.output.replace") }, { value: "clipboard", label: t("gatilho.output.clipboard") }]}
+        />
         <p className="help">
           {settings.output === "replace"
             ? t("gatilho.output.replace.help")
