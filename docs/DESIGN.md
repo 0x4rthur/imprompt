@@ -52,7 +52,7 @@ square dot or a tinted tag (`--tag-*`).
 
 ## Layout
 
-- Preferences (920×720): floating graphite rail (100px) with icon tiles and labels
+- Preferences (fixed 900×640, not resizable): floating graphite rail (100px) with icon tiles and labels
   under them; one light tile slides to the current tab. Content column max 780px,
   cards stacked with 12px gaps, two-column grids where cards are short.
 - Home: two columns of equal height (status headline, gesture card, four tiles |

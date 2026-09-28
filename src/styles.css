@@ -365,14 +365,12 @@ fieldset.api-fields:disabled{opacity:.72}
 .nav-ico svg{position:relative}
 .nav-label{max-width:100%; overflow-wrap:anywhere}
 
-/* Janela baixa (perto do mínimo de 600px): o menu encolhe pra caber inteiro. */
-@media (max-height: 680px){
-  .rail{padding:10px 8px 10px}
-  .rail-brand{height:28px; margin-bottom:4px}
-  .nav-item, .conn{gap:4px; padding:4px 0 5px}
-  .nav-ico, .conn-ico{width:36px; height:36px}
-  .rail-foot{padding-top:6px}
-}
+/* Janela fixa em 900×640: o menu usa a medida compacta pra caber inteiro. */
+.rail{padding:10px 8px 10px}
+.rail-brand{height:28px; margin-bottom:4px}
+.nav-item, .conn{gap:4px; padding:4px 0 5px}
+.nav-ico, .conn-ico{width:36px; height:36px}
+.rail-foot{padding-top:6px}
 
 /* Conteúdo rolável */
 .main{flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-gutter:stable}
@@ -509,7 +507,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .home{display:flex; flex-direction:column}
 .home-top{display:grid; grid-template-columns:minmax(0, 1fr) 318px; gap:18px; align-items:stretch}
 .home-left{display:flex; flex-direction:column; min-width:0}
-.hero{margin:2px 0 8px; font:600 44px/1.02 var(--sans); letter-spacing:-.05em; color:var(--ink); text-wrap:balance}
+.hero{margin:0 0 6px; font:600 44px/1.02 var(--sans); letter-spacing:-.05em; color:var(--ink); text-wrap:balance}
 .lead{margin:0 0 18px; font:400 13.5px/1.5 var(--sans); color:var(--dim)}
 
 .gesture{position:relative; flex:1; display:flex; flex-direction:column; min-height:128px; padding:15px 66px 14px 16px; border-radius:var(--r-card); background:var(--sunken); box-shadow:var(--inset)}
@@ -530,13 +528,14 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .gesture.setup .btn-dl{align-self:flex-start; margin-top:auto}
 
 .tiles{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-top:12px}
-.tile{display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; padding:12px 6px 11px; border:0; border-radius:var(--r-tile); cursor:pointer;
+.tile{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-width:0; padding:10px 6px 9px; border:0; border-radius:var(--r-tile); cursor:pointer;
   background:var(--sunken); box-shadow:var(--inset); color:var(--ink); transition:transform .4s var(--spring)}
 .tile:hover{transform:translateY(-2px)}
 .tile:active{transform:scale(.96); transition-duration:.08s}
-.tile-ico{width:40px; height:40px; display:grid; place-items:center; border-radius:calc(var(--r-tile) - 1px); background:var(--card); box-shadow:var(--sh-card), var(--hl); transition:box-shadow .25s}
+.tile-ico{width:36px; height:36px; display:grid; place-items:center; border-radius:calc(var(--r-tile) - 1px); background:var(--card); box-shadow:var(--sh-card), var(--hl); transition:box-shadow .25s}
 .tile:hover .tile-ico{box-shadow:var(--sh-lift), var(--hl)}
-.tile-v{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 12px/1.2 var(--sans)}
+/* Nome longo (ex.: "Corrigir & clarear") quebra em até 2 linhas em vez de cortar. */
+.tile-v{max-width:100%; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; text-align:center; font:600 12px/1.15 var(--sans)}
 .tile-k{margin-top:-3px; font:500 10.5px/1 var(--sans); color:var(--stone)}
 .p-dot.lg{width:10px; height:10px; border-radius:3px}
 
@@ -561,9 +560,9 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .go-ico{width:28px; height:28px; display:grid; place-items:center; border-radius:calc(var(--r-ctl) - 2px); background:var(--sunken); color:var(--ink); transition:transform .35s var(--spring)}
 .last-go:hover .go-ico{transform:translateX(2px)}
 
-.sum-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:22px 0 12px}
+.sum-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:16px 0 10px}
 .sum-head h2{font:600 19px/1.1 var(--sans); letter-spacing:-.025em}
-.sum{display:grid; grid-template-columns:1.1fr 1.12fr .8fr; gap:12px; min-height:178px}
+.sum{display:grid; grid-template-columns:1.1fr 1.12fr .8fr; gap:12px; min-height:162px}
 .sum-card{display:flex; flex-direction:column; gap:10px; min-width:0; padding:14px; border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
 .sum-k{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 11.5px var(--sans); color:var(--stone)}
 .sum-v{margin-top:6px; white-space:nowrap; font:600 24px/1 var(--sans); letter-spacing:-.04em; font-variant-numeric:tabular-nums}
@@ -588,15 +587,6 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .sum-dark .sum-k{color:oklch(1 0 0 / .68)}
 .sum-dark small{display:block; margin-top:5px; font:500 10.5px var(--sans); color:oklch(1 0 0 / .64)}
 .spark{position:absolute; top:14px; left:12px; width:calc(100% - 24px); height:56px; color:oklch(1 0 0 / .92); overflow:visible}
-
-/* Janela estreita (perto do mínimo de 720px): o painel do último imprompt desce
-   pra baixo da coluna principal e o card escuro ocupa a linha inteira. */
-@media (max-width: 860px){
-  .home-top{grid-template-columns:minmax(0, 1fr)}
-  .last{min-height:0}
-  .sum{grid-template-columns:repeat(2, minmax(0, 1fr))}
-  .sum-dark{grid-column:1 / -1; min-height:120px}
-}
 
 /* ── Histórico: cada imprompt é um card que abre (altura animada) ─────────── */
 /* --h-time: coluna da hora (cabe "23:59"; no inglês, "11:59 PM"). O corpo aberto alinha depois dela. */
