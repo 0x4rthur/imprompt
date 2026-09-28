@@ -7,6 +7,7 @@
 
 mod api_endpoint;
 mod api_engine;
+mod balance;
 mod clipboard;
 mod commands;
 mod engine;
@@ -128,6 +129,7 @@ pub fn run() {
             commands::check_for_updates,
             commands::install_update,
             commands::get_usage,
+            commands::get_api_balance,
             commands::get_usage_history,
             commands::reset_usage,
         ])

@@ -85,6 +85,15 @@ describe("Home", () => {
     }
   });
 
+  it("the API tile warns when the provider balance is low", () => {
+    const { rerender } = render(<InicioTab settings={settings} usage={usage} usageHistory={months} presets={presets} history={history}
+      onNavigate={() => {}} balance={{ kind: "remaining", amount: 0.42, currency: "USD" }} />);
+    expect(screen.getByText("Low balance · $0.42")).toBeTruthy();
+    rerender(<InicioTab settings={settings} usage={usage} usageHistory={months} presets={presets} history={history}
+      onNavigate={() => {}} balance={{ kind: "remaining", amount: 12, currency: "USD" }} />);
+    expect(screen.queryByText(/Low balance/)).toBeNull();
+  });
+
   it("config tiles open their tabs and keep long values readable", () => {
     const onNavigate = vi.fn();
     const long = { ...settings, api_model: "a-very-long-model-identifier-that-does-not-fit-anywhere" };

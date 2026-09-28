@@ -57,4 +57,10 @@ export type UsageSummary = { month: string; refinements: number; cost_usd: numbe
 export type MonthUsage = { month: string; refinements: number; cost_usd: number; prompt_tokens: number; completion_tokens: number; approximate: boolean };
 
 // Abas da janela de preferências (id interno; o rótulo visível está no App.tsx).
+// Saldo no provedor (comando get_api_balance). "unsupported" = só no site dele.
+export type Balance =
+  | { kind: "remaining"; amount: number; currency: string }
+  | { kind: "used"; amount: number; currency: string }
+  | { kind: "unsupported"; billing_url: string | null };
+
 export type Tab = "inicio" | "historico" | "motor" | "presets" | "gatilho" | "geral";

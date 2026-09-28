@@ -2,7 +2,7 @@
 // teste de conexão e uso/custo do mês. Estado da API (api*) é local desta aba.
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { ApiFormat, ApiKeyStatus, Settings } from "../types";
+import type { ApiFormat, ApiKeyStatus, Balance, Settings } from "../types";
 import type { ApiConfig } from "../connection";
 import { ApiProviderIcon } from "../ApiProviderIcon";
 import { t as translate } from "../i18n";
@@ -11,6 +11,7 @@ import { Trans } from "../i18n/Trans";
 import { CATALOG_CHECKED_AT, CATEGORY_KEYS, PROVIDERS, exampleRefinementCost, formatModelPrice, formatRefinementCost, modelPrice } from "../modelCatalog";
 import type { Provider } from "../modelCatalog";
 import ModelBenchmark from "../ModelBenchmark";
+import BalanceLine from "../BalanceLine";
 import { motion } from "motion/react";
 import { spring } from "../motion";
 import { ArrowOutIcon, ChevronDownIcon, LockIcon } from "../ui/icons";
@@ -181,9 +182,11 @@ function Dropdown({ value, options, onSelect, ariaLabel }: { value: string; opti
 type Props = {
   settings: Settings;
   apply: (config: ApiConfig, key: string) => Promise<void>;
+  /** Saldo do provedor SALVO (só aparece quando é ele que está selecionado). */
+  balance?: Balance | null;
 };
 
-export default function MotorTab({ settings, apply }: Props) {
+export default function MotorTab({ settings, apply, balance = null }: Props) {
   const { t, locale } = useT();
   // Config da API em estado local (evita gravar settings.json a cada tecla); só
   // persiste no "Aplicar e testar".
@@ -355,6 +358,7 @@ export default function MotorTab({ settings, apply }: Props) {
           <p className="privacy warn">
             <ArrowOutIcon size={14} /> <span><Trans k="motor.privacy" slots={{ host: <strong>{hostOf(apiBase)}</strong> }} /></span>
           </p>
+          {apiBase.trim() === settings.api_base_url && <BalanceLine balance={balance} />}
 
           {isCustom && (
             <div className="sub-field">

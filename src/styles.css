@@ -406,6 +406,11 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .privacy svg{flex:none}
 .privacy.warn{color:var(--amber-fg); background:var(--amber-soft)}
 .privacy strong{font:600 11.5px var(--mono)}
+/* Saldo no provedor (abaixo do aviso de privacidade). */
+.balance{display:flex; align-items:center; gap:8px; margin-top:10px; font:500 12.5px var(--sans); color:var(--body); font-variant-numeric:tabular-nums}
+.balance-link{display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:none; cursor:pointer; font:500 12.5px var(--sans); color:var(--dim); text-decoration:underline; text-underline-offset:3px}
+.balance-link:hover{color:var(--ink)}
+.badge.amber{color:var(--amber-fg); background:var(--amber-soft); box-shadow:inset 0 0 0 1px var(--amber-line)}
 .card-label{margin-bottom:12px}
 .sub-field{margin-top:2px}
 .notes .help:first-child{margin-top:0}
@@ -545,6 +550,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 /* Nome longo (ex.: "Corrigir & clarear") quebra em até 2 linhas em vez de cortar. */
 .tile-v{max-width:100%; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; text-align:center; font:600 12px/1.15 var(--sans)}
 .tile-k{margin-top:-3px; font:500 10.5px/1 var(--sans); color:var(--stone)}
+.tile.warn .tile-k{color:var(--amber-fg); font-weight:600; line-height:1.25; text-align:center}
 .p-dot.lg{width:10px; height:10px; border-radius:3px}
 
 .last{position:relative; display:flex; flex-direction:column; gap:9px; min-width:0; padding:52px 14px 14px; border-radius:calc(var(--r-card) + 4px); overflow:hidden;

@@ -760,6 +760,25 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     app.restart();
 }
 
+/// Saldo na conta do provedor configurado (DeepSeek/OpenRouter leem pela API;
+/// os outros devolvem o link da página de cobrança). Roda numa thread à parte
+/// (reqwest::blocking). Erro = a UI não mostra saldo.
+#[tauri::command]
+pub async fn get_api_balance(
+    state: State<'_, AppState>,
+) -> Result<crate::balance::Balance, String> {
+    let base_url = lock(&state.settings).api_base_url.clone();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        let result = (|| -> anyhow::Result<crate::balance::Balance> {
+            let key = crate::secrets::load_api_key(&base_url)?.unwrap_or_default();
+            crate::balance::fetch(&base_url, &key)
+        })();
+        let _ = tx.send(result.map_err(|e| e.to_string()));
+    });
+    rx.await.map_err(|e| e.to_string())?
+}
+
 /// Resumo do uso da API no mês corrente (pra UI): nº de refinos + custo estimado.
 #[tauri::command]
 pub fn get_usage(state: State<AppState>) -> crate::usage::UsageSummary {
