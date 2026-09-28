@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Imprompt · mockup soft UI · loader</title>
+<!-- Mockup aprovado em 2026-09-28 (companion visual do brainstorming). Referência de
+     desenho para a implementação; não é código de produção. Abra direto no navegador. -->
+<style>
+:root{--bg-primary:#1d1d1f;--bg-secondary:#2d2d2f;--bg-tertiary:#3d3d3f;--border:#424245;--text-primary:#f5f5f7;--text-secondary:#86868b}
+body{margin:0;padding:32px;background:var(--bg-primary);color:var(--text-primary);font-family:system-ui,sans-serif;line-height:1.5}
+h2{font-size:1.5rem;margin:0 0 .5rem}h3{font-size:1.05rem;margin:0 0 .25rem}.subtitle{color:var(--text-secondary);margin:0 0 1.5rem}
+.options{display:flex;flex-direction:column;gap:.75rem}.option{display:flex;gap:1rem;padding:1rem 1.25rem;border:2px solid var(--border);border-radius:12px;background:var(--bg-secondary)}
+.option .letter{flex:none;width:1.75rem;height:1.75rem;display:grid;place-items:center;border-radius:6px;background:var(--bg-tertiary);color:var(--text-secondary);font-weight:600}
+.option .content p{color:var(--text-secondary);margin:0}
+</style>
+<script>window.toggleSelect=function(el){el.parentElement.querySelectorAll('.option').forEach(function(o){o.style.borderColor='';});el.style.borderColor='#0a84ff';};</script>
+</head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+  .ipx{--sans:'Plus Jakarta Sans',system-ui,sans-serif;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .ipx[data-t=light]{--card:oklch(0.995 0.001 286);--ink:oklch(0.21 0.006 286);--bracket:oklch(0.74 0.008 286);--line:oklch(0.21 0.006 286 / .13);--read:oklch(0.21 0.006 286 / .55);--stone:oklch(0.49 0.014 286);--hl:inset 0 1px 0 oklch(1 0 0 / .95)}
+  .ipx[data-t=dark]{--card:oklch(0.235 0.006 286);--ink:oklch(0.955 0.003 286);--bracket:oklch(0.52 0.010 286);--line:oklch(1 0 0 / .13);--read:oklch(0.955 0.003 286 / .6);--stone:oklch(0.72 0.010 286);--hl:inset 0 1px 0 oklch(1 0 0 / .07)}
+
+  .ld-row{display:flex;flex-wrap:wrap;gap:22px;margin:4px 0 6px}
+  .ld-cap{font:600 11px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin:0 0 8px}
+  .ld{position:relative;width:224px;height:46px;display:flex;align-items:center;gap:10px;padding:0 14px 0 12px;border-radius:9px;overflow:hidden;
+    background:var(--card);box-shadow:0 18px 36px -16px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.1),var(--hl);color:var(--ink)}
+  .ld-text{font:600 13px var(--sans);letter-spacing:-.01em;white-space:nowrap}
+  .ld-dots{display:inline-flex;gap:3px;margin-left:auto}
+  .ld-dots i{width:4px;height:4px;border-radius:1.5px;background:currentColor;animation:ld-dot 1s infinite}
+  .ld-dots i:nth-child(2){animation-delay:.15s}.ld-dots i:nth-child(3){animation-delay:.3s}
+  @keyframes ld-dot{0%,60%,100%{opacity:.25;transform:none}30%{opacity:1;transform:translateY(-2px)}}
+
+  /* Logo animado: colchetes abrem, linha cinza aparece, o I "lê" da esquerda para a direita, colchetes fecham. */
+  .lg2{flex:none;overflow:visible}
+  .lg2 .b{fill:var(--bracket)} .lg2 .i{fill:var(--ink)}
+  .lg2 .ln rect{fill:var(--line)} .lg2 .rd rect{fill:var(--read)}
+  .lg2 .lb,.lg2 .rb,.lg2 .ib{transform-box:view-box}
+  .lg2 .lb{animation:lg-lb 2.4s infinite}
+  .lg2 .rb{animation:lg-rb 2.4s infinite}
+  .lg2 .ib{animation:lg-ib 2.4s infinite}
+  .lg2 .ln,.lg2 .rd{animation:lg-bar 2.4s infinite}
+  .lg2 .mr{transform-box:view-box;transform-origin:22px 0;animation:lg-read 2.4s infinite}
+  @keyframes lg-lb{0%{transform:translateX(29px);animation-timing-function:cubic-bezier(.7,0,.3,1)}16%{transform:translateX(0)}74%{transform:translateX(0);animation-timing-function:cubic-bezier(.7,0,.3,1)}90%,100%{transform:translateX(29px)}}
+  @keyframes lg-rb{0%{transform:translateX(29px);animation-timing-function:cubic-bezier(.7,0,.3,1)}16%{transform:translateX(58px)}74%{transform:translateX(58px);animation-timing-function:cubic-bezier(.7,0,.3,1)}90%,100%{transform:translateX(29px)}}
+  @keyframes lg-ib{0%{transform:translateX(29px);animation-timing-function:cubic-bezier(.7,0,.3,1)}16%{transform:translateX(-2px)}22%{transform:translateX(-2px);animation-timing-function:cubic-bezier(.45,0,.55,1)}68%{transform:translateX(60px)}74%{transform:translateX(60px);animation-timing-function:cubic-bezier(.7,0,.3,1)}90%,100%{transform:translateX(29px)}}
+  @keyframes lg-bar{0%,9%{opacity:0}18%,70%{opacity:1}82%,100%{opacity:0}}
+  @keyframes lg-read{0%,22%{transform:scaleX(.09);animation-timing-function:cubic-bezier(.45,0,.55,1)}68%,100%{transform:scaleX(.91)}}
+
+  /* Variante B: a palavra é "digitada" enquanto o I passa. */
+  .typed span{opacity:0;animation-duration:2.4s;animation-iteration-count:infinite;animation-timing-function:ease-out}
+  .rm{margin-top:16px;font:500 12.5px system-ui,sans-serif;color:var(--text-secondary)}
+</style>
+
+<h2>Janelinha "Imprompting…": animação do logo</h2>
+<p class="subtitle">Os colchetes se abrem, aparece uma linha cinza de texto, o "I" passa da esquerda para a direita lendo (a linha vai escurecendo atrás dele) e os colchetes se fecham. Repete a cada 2,4 s. A janelinha ficou um pouco mais larga (224 px) para caber o logo aberto.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Logo animado + "Imprompting" fixo com os pontinhos (recomendo)</h3><p>O movimento fica todo no logo; o texto fica parado e fácil de ler.</p>
+      <div class="ld-row">
+        <div><div class="ld-cap">Claro</div><div class="ipx" data-t="light"><div class="ld" data-v="a"></div></div></div>
+        <div><div class="ld-cap">Escuro</div><div class="ipx" data-t="dark"><div class="ld" data-v="a"></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Logo animado + "Imprompting" sendo digitado junto</h3><p>As letras aparecem uma a uma enquanto o "I" lê a linha, e somem quando os colchetes fecham.</p>
+      <div class="ld-row">
+        <div><div class="ld-cap">Claro</div><div class="ipx" data-t="light"><div class="ld" data-v="b"></div></div></div>
+        <div><div class="ld-cap">Escuro</div><div class="ipx" data-t="dark"><div class="ld" data-v="b"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="rm">Com as animações do Windows desligadas, o logo fica parado e só os pontinhos se movem.</p>
+
+<script>
+(function(){
+  var SVG='<svg class="lg2" viewBox="0 0 120 40" width="66" height="22" aria-hidden="true">'+
+    '<defs><mask id="MID"><rect class="mr" x="22" y="0" width="76" height="40" fill="#fff"/></mask></defs>'+
+    '<g class="ln"><rect x="22" y="15" width="76" height="3.6" rx="1.8"/><rect x="22" y="22" width="52" height="3.6" rx="1.8"/></g>'+
+    '<g class="rd" mask="url(#MID)"><rect x="22" y="15" width="76" height="3.6" rx="1.8"/><rect x="22" y="22" width="52" height="3.6" rx="1.8"/></g>'+
+    '<g class="lb b"><rect x="2" y="4" width="5" height="32"/><rect x="2" y="4" width="14" height="5"/><rect x="2" y="31" width="14" height="5"/></g>'+
+    '<g class="rb b"><rect x="55" y="4" width="5" height="32"/><rect x="46" y="4" width="14" height="5"/><rect x="46" y="31" width="14" height="5"/></g>'+
+    '<g class="ib i"><rect x="28.5" y="4" width="5" height="32"/><rect x="22" y="4" width="18" height="5"/><rect x="22" y="31" width="18" height="5"/></g>'+
+    '</svg>';
+  var WORD='Imprompting';
+  document.querySelectorAll('.ld').forEach(function(el,n){
+    var svg=SVG.replace(/MID/g,'m'+n);
+    if(el.dataset.v==='b'){
+      // Cada letra aparece entre 22% e 68% do ciclo (enquanto o I passa) e some no fechamento.
+      var letters=WORD.split('').map(function(ch,i){var t=22+i*(46/WORD.length);
+        return '<span style="animation-name:ty'+n+'_'+i+'">'+ch+'</span><style>@keyframes ty'+n+'_'+i+'{0%,'+t.toFixed(1)+'%{opacity:0}'+(t+2).toFixed(1)+'%,80%{opacity:1}88%,100%{opacity:0}}</style>';}).join('');
+      el.innerHTML=svg+'<span class="ld-text typed">'+letters+'</span><span class="ld-dots"><i></i><i></i><i></i></span>';
+    }else{
+      el.innerHTML=svg+'<span class="ld-text">'+WORD+'</span><span class="ld-dots"><i></i><i></i><i></i></span>';
+    }
+  });
+})();
+</script>
+
+</body></html>

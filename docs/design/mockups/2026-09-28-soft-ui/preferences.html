@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Imprompt · mockup soft UI · preferences</title>
+<!-- Mockup aprovado em 2026-09-28 (companion visual do brainstorming). Referência de
+     desenho para a implementação; não é código de produção. Abra direto no navegador. -->
+<style>
+:root{--bg-primary:#1d1d1f;--bg-secondary:#2d2d2f;--bg-tertiary:#3d3d3f;--border:#424245;--text-primary:#f5f5f7;--text-secondary:#86868b}
+body{margin:0;padding:32px;background:var(--bg-primary);color:var(--text-primary);font-family:system-ui,sans-serif;line-height:1.5}
+h2{font-size:1.5rem;margin:0 0 .5rem}h3{font-size:1.05rem;margin:0 0 .25rem}.subtitle{color:var(--text-secondary);margin:0 0 1.5rem}
+.options{display:flex;flex-direction:column;gap:.75rem}.option{display:flex;gap:1rem;padding:1rem 1.25rem;border:2px solid var(--border);border-radius:12px;background:var(--bg-secondary)}
+.option .letter{flex:none;width:1.75rem;height:1.75rem;display:grid;place-items:center;border-radius:6px;background:var(--bg-tertiary);color:var(--text-secondary);font-weight:600}
+.option .content p{color:var(--text-secondary);margin:0}
+</style>
+<script>window.toggleSelect=function(el){el.parentElement.querySelectorAll('.option').forEach(function(o){o.style.borderColor='';});el.style.borderColor='#0a84ff';};</script>
+</head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  /* ── Protótipo Imprompt (escopo .ipx) ── */
+  .ipx{--sans:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+    --r-card:12px;--r-tile:10px;--r-ctl:8px;--r-chip:7px;--r-kbd:5px;
+    --spring:linear(0,0.052 1.7%,0.195 3.6%,0.393 5.9%,0.604 8.6%,0.774 11.4%,0.892 14.4%,0.961 17.6%,0.998 21.1%,1.014 25.1%,1.017 30%,1.012 36.5%,1.003 47.6%,0.999 62%,1);
+    --out:cubic-bezier(.16,1,.3,1);
+    font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.4}
+  .ipx *{box-sizing:border-box}
+  .ipx button{font-family:inherit;margin:0}
+  .ipx[data-t=light]{
+    --canvas:oklch(0.952 0.004 286);--glow:oklch(1 0 0 / .75);
+    --card:oklch(0.995 0.001 286);--sunken:oklch(0.926 0.005 286);--sunken-2:oklch(0.902 0.006 286);--panel:oklch(0.935 0.005 286);
+    --line:oklch(0.21 0.006 286 / .08);--line-2:oklch(0.21 0.006 286 / .14);
+    --ink:oklch(0.21 0.006 286);--on-ink:oklch(0.99 0.002 286);
+    --body:oklch(0.37 0.013 286);--dim:oklch(0.44 0.014 286);--stone:oklch(0.49 0.014 286);--faint:oklch(0.52 0.012 286);
+    --rail-1:oklch(0.44 0.006 286);--rail-2:oklch(0.285 0.006 286);
+    --rail-tile:oklch(1 0 0 / .10);--rail-ico:oklch(0.95 0.003 286);--rail-lbl:oklch(0.88 0.004 286);
+    --rail-on:oklch(0.995 0.001 286);--rail-on-ico:oklch(0.21 0.006 286);
+    --mint:oklch(0.72 0.19 148);--mint-fg:oklch(0.50 0.13 150);--mint-soft:oklch(0.72 0.17 150 / .14);
+    --amber:oklch(0.78 0.17 68);--amber-fg:oklch(0.50 0.12 62);--amber-soft:oklch(0.80 0.16 70 / .16);
+    --danger:oklch(0.50 0.19 25);--danger-soft:oklch(0.55 0.20 25 / .08);
+    --bar-track:oklch(0.21 0.006 286 / .07);--bar-fill:oklch(0.74 0.008 286);
+    --tag-fg-l:.44;--tag-fg-c:.12;--tag-bg-l:.93;--tag-bg-c:.04;--dot-l:.62;--dot-c:.15;
+    --focus:oklch(0.21 0.006 286 / .14);
+    --sh-card:0 1px 1px oklch(0.21 0.006 286 / .04),0 3px 6px -2px oklch(0.21 0.006 286 / .05),0 14px 30px -12px oklch(0.21 0.006 286 / .16);
+    --sh-lift:0 1px 1px oklch(0.21 0.006 286 / .05),0 6px 10px -3px oklch(0.21 0.006 286 / .07),0 20px 38px -14px oklch(0.21 0.006 286 / .22);
+    --sh-float:0 2px 4px oklch(0.21 0.006 286 / .06),0 20px 44px -16px oklch(0.21 0.006 286 / .34);
+    --sh-ink:0 10px 20px -10px oklch(0.21 0.006 286 / .7);
+    --hl:inset 0 1px 0 oklch(1 0 0 / .95);
+    --inset:inset 0 1px 2px oklch(0.21 0.006 286 / .07),inset 0 0 0 1px oklch(0.21 0.006 286 / .025);
+    --dark-1:oklch(0.43 0.006 286);--dark-2:oklch(0.27 0.006 286)}
+  .ipx[data-t=dark]{
+    --canvas:oklch(0.17 0.005 286);--glow:oklch(1 0 0 / .045);
+    --card:oklch(0.235 0.006 286);--sunken:oklch(0.145 0.005 286);--sunken-2:oklch(0.128 0.005 286);--panel:oklch(0.155 0.005 286);
+    --line:oklch(0.98 0.003 286 / .07);--line-2:oklch(0.98 0.003 286 / .12);
+    --ink:oklch(0.955 0.003 286);--on-ink:oklch(0.185 0.005 286);
+    --body:oklch(0.87 0.005 286);--dim:oklch(0.79 0.008 286);--stone:oklch(0.72 0.010 286);--faint:oklch(0.68 0.010 286);
+    --rail-1:oklch(0.275 0.006 286);--rail-2:oklch(0.215 0.006 286);
+    --rail-tile:oklch(1 0 0 / .06);--rail-ico:oklch(0.88 0.004 286);--rail-lbl:oklch(0.80 0.006 286);
+    --rail-on:oklch(0.955 0.003 286);--rail-on-ico:oklch(0.185 0.005 286);
+    --mint:oklch(0.74 0.18 150);--mint-fg:oklch(0.80 0.15 150);--mint-soft:oklch(0.72 0.17 150 / .14);
+    --amber:oklch(0.80 0.16 70);--amber-fg:oklch(0.83 0.13 75);--amber-soft:oklch(0.80 0.16 70 / .12);
+    --danger:oklch(0.72 0.17 25);--danger-soft:oklch(0.65 0.20 25 / .14);
+    --bar-track:oklch(1 0 0 / .06);--bar-fill:oklch(0.42 0.008 286);
+    --tag-fg-l:.84;--tag-fg-c:.10;--tag-bg-l:.29;--tag-bg-c:.05;--dot-l:.72;--dot-c:.14;
+    --focus:oklch(0.955 0.003 286 / .18);
+    --sh-card:0 1px 2px oklch(0 0 0 / .35),0 16px 32px -14px oklch(0 0 0 / .65);
+    --sh-lift:0 2px 4px oklch(0 0 0 / .4),0 22px 40px -14px oklch(0 0 0 / .75);
+    --sh-float:0 2px 6px oklch(0 0 0 / .45),0 24px 48px -16px oklch(0 0 0 / .75);
+    --sh-ink:0 10px 22px -10px oklch(0 0 0 / .8);
+    --hl:inset 0 1px 0 oklch(1 0 0 / .07);
+    --inset:inset 0 1px 3px oklch(0 0 0 / .5),inset 0 0 0 1px oklch(1 0 0 / .035);
+    --dark-1:oklch(0.36 0.006 286);--dark-2:oklch(0.265 0.006 286)}
+
+  /* Barra de controle do protótipo (fora da janela) */
+  .ipx-ctl{display:flex;gap:10px;align-items:center;margin:0 0 14px;font:500 12px system-ui,sans-serif;color:var(--text-secondary)}
+  .ipx-ctl button{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font:500 12.5px system-ui,sans-serif}
+  .ipx-ctl button.on{background:var(--text-primary);color:var(--bg-primary)}
+
+  .ipx-stage{width:100%;margin:0 0 20px}
+  .ipx-win{width:920px;height:720px;display:flex;position:relative;overflow:hidden;border-radius:10px;color:var(--ink);
+    background:radial-gradient(80% 60% at 78% -8%,var(--glow) 0%,transparent 62%),var(--canvas);
+    box-shadow:0 40px 80px -34px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.1);transition:background-color .3s}
+
+  /* ── Rail ── */
+  .ipx-rail{position:relative;flex:none;width:100px;margin:12px 0 12px 12px;padding:16px 8px 12px;display:flex;flex-direction:column;
+    border-radius:calc(var(--r-card) + 6px);background:linear-gradient(180deg,var(--rail-1) 0%,var(--rail-2) 100%);
+    box-shadow:var(--sh-float),inset 0 1px 0 oklch(1 0 0 / .14),inset 0 0 0 1px oklch(1 0 0 / .04)}
+  .ipx-brand{display:flex;justify-content:center;padding:2px 0 16px}
+  .ipx-brand .b{fill:oklch(1 0 0 / .36)} .ipx-brand .i{fill:oklch(1 0 0)}
+  .ipx-nav{display:flex;flex-direction:column;gap:2px}
+  .ipx-ind{position:absolute;z-index:0;left:50%;top:0;width:42px;height:42px;margin-left:-21px;border-radius:var(--r-tile);background:var(--rail-on);
+    box-shadow:0 10px 20px -8px oklch(0 0 0 / .6),inset 0 1px 0 oklch(1 0 0 / .9);transition:transform .6s var(--spring)}
+  .ipx-ni{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;padding:6px 0 7px;border:0;background:none;cursor:pointer;
+    color:var(--rail-lbl);font:500 10.5px/1.15 var(--sans);text-align:center;transition:color .25s}
+  .ipx-ni-ico{position:relative;width:42px;height:42px;display:grid;place-items:center;border-radius:var(--r-tile);background:var(--rail-tile);color:var(--rail-ico);
+    box-shadow:inset 0 1px 0 oklch(1 0 0 / .07);transition:background-color .25s,color .2s .06s,transform .25s var(--spring)}
+  .ipx-ni:hover .ipx-ni-ico{transform:translateY(-1px)}
+  .ipx-ni:active .ipx-ni-ico{transform:scale(.94)}
+  .ipx-ni.on{color:oklch(0.99 0 0)}
+  .ipx-ni.on .ipx-ni-ico{background:transparent;box-shadow:none;color:var(--rail-on-ico)}
+  .ipx-rail-foot{margin-top:auto;display:flex;flex-direction:column;gap:2px}
+  .ipx-conn .ipx-ni-ico{background:oklch(1 0 0 / .93)}
+  .ipx-dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 2.5px var(--rail-2)}
+  .ipx-dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--mint);animation:ipx-ping 2.4s var(--out) infinite}
+  @keyframes ipx-ping{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(2.6);opacity:0}}
+  .ipx-conn{color:oklch(0.86 0.09 150)}
+
+  /* ── Área de conteúdo ── */
+  .ipx-main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .ipx-tbar{height:40px;flex:none;display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:0 10px}
+  .ipx-tb{width:30px;height:26px;display:grid;place-items:center;border:0;background:none;border-radius:var(--r-ctl);color:var(--stone);cursor:pointer;transition:background-color .15s,color .15s}
+  .ipx-tb:hover{background:var(--sunken);color:var(--ink)}
+  .ipx-tb.x:hover{background:oklch(0.58 0.2 27);color:#fff}
+  .ipx-scroll{position:relative;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+  .ipx-scroll::-webkit-scrollbar{display:none}
+  .ipx-pg{padding:0 28px 26px}
+  .ipx-pg[hidden]{display:none}
+  .ipx-head{margin:2px 0 18px}
+  .ipx-h1{font:600 46px/1 var(--sans);letter-spacing:-.05em;margin:2px 0 8px}
+  .ipx-h1.sm{font-size:38px;margin-bottom:7px}
+  .ipx-lead{font:400 13.5px/1.5 var(--sans);color:var(--dim);margin:0}
+  .ipx-stack{display:flex;flex-direction:column;gap:12px}
+  .ipx-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+
+  .ipx-cd{padding:18px;border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-t{font:600 14.5px/1.25 var(--sans);letter-spacing:-.012em;margin:0}
+  .ipx-help{font:400 12.5px/1.55 var(--sans);color:var(--dim);margin:6px 0 0;max-width:64ch}
+  .ipx-help b{font-weight:600;color:var(--ink)}
+  .ipx-cd-h{margin-bottom:14px}
+  .ipx-swrow{display:flex;align-items:center;justify-content:space-between;gap:24px}
+  .ipx-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+
+  /* Botões */
+  .ipx-b1,.ipx-b2,.ipx-b3{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 15px;border:0;border-radius:var(--r-ctl);
+    font:600 12.5px var(--sans);white-space:nowrap;cursor:pointer;transition:transform .35s var(--spring),box-shadow .2s,background-color .2s,color .2s}
+  .ipx-b1{background:var(--ink);color:var(--on-ink);box-shadow:var(--sh-ink)}
+  .ipx-b2{background:var(--card);color:var(--ink);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-b3{background:transparent;color:var(--dim);font-weight:500}
+  .ipx-b1:hover,.ipx-b2:hover{transform:translateY(-1px)}
+  .ipx-b2:hover{box-shadow:var(--sh-lift),var(--hl)}
+  .ipx-b3:hover{background:var(--sunken);color:var(--ink)}
+  .ipx-b1:active,.ipx-b2:active,.ipx-b3:active{transform:scale(.97);transition-duration:.08s}
+  .ipx-sm{height:30px;padding:0 12px;font-size:12px}
+  /* Secundário sobre card branco: vira bloco cinza (sem sombra), como os tiles. */
+  .ipx-cd .ipx-b2,.ipx-acc .ipx-b2{background:var(--sunken);box-shadow:none}
+  .ipx-cd .ipx-b2:hover,.ipx-acc .ipx-b2:hover{background:var(--sunken-2);box-shadow:none}
+  .ipx-trash{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:var(--r-ctl);background:transparent;color:var(--danger);cursor:pointer;
+    box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--danger) 30%,transparent);transition:background-color .2s}
+  .ipx-trash:hover{background:var(--danger-soft)}
+
+  /* Segmentado com peça deslizante */
+  .ipx-sg{position:relative;display:inline-flex;gap:2px;padding:3px;border-radius:calc(var(--r-ctl) + 3px);background:var(--sunken);box-shadow:var(--inset)}
+  .ipx-sg button{position:relative;z-index:1;height:30px;padding:0 16px;border:0;background:none;border-radius:var(--r-ctl);font:500 12.5px var(--sans);color:var(--stone);cursor:pointer;transition:color .25s}
+  .ipx-sg button:hover{color:var(--ink)}
+  .ipx-sg button.on{color:var(--ink)}
+  .ipx-sg-ind{position:absolute;z-index:0;top:3px;left:0;height:30px;border-radius:var(--r-ctl);background:var(--card);box-shadow:var(--sh-card),var(--hl);transition:transform .55s var(--spring),width .55s var(--spring)}
+
+  /* Switch retangular */
+  .ipx-sw{position:relative;flex:none;width:44px;height:26px;border:0;border-radius:var(--r-ctl);background:var(--sunken-2);box-shadow:var(--inset);cursor:pointer;transition:background-color .3s}
+  .ipx-sw::before{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:calc(var(--r-ctl) - 2px);background:var(--card);
+    box-shadow:0 2px 5px oklch(0.21 0.006 286 / .28),var(--hl);transition:transform .5s var(--spring),background-color .3s}
+  .ipx-sw.on{background:var(--ink)}
+  .ipx-sw.on::before{transform:translateX(18px);background:var(--on-ink)}
+  .ipx-sw:active::before{width:24px}
+  .ipx-sw.on:active::before{transform:translateX(14px)}
+
+  /* Campos */
+  .ipx-lab{display:block;margin:16px 0 6px;font:500 11.5px var(--sans);color:var(--stone)}
+  .ipx-in{width:100%;height:38px;padding:0 12px;border:0;border-radius:var(--r-ctl);background:var(--sunken);box-shadow:var(--inset);
+    font:500 12.5px var(--mono);color:var(--ink);outline:none;transition:box-shadow .2s,background-color .2s}
+  .ipx-in::placeholder{color:var(--faint)}
+  .ipx-in:focus{background:var(--card);box-shadow:0 0 0 3px var(--focus),var(--sh-card)}
+  .ipx-in.ro{background:transparent;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--dim)}
+  .ipx-hint{display:block;margin-top:6px;font:400 11.5px/1.45 var(--sans);color:var(--stone)}
+  .ipx-saved{display:inline-flex;align-items:center;gap:7px;margin-top:9px;padding:5px 10px;border-radius:7px;background:var(--mint-soft);color:var(--mint-fg);font:600 11.5px var(--sans)}
+
+  /* Teclas */
+  .ipx-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:31px;padding:0 10px;border-radius:var(--r-kbd);
+    background:var(--card);box-shadow:0 1px 0 var(--line-2),0 3px 8px -3px oklch(0.21 0.006 286 / .22),var(--hl);font:600 12.5px var(--mono);color:var(--ink)}
+  .ipx-plus{color:var(--faint);font:500 13px var(--mono)} .ipx-x2{font:600 13px var(--mono);color:var(--dim);margin-left:3px}
+
+  /* ── Início ── */
+  .ipx-top{display:grid;grid-template-columns:minmax(0,1fr) 318px;gap:18px;align-items:stretch}
+  .ipx-left{display:flex;flex-direction:column;min-width:0}
+  .ipx-left .ipx-lead{margin-bottom:18px}
+  .ipx-gest{position:relative;flex:1;display:flex;flex-direction:column;padding:15px 16px 14px;border-radius:var(--r-card);background:var(--sunken);box-shadow:var(--inset)}
+  .ipx-gest-t{font:500 14px/1.35 var(--sans);max-width:250px}
+  .ipx-keys{display:flex;align-items:center;gap:7px;margin-top:11px}
+  .ipx-fab{position:absolute;top:14px;right:14px;width:40px;height:40px;display:grid;place-items:center;border:0;border-radius:var(--r-ctl);background:var(--ink);color:var(--on-ink);box-shadow:var(--sh-ink);cursor:pointer;transition:transform .4s var(--spring)}
+  .ipx-fab:hover{transform:translateY(-2px) rotate(-4deg)}
+  .ipx-fab:active{transform:scale(.92)}
+  .ipx-meta{display:flex;gap:16px;margin-top:auto;padding-top:12px;font:500 11.5px var(--sans);color:var(--dim)}
+  .ipx-meta i{display:inline-block;width:6px;height:6px;border-radius:2px;background:var(--ink);margin-right:7px;vertical-align:1px}
+  .ipx-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+  .ipx-tile{display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 6px 11px;border:0;border-radius:var(--r-tile);background:var(--sunken);box-shadow:var(--inset);cursor:pointer;color:var(--ink);transition:transform .4s var(--spring)}
+  .ipx-tile:hover{transform:translateY(-2px)}
+  .ipx-tile:active{transform:scale(.96)}
+  .ipx-tile-ico{width:40px;height:40px;display:grid;place-items:center;border-radius:calc(var(--r-tile) - 1px);background:var(--card);box-shadow:var(--sh-card),var(--hl);transition:box-shadow .25s}
+  .ipx-tile:hover .ipx-tile-ico{box-shadow:var(--sh-lift),var(--hl)}
+  .ipx-tile-v{font:600 12px/1.2 var(--sans);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ipx-tile-k{font:500 10.5px/1 var(--sans);color:var(--stone);margin-top:-3px}
+  .ipx-pdot{display:inline-block;width:10px;height:10px;border-radius:3px;background:oklch(var(--dot-l) var(--dot-c) var(--h,300))}
+
+  .ipx-panel{position:relative;display:flex;flex-direction:column;gap:9px;padding:52px 14px 14px;border-radius:calc(var(--r-card) + 4px);
+    background:radial-gradient(70% 45% at 50% 0%,var(--glow),transparent 70%),var(--panel);box-shadow:var(--inset);overflow:hidden}
+  .ipx-tag{position:absolute;top:13px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:7px;padding:6px 12px;white-space:nowrap;
+    border-radius:var(--r-chip);background:var(--ink);color:var(--on-ink);font:600 11.5px var(--sans);box-shadow:var(--sh-ink)}
+  .ipx-tag .b{fill:currentColor;opacity:.45} .ipx-tag .i{fill:currentColor}
+  .ipx-msg{max-width:90%;padding:10px 12px;border-radius:var(--r-card);font:400 11.5px/1.55 var(--mono)}
+  .ipx-msg.o{align-self:flex-end;background:var(--sunken-2);color:var(--body)}
+  .ipx-when{align-self:flex-end;font:500 10.5px var(--sans);color:var(--faint);margin-top:-3px}
+  .ipx-msg.r{align-self:flex-start;background:var(--card);color:var(--ink);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-msg.r b{display:flex;align-items:center;gap:7px;margin-bottom:5px;font:600 11px var(--sans);color:var(--stone)}
+  .ipx-go{margin-top:auto;display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 7px 7px 13px;border:0;border-radius:var(--r-ctl);cursor:pointer;
+    background:var(--card);box-shadow:var(--sh-card),var(--hl);font:500 12px var(--sans);color:var(--dim);transition:transform .4s var(--spring),box-shadow .2s}
+  .ipx-go:hover{transform:translateY(-1px);box-shadow:var(--sh-lift),var(--hl);color:var(--ink)}
+  .ipx-go span:last-child{width:28px;height:28px;display:grid;place-items:center;border-radius:calc(var(--r-ctl) - 2px);background:var(--sunken);color:var(--ink);transition:transform .35s var(--spring)}
+  .ipx-go:hover span:last-child{transform:translateX(2px)}
+
+  .ipx-sumh{display:flex;align-items:center;justify-content:space-between;margin:22px 0 12px}
+  .ipx-h2{font:600 19px/1.1 var(--sans);letter-spacing:-.025em;margin:0}
+  .ipx-sum{display:grid;grid-template-columns:1.1fr 1.12fr .8fr;gap:12px;height:178px}
+  .ipx-k{font:500 11.5px var(--sans);color:var(--stone);white-space:nowrap}
+  .ipx-v{font:600 24px/1 var(--sans);letter-spacing:-.04em;margin-top:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ipx-sumc{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-tokrows{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+  .ipx-tokrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-ctl);background:var(--sunken);box-shadow:var(--inset);font:500 11.5px var(--sans);color:var(--dim)}
+  .ipx-tokrow i{width:8px;height:8px;border-radius:2px;flex:none}
+  .ipx-tokrow b{margin-left:auto;font:600 12.5px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+  .ipx-tokrow small{width:34px;text-align:right;font:500 11px var(--mono);color:var(--faint)}
+  .ipx-chart{flex:1;min-height:0;display:flex;align-items:stretch;justify-content:space-between;padding:0 4px}
+  .ipx-col{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .ipx-trk{flex:1;width:9px;display:flex;align-items:flex-end;border-radius:3px;background:var(--bar-track);overflow:hidden}
+  .ipx-fill{width:100%;border-radius:3px;background:var(--bar-fill);transition:height .7s var(--spring)}
+  .ipx-col.cur .ipx-fill{background:var(--ink)}
+  .ipx-col em{font:500 9.5px var(--mono);font-style:normal;color:var(--faint)}
+  .ipx-col.cur em{color:var(--ink);font-weight:600}
+  .ipx-dark{position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:14px;border-radius:var(--r-card);overflow:hidden;
+    background:linear-gradient(160deg,var(--dark-1),var(--dark-2));box-shadow:var(--sh-float),inset 0 1px 0 oklch(1 0 0 / .13);color:#fff}
+  .ipx-dark .ipx-k{color:oklch(1 0 0 / .68)} .ipx-dark .ipx-v{color:#fff}
+  .ipx-dark small{display:block;margin-top:5px;font:500 10.5px var(--sans);color:oklch(1 0 0 / .62)}
+  .ipx-dark svg{position:absolute;left:12px;right:12px;top:14px}
+
+  /* ── Histórico ── */
+  .ipx-grp-d{margin:4px 0 8px 2px;font:700 10.5px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--stone)}
+  .ipx-grp + .ipx-grp .ipx-grp-d{margin-top:22px}
+  .ipx-hlist{display:flex;flex-direction:column;gap:8px}
+  .ipx-acc{border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card),var(--hl);overflow:hidden;transition:box-shadow .25s}
+  .ipx-acc:hover{box-shadow:var(--sh-lift),var(--hl)}
+  .ipx-acc-h{width:100%;display:flex;align-items:center;gap:12px;min-height:50px;padding:8px 10px 8px 14px;border:0;background:none;cursor:pointer;text-align:left;color:var(--ink)}
+  .ipx-time{width:40px;flex:none;font:500 12px var(--mono);color:var(--faint)}
+  .ipx-tagp{flex:none;padding:3px 8px;border-radius:6px;font:600 10.5px var(--sans);color:oklch(var(--tag-fg-l) var(--tag-fg-c) var(--h));background:oklch(var(--tag-bg-l) var(--tag-bg-c) var(--h))}
+  .ipx-prev{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:400 12px var(--mono);color:var(--dim);transition:opacity .25s}
+  .ipx-acc.open .ipx-prev{opacity:.45}
+  .ipx-chev{flex:none;width:28px;height:28px;display:grid;place-items:center;border-radius:calc(var(--r-ctl) - 2px);background:var(--sunken);color:var(--stone);transition:transform .55s var(--spring)}
+  .ipx-acc.open .ipx-chev{transform:rotate(180deg)}
+  .ipx-acc-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s var(--out)}
+  .ipx-acc.open .ipx-acc-b{grid-template-rows:1fr}
+  .ipx-acc-i{overflow:hidden;min-height:0}
+  .ipx-acc-p{display:flex;flex-direction:column;gap:10px;padding:2px 14px 14px 66px;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .45s var(--spring)}
+  .ipx-acc.open .ipx-acc-p{opacity:1;transform:none;transition-delay:.06s}
+  .ipx-blk{padding:10px 12px;border-radius:var(--r-ctl);background:var(--sunken);box-shadow:var(--inset)}
+  .ipx-blk.res{background:none;box-shadow:inset 0 0 0 1px var(--line-2)}
+  .ipx-lbl{font:700 10px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--stone)}
+  .ipx-lbl.ok{color:var(--mint-fg)}
+  .ipx-mono{font:400 12px/1.6 var(--mono);white-space:pre-wrap;margin:5px 0 0;color:var(--body)}
+  .ipx-blk.res .ipx-mono{color:var(--ink)}
+  .ipx-copy{position:relative;overflow:hidden}
+  .ipx-copy span{display:inline-block;transition:transform .45s var(--spring),opacity .2s}
+  .ipx-copy .b{position:absolute;left:0;right:0;text-align:center;transform:translateY(120%);opacity:0}
+  .ipx-copy.done .a{transform:translateY(-120%);opacity:0}
+  .ipx-copy.done .b{transform:none;opacity:1}
+
+  /* ── Presets ── */
+  .ipx-ptl{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+  .ipx-ptile{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 11px;border:0;border-radius:var(--r-tile);
+    background:var(--sunken);box-shadow:var(--inset);font:600 11.5px/1.25 var(--sans);color:var(--dim);cursor:pointer;text-align:center;transition:color .25s,transform .4s var(--spring)}
+  .ipx-ptile:hover{color:var(--ink);transform:translateY(-1px)}
+  .ipx-ptile:active{transform:scale(.96)}
+  .ipx-ptile .sq{width:36px;height:36px;display:grid;place-items:center;border-radius:calc(var(--r-tile) - 2px);background:var(--card);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-ptile.on{color:var(--ink)}
+  .ipx-ring{position:absolute;z-index:0;top:0;left:0;border-radius:var(--r-tile);background:var(--card);box-shadow:0 0 0 2px var(--ink),var(--sh-lift);transition:transform .6s var(--spring),width .6s var(--spring),height .6s var(--spring)}
+  .ipx-ptile.on{background:transparent;box-shadow:none}
+  .ipx-plist{margin:0 -4px}
+  .ipx-prow{display:flex;align-items:center;gap:10px;min-height:50px;padding:8px 4px;border-top:1px solid var(--line)}
+  .ipx-pit:first-child .ipx-prow{border-top:0}
+  .ipx-prow .nm{flex:1;min-width:0;font:600 13px var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ipx-badge{padding:3px 7px;border-radius:6px;font:700 9.5px var(--sans);letter-spacing:.07em;text-transform:uppercase}
+  .ipx-badge.def{background:var(--ink);color:var(--on-ink)}
+  .ipx-badge.ed{background:var(--sunken);color:var(--stone);box-shadow:var(--inset)}
+  .ipx-pacc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s var(--out)}
+  .ipx-pit.open .ipx-pacc{grid-template-rows:1fr}
+  .ipx-pacc>div{overflow:hidden;min-height:0}
+  .ipx-form{display:flex;flex-direction:column;gap:8px;margin:0 4px 12px;padding:12px;border-radius:var(--r-ctl);background:var(--sunken);box-shadow:var(--inset)}
+  .ipx-form .ipx-in{background:var(--card);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-form textarea.ipx-in{height:84px;padding:10px 12px;resize:none;line-height:1.5}
+  .ipx-pactions{display:flex;gap:8px;margin-top:10px}
+
+  /* ── API ── */
+  .ipx-prov{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+  .ipx-pt{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:11px 2px 10px;border:0;border-radius:var(--r-tile);
+    background:var(--sunken);box-shadow:var(--inset);cursor:pointer;font:500 11px var(--sans);color:var(--dim);transition:color .25s,transform .4s var(--spring)}
+  .ipx-pt:hover{color:var(--ink);transform:translateY(-1px)}
+  .ipx-pt:active{transform:scale(.96)}
+  .ipx-pt .lg{width:36px;height:36px;display:grid;place-items:center;border-radius:calc(var(--r-tile) - 2px);background:var(--card);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-pt.on{background:transparent;box-shadow:none;color:var(--ink);font-weight:600}
+  .ipx-priv{display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 12px;border-radius:var(--r-ctl);background:var(--amber-soft);color:var(--amber-fg);font:500 12px var(--sans)}
+  .ipx-priv b{font:600 11.5px var(--mono)}
+  .ipx-dd{position:relative}
+  .ipx-dd-btn{width:100%;height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border:0;border-radius:var(--r-ctl);background:var(--card);cursor:pointer;
+    box-shadow:var(--sh-card),var(--hl),inset 0 0 0 1px var(--line);font:500 12.5px var(--mono);color:var(--ink);text-align:left}
+  .ipx-dd-btn .v{flex:1}
+  .ipx-dd-btn svg{transition:transform .5s var(--spring)}
+  .ipx-dd.open .ipx-dd-btn svg{transform:rotate(180deg)}
+  .ipx-mtag{padding:3px 8px;border-radius:6px;background:var(--mint-soft);color:var(--mint-fg);font:600 10.5px var(--sans);white-space:nowrap}
+  .ipx-dd-list{position:absolute;z-index:6;top:calc(100% + 6px);left:0;right:0;padding:5px;border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-float),var(--hl);
+    transform-origin:top center;opacity:0;transform:translateY(-6px) scale(.97);pointer-events:none;transition:opacity .16s,transform .45s var(--spring)}
+  .ipx-dd.open .ipx-dd-list{opacity:1;transform:none;pointer-events:auto}
+  .ipx-opt{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border-radius:calc(var(--r-ctl) - 2px);cursor:pointer;opacity:0;transform:translateY(-3px);transition:background-color .15s,opacity .2s,transform .35s var(--spring)}
+  .ipx-dd.open .ipx-opt{opacity:1;transform:none}
+  .ipx-dd.open .ipx-opt:nth-child(2){transition-delay:.02s}.ipx-dd.open .ipx-opt:nth-child(3){transition-delay:.04s}.ipx-dd.open .ipx-opt:nth-child(4){transition-delay:.06s}
+  .ipx-opt:hover,.ipx-opt.sel{background:var(--sunken)}
+  .ipx-opt .t{display:flex;justify-content:space-between;align-items:center;gap:8px;font:500 12.5px var(--mono);color:var(--ink)}
+  .ipx-opt .d{font:500 11px var(--sans);color:var(--stone)}
+  .ipx-mi{margin-top:12px;padding:14px;border-radius:var(--r-ctl);background:var(--sunken);box-shadow:var(--inset)}
+  .ipx-mi-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .ipx-mi-h strong{font:600 13.5px var(--sans)}
+  .ipx-mi p{margin:5px 0 0;font:400 12.5px/1.5 var(--sans);color:var(--dim)}
+  .ipx-bench{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .ipx-ax{padding:10px 11px;border-radius:calc(var(--r-ctl) - 1px);background:var(--card);box-shadow:var(--sh-card),var(--hl)}
+  .ipx-ax-k{font:500 11px var(--sans);color:var(--stone)}
+  .ipx-ax-v{font:600 12.5px var(--sans);margin-top:2px}
+  .ipx-ax-v small{font:500 10.5px var(--mono);color:var(--faint);margin-left:6px}
+  .ipx-segs{display:flex;gap:3px;margin-top:8px}
+  .ipx-segs i{flex:1;height:5px;border-radius:2px;background:var(--bar-track)}
+  .ipx-segs.l1 i.on{background:var(--danger)} .ipx-segs.l2 i.on{background:var(--amber)} .ipx-segs.l3 i.on{background:var(--mint)}
+  .ipx-price{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:12px;font:500 11.5px var(--sans);color:var(--stone)}
+  .ipx-price b{font:600 12.5px var(--mono);color:var(--ink);margin-left:6px}
+  .ipx-apply{position:sticky;bottom:12px;z-index:4;display:flex;align-items:center;gap:14px;margin-top:14px;padding:10px;border-radius:calc(var(--r-card) + 2px);
+    background:var(--card);box-shadow:var(--sh-float),var(--hl)}
+  .ipx-ok{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:7px;background:var(--mint-soft);color:var(--mint-fg);font:600 11.5px var(--sans)}
+  .ipx-ok.pop{animation:ipx-pop .6s var(--spring)}
+  @keyframes ipx-pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+  .ipx-spin{width:14px;height:14px;border-radius:50%;border:2px solid color-mix(in oklch,var(--on-ink) 35%,transparent);border-top-color:var(--on-ink);animation:ipx-rot .7s linear infinite}
+  @keyframes ipx-rot{to{transform:rotate(360deg)}}
+
+  /* ── Atalho ── */
+  .ipx-recbox{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:14px;border-radius:var(--r-card);background:var(--sunken);box-shadow:var(--inset)}
+  .ipx-rec{display:inline-flex;align-items:center;gap:9px;padding:10px 14px;border:0;border-radius:var(--r-ctl);background:var(--card);box-shadow:var(--sh-card),var(--hl);cursor:pointer;transition:transform .4s var(--spring),box-shadow .2s}
+  .ipx-rec:hover{transform:translateY(-1px);box-shadow:var(--sh-lift),var(--hl)}
+  .ipx-rec .ipx-kbd{height:36px;min-width:46px;font-size:14px}
+  .ipx-rec.rec{box-shadow:0 0 0 3px var(--focus),var(--sh-lift)}
+  .ipx-caret{display:inline-block;width:2px;height:17px;margin-left:3px;background:var(--ink);animation:ipx-blink 1.05s step-end infinite;vertical-align:-3px}
+  @keyframes ipx-blink{50%{opacity:0}}
+  .ipx-rec-p{font:600 13px var(--sans);color:var(--ink);padding:8px 4px}
+  .ipx-deb{margin-top:18px;max-width:470px}
+  .ipx-deb-l{font:400 12.5px var(--sans);color:var(--body)}
+  .ipx-deb-l b{font:600 12.5px var(--mono);color:var(--ink)}
+  .ipx-range{position:relative;height:8px;margin-top:14px;border-radius:4px;background:var(--sunken-2);box-shadow:var(--inset);cursor:pointer}
+  .ipx-range-f{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--ink);transition:width .45s var(--spring)}
+  .ipx-range-k{position:absolute;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:7px;background:var(--card);box-shadow:0 2px 6px oklch(0.21 0.006 286 / .3),var(--hl);transition:left .45s var(--spring),transform .3s var(--spring)}
+  .ipx-range:hover .ipx-range-k{transform:scale(1.08)}
+  .ipx-scale{display:flex;justify-content:space-between;margin-top:9px;font:500 10.5px var(--mono);color:var(--faint)}
+
+  /* ── Configurações ── */
+  .ipx-ver{font:600 28px/1 var(--sans);letter-spacing:-.04em;margin-top:10px}
+  .ipx-ver small{font:500 12px var(--sans);letter-spacing:0;color:var(--stone);margin-left:8px}
+  .ipx-upd-s{display:flex;align-items:center;gap:8px;margin:12px 0 14px;font:500 12px var(--sans);color:var(--mint-fg)}
+  .ipx-support{position:relative;display:flex;align-items:center;gap:16px;padding:18px;border-radius:var(--r-card);overflow:hidden;
+    background:linear-gradient(160deg,var(--dark-1),var(--dark-2));box-shadow:var(--sh-float),inset 0 1px 0 oklch(1 0 0 / .13);color:#fff}
+  .ipx-support .hi{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-tile);background:oklch(1 0 0 / .12);box-shadow:inset 0 1px 0 oklch(1 0 0 / .15)}
+  .ipx-support h3{margin:0;font:600 14.5px var(--sans);color:#fff}
+  .ipx-support p{margin:4px 0 0;font:400 12.5px/1.5 var(--sans);color:oklch(1 0 0 / .72)}
+  .ipx-support .ipx-b2{margin-left:auto;background:oklch(0.995 0.001 286);color:oklch(0.21 0.006 286)}
+  .ipx-support .ipx-b2 svg{transition:transform .5s var(--spring)}
+  .ipx-support .ipx-b2:hover svg{transform:scale(1.2)}
+</style>
+
+<h2>Todas as abas (protótipo clicável)</h2>
+<p class="subtitle">Clique no menu escuro da janela para trocar de aba e ver a animação. Dá para clicar nos seletores, chaves, no histórico, nos presets, nos provedores e no modelo. O Início já tem os dois ajustes que você pediu.</p>
+
+<div class="ipx-ctl">Tema: <button id="thL" class="on">Claro</button><button id="thD">Escuro</button></div>
+
+<div class="ipx" data-t="light" data-r="b" id="proto">
+<div class="ipx-stage"><div class="ipx-win">
+  <aside class="ipx-rail" id="rail">
+    <span class="ipx-ind" id="ind"></span>
+    <div class="ipx-brand"><svg viewBox="0 0 62 40" width="37" height="24"><g class="b"><rect x="2" y="4" width="5" height="32"/><rect x="2" y="4" width="14" height="5"/><rect x="2" y="31" width="14" height="5"/><rect x="55" y="4" width="5" height="32"/><rect x="46" y="4" width="14" height="5"/><rect x="46" y="31" width="14" height="5"/></g><g class="i"><rect x="28.5" y="4" width="5" height="32"/><rect x="22" y="4" width="18" height="5"/><rect x="22" y="31" width="18" height="5"/></g></svg></div>
+    <nav class="ipx-nav">
+      <button class="ipx-ni on" data-go="inicio"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2a9 9 0 1 0 10.8 10.8a1 1 0 0 0 -1 -1h-6.8a2 2 0 0 1 -2 -2v-7a.9 .9 0 0 0 -1 -.8"/><path d="M15 3.5a9 9 0 0 1 5.5 5.5h-4.5a1 1 0 0 1 -1 -1v-4.5"/></svg></span>Início</button>
+      <button class="ipx-ni" data-go="historico"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg></span>Histórico</button>
+      <button class="ipx-ni" data-go="presets"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4v16"/><path d="M8 8v12"/><path d="M12 6v14"/><path d="m16 6 4 14"/></svg></span>Presets</button>
+      <button class="ipx-ni" data-go="api"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5z"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg></span>API</button>
+      <button class="ipx-ni" data-go="atalho"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01"/><path d="M8 14.2h8"/></svg></span>Atalho</button>
+    </nav>
+    <div class="ipx-rail-foot">
+      <button class="ipx-ni" data-go="config"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><polygon points="18.65,9.24 21.29,10.02 21.29,13.98 18.65,14.76 19.97,17.17 17.17,19.97 14.76,18.65 13.98,21.29 10.02,21.29 9.24,18.65 6.83,19.97 4.03,17.17 5.35,14.76 2.71,13.98 2.71,10.02 5.35,9.24 4.03,6.83 6.83,4.03 9.24,5.35 10.02,2.71 13.98,2.71 14.76,5.35 17.17,4.03 19.97,6.83"/><circle cx="12" cy="12" r="3"/></svg></span>Configurações</button>
+      <button class="ipx-ni ipx-conn" data-go="api"><span class="ipx-ni-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#10A37F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11.217 19.384a3.501 3.501 0 0 0 6.783 -1.217v-5.167l-6 -3.35"/><path d="M5.214 15.014a3.501 3.501 0 0 0 4.446 5.266l4.34 -2.534v-6.946"/><path d="M6 7.63c-1.391 -.236 -2.787 .395 -3.534 1.689a3.474 3.474 0 0 0 1.271 4.745l4.263 2.514l6 -3.348"/><path d="M12.783 4.616a3.501 3.501 0 0 0 -6.783 1.217v5.067l6 3.45"/><path d="M18.786 8.986a3.501 3.501 0 0 0 -4.446 -5.266l-4.34 2.534v6.946"/><path d="M18 16.302c1.391 .236 2.787 -.395 3.534 -1.689a3.474 3.474 0 0 0 -1.271 -4.745l-4.308 -2.514l-5.955 3.42"/></svg><i class="ipx-dot"></i></span>Conectado</button>
+    </div>
+  </aside>
+
+  <div class="ipx-main">
+    <div class="ipx-tbar">
+      <button class="ipx-tb"><svg viewBox="0 0 12 12" width="12" height="12"><rect x="2.5" y="6" width="7" height="1" fill="currentColor"/></svg></button>
+      <button class="ipx-tb x"><svg viewBox="0 0 12 12" width="12" height="12"><path d="M3 3 9 9 M9 3 3 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="ipx-scroll" id="scroll">
+
+      <!-- ═════════════ INÍCIO ═════════════ -->
+      <section class="ipx-pg" data-pg="inicio">
+        <div class="ipx-top">
+          <div class="ipx-left">
+            <h1 class="ipx-h1">Tudo pronto.</h1>
+            <p class="ipx-lead">Uso deste mês e a sua configuração atual.</p>
+            <div class="ipx-gest">
+              <div class="ipx-gest-t">Selecione um texto em qualquer app e aperte</div>
+              <div class="ipx-keys"><span class="ipx-kbd">Ctrl</span><span class="ipx-plus">+</span><span class="ipx-kbd">C</span><span class="ipx-x2">×2</span></div>
+              <div class="ipx-meta"><span><i></i>modo Instantâneo</span><span><i></i>substitui o texto</span></div>
+              <button class="ipx-fab" data-go="atalho" title="Atalho"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01"/><path d="M8 14.2h8"/></svg></button>
+            </div>
+            <div class="ipx-tiles">
+              <button class="ipx-tile" data-go="api"><span class="ipx-tile-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#10A37F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11.217 19.384a3.501 3.501 0 0 0 6.783 -1.217v-5.167l-6 -3.35"/><path d="M5.214 15.014a3.501 3.501 0 0 0 4.446 5.266l4.34 -2.534v-6.946"/><path d="M6 7.63c-1.391 -.236 -2.787 .395 -3.534 1.689a3.474 3.474 0 0 0 1.271 4.745l4.263 2.514l6 -3.348"/><path d="M12.783 4.616a3.501 3.501 0 0 0 -6.783 1.217v5.067l6 3.45"/><path d="M18.786 8.986a3.501 3.501 0 0 0 -4.446 -5.266l-4.34 2.534v6.946"/><path d="M18 16.302c1.391 .236 2.787 -.395 3.534 -1.689a3.474 3.474 0 0 0 -1.271 -4.745l-4.308 -2.514l-5.955 3.42"/></svg></span><span class="ipx-tile-v">OpenAI</span><span class="ipx-tile-k">API</span></button>
+              <button class="ipx-tile" data-go="presets"><span class="ipx-tile-ico"><i class="ipx-pdot" style="--h:300"></i></span><span class="ipx-tile-v">Estruturar</span><span class="ipx-tile-k">Preset</span></button>
+              <button class="ipx-tile" data-go="atalho"><span class="ipx-tile-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg></span><span class="ipx-tile-v">Substitui</span><span class="ipx-tile-k">Saída</span></button>
+              <button class="ipx-tile" data-go="config"><span class="ipx-tile-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></span><span class="ipx-tile-v">Sistema</span><span class="ipx-tile-k">Tema</span></button>
+            </div>
+          </div>
+          <section class="ipx-panel">
+            <span class="ipx-tag"><svg viewBox="0 0 62 40" width="20" height="13"><g class="b"><rect x="2" y="4" width="5" height="32"/><rect x="2" y="4" width="14" height="5"/><rect x="2" y="31" width="14" height="5"/><rect x="55" y="4" width="5" height="32"/><rect x="46" y="4" width="14" height="5"/><rect x="46" y="31" width="14" height="5"/></g><g class="i"><rect x="28.5" y="4" width="5" height="32"/><rect x="22" y="4" width="18" height="5"/><rect x="22" y="31" width="18" height="5"/></g></svg>Último imprompt</span>
+            <div class="ipx-msg o">me ajuda a escrever um email pro cliente explicando o atraso da entrega sem parecer desculpa</div>
+            <div class="ipx-when">há 2 min</div>
+            <div class="ipx-msg r"><b><i class="ipx-pdot" style="--h:300;width:8px;height:8px;border-radius:2px"></i>Estruturar</b>Tarefa: escreva um e-mail ao cliente explicando o atraso da entrega.<br>Tom: profissional e direto, sem soar como desculpa.<br>Formato: até 5 frases, com a nova data.</div>
+            <button class="ipx-go" data-go="historico"><span>Ver no Histórico</span><span><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg></span></button>
+          </section>
+        </div>
+
+        <div class="ipx-sumh"><h2 class="ipx-h2">Este mês</h2><div class="ipx-sg" data-sg="metric"><span class="ipx-sg-ind"></span><button class="on" data-v="cost">Custo</button><button data-v="count">Imprompts</button></div></div>
+        <div class="ipx-sum">
+          <div class="ipx-sumc">
+            <div class="ipx-tokrows">
+              <div class="ipx-tokrow"><i style="background:var(--ink)"></i>Entrada<b data-count="182.4" data-dec="1" data-suf="k">182,4k</b><small>78%</small></div>
+              <div class="ipx-tokrow"><i style="background:var(--bar-fill)"></i>Saída<b data-count="51.2" data-dec="1" data-suf="k">51,2k</b><small>22%</small></div>
+            </div>
+            <div><div class="ipx-k">Tokens no mês</div><div class="ipx-v" data-count="233.6" data-dec="1" data-suf="k">233,6k</div></div>
+          </div>
+          <div class="ipx-sumc">
+            <div class="ipx-chart" id="chart">
+              <div class="ipx-col"><span class="ipx-trk"><span class="ipx-fill"></span></span><em>abr</em></div>
+              <div class="ipx-col"><span class="ipx-trk"><span class="ipx-fill"></span></span><em>mai</em></div>
+              <div class="ipx-col"><span class="ipx-trk"><span class="ipx-fill"></span></span><em>jun</em></div>
+              <div class="ipx-col"><span class="ipx-trk"><span class="ipx-fill"></span></span><em>jul</em></div>
+              <div class="ipx-col"><span class="ipx-trk"><span class="ipx-fill"></span></span><em>ago</em></div>
+              <div class="ipx-col cur"><span class="ipx-trk"><span class="ipx-fill"></span></span><em>set</em></div>
+            </div>
+            <div><div class="ipx-k" id="chartK">Gastos por mês</div><div class="ipx-v" id="chartV">US$ 0,42</div></div>
+          </div>
+          <div class="ipx-dark">
+            <svg viewBox="0 0 120 56" height="56" preserveAspectRatio="none" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <polyline class="spark" pathLength="1" points="4,46 26,22 48,32 70,10 92,26 114,6" stroke="oklch(1 0 0 / .9)" stroke-width="2.2"/>
+              <circle class="spark-dot" cx="114" cy="6" r="3.4" fill="#fff"/>
+            </svg>
+            <div class="ipx-k">Imprompts</div><div class="ipx-v" data-count="132" data-dec="0">132</div><small>~US$ 0,0032 cada</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════ HISTÓRICO ═════════════ -->
+      <section class="ipx-pg" data-pg="historico" hidden>
+        <header class="ipx-head"><h1 class="ipx-h1 sm">Histórico</h1><p class="ipx-lead">Imprompts só desta sessão. Nada é salvo no disco.</p></header>
+        <div class="ipx-grp"><div class="ipx-grp-d">Hoje</div>
+          <div class="ipx-hlist">
+            <div class="ipx-acc open">
+              <button class="ipx-acc-h"><span class="ipx-time">14:32</span><span class="ipx-tagp" style="--h:300">Estruturar</span><span class="ipx-prev">me ajuda a escrever um email pro cliente explicando o atraso da entrega sem parecer desculpa</span><span class="ipx-chev"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span></button>
+              <div class="ipx-acc-b"><div class="ipx-acc-i"><div class="ipx-acc-p">
+                <div class="ipx-blk"><span class="ipx-lbl">Original</span><p class="ipx-mono">me ajuda a escrever um email pro cliente explicando o atraso da entrega sem parecer desculpa</p></div>
+                <div class="ipx-blk res"><span class="ipx-lbl ok">Resultado</span><p class="ipx-mono">Tarefa: escreva um e-mail ao cliente explicando o atraso da entrega.
+Tom: profissional e direto, sem soar como desculpa.
+Formato: até 5 frases, com a nova data.</p></div>
+                <div class="ipx-row"><button class="ipx-b2 ipx-sm ipx-copy"><span class="a">Copiar resultado</span><span class="b">Copiado ✓</span></button></div>
+              </div></div></div>
+            </div>
+            <div class="ipx-acc">
+              <button class="ipx-acc-h"><span class="ipx-time">14:05</span><span class="ipx-tagp" style="--h:195">Prompt de código</span><span class="ipx-prev">faz um script que renomeia as fotos da pasta pela data que foram tiradas</span><span class="ipx-chev"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span></button>
+              <div class="ipx-acc-b"><div class="ipx-acc-i"><div class="ipx-acc-p">
+                <div class="ipx-blk"><span class="ipx-lbl">Original</span><p class="ipx-mono">faz um script que renomeia as fotos da pasta pela data que foram tiradas</p></div>
+                <div class="ipx-blk res"><span class="ipx-lbl ok">Resultado</span><p class="ipx-mono">Crie um script Python que renomeie as fotos de uma pasta usando a data de captura (EXIF DateTimeOriginal)…</p></div>
+                <div class="ipx-row"><button class="ipx-b2 ipx-sm ipx-copy"><span class="a">Copiar resultado</span><span class="b">Copiado ✓</span></button></div>
+              </div></div></div>
+            </div>
+            <div class="ipx-acc">
+              <button class="ipx-acc-h"><span class="ipx-time">11:48</span><span class="ipx-tagp" style="--h:150">Corrigir &amp; clarear</span><span class="ipx-prev">oi pessoal segue o relatorio atualizado com os numeros de setembro qualquer duvida me chama</span><span class="ipx-chev"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span></button>
+              <div class="ipx-acc-b"><div class="ipx-acc-i"><div class="ipx-acc-p">
+                <div class="ipx-blk"><span class="ipx-lbl">Original</span><p class="ipx-mono">oi pessoal segue o relatorio atualizado com os numeros de setembro qualquer duvida me chama</p></div>
+                <div class="ipx-blk res"><span class="ipx-lbl ok">Resultado</span><p class="ipx-mono">Oi, pessoal! Segue o relatório atualizado com os números de setembro. Qualquer dúvida, me chamem.</p></div>
+                <div class="ipx-row"><button class="ipx-b2 ipx-sm ipx-copy"><span class="a">Copiar resultado</span><span class="b">Copiado ✓</span></button></div>
+              </div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ipx-grp"><div class="ipx-grp-d">Ontem</div>
+          <div class="ipx-hlist">
+            <div class="ipx-acc">
+              <button class="ipx-acc-h"><span class="ipx-time">18:20</span><span class="ipx-tagp" style="--h:45">Traduzir p/ EN</span><span class="ipx-prev">Crie uma função Python chamada `calcular_total` que some uma lista de preços.</span><span class="ipx-chev"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span></button>
+              <div class="ipx-acc-b"><div class="ipx-acc-i"><div class="ipx-acc-p">
+                <div class="ipx-blk"><span class="ipx-lbl">Original</span><p class="ipx-mono">Crie uma função Python chamada `calcular_total` que some uma lista de preços.</p></div>
+                <div class="ipx-blk res"><span class="ipx-lbl ok">Resultado</span><p class="ipx-mono">Write a Python function named `calcular_total` that sums a list of prices.</p></div>
+                <div class="ipx-row"><button class="ipx-b2 ipx-sm ipx-copy"><span class="a">Copiar resultado</span><span class="b">Copiado ✓</span></button></div>
+              </div></div></div>
+            </div>
+            <div class="ipx-acc">
+              <button class="ipx-acc-h"><span class="ipx-time">16:02</span><span class="ipx-tagp" style="--h:350">Vibe Code</span><span class="ipx-prev">o botão de salvar some quando a tela fica pequena e o modal não fecha no esc</span><span class="ipx-chev"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span></button>
+              <div class="ipx-acc-b"><div class="ipx-acc-i"><div class="ipx-acc-p">
+                <div class="ipx-blk"><span class="ipx-lbl">Original</span><p class="ipx-mono">o botão de salvar some quando a tela fica pequena e o modal não fecha no esc</p></div>
+                <div class="ipx-blk res"><span class="ipx-lbl ok">Resultado</span><p class="ipx-mono">## Requests
+1. The Save button disappears on narrow windows…
+2. The modal does not close on Esc…</p></div>
+                <div class="ipx-row"><button class="ipx-b2 ipx-sm ipx-copy"><span class="a">Copiar resultado</span><span class="b">Copiado ✓</span></button></div>
+              </div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════ PRESETS ═════════════ -->
+      <section class="ipx-pg" data-pg="presets" hidden>
+        <header class="ipx-head"><h1 class="ipx-h1 sm">Presets</h1><p class="ipx-lead">Cada preset é uma instrução enviada junto com o seu texto.</p></header>
+        <div class="ipx-stack">
+          <section class="ipx-cd">
+            <div class="ipx-cd-h"><h2 class="ipx-t">Preset padrão</h2><p class="ipx-help">Usado no modo instantâneo, sem perguntar nada.</p></div>
+            <div class="ipx-ptl" id="ptl"><span class="ipx-ring" id="ring"></span>
+              <button class="ipx-ptile on"><span class="sq"><i class="ipx-pdot" style="--h:300"></i></span>Estruturar</button>
+              <button class="ipx-ptile"><span class="sq"><i class="ipx-pdot" style="--h:195"></i></span>Prompt de código</button>
+              <button class="ipx-ptile"><span class="sq"><i class="ipx-pdot" style="--h:150"></i></span>Corrigir &amp; clarear</button>
+              <button class="ipx-ptile"><span class="sq"><i class="ipx-pdot" style="--h:45"></i></span>Traduzir p/ EN</button>
+              <button class="ipx-ptile"><span class="sq"><i class="ipx-pdot" style="--h:350"></i></span>Vibe Code</button>
+              <button class="ipx-ptile"><span class="sq"><i class="ipx-pdot" style="--h:250"></i></span>Resumir</button>
+            </div>
+          </section>
+          <section class="ipx-cd">
+            <div class="ipx-cd-h"><h2 class="ipx-t">Presets</h2><p class="ipx-help">Edite, duplique ou exclua qualquer preset. "Restaurar padrões" traz os originais de volta.</p></div>
+            <div class="ipx-plist">
+              <div class="ipx-pit"><div class="ipx-prow"><i class="ipx-pdot" style="--h:300"></i><span class="nm">Estruturar</span><span class="ipx-badge def">padrão</span><button class="ipx-b2 ipx-sm" data-edit>Editar</button><button class="ipx-b3 ipx-sm">Duplicar</button><button class="ipx-trash"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button></div>
+                <div class="ipx-pacc"><div><div class="ipx-form"><input class="ipx-in" value="Estruturar"><textarea class="ipx-in">Reescreva o prompt enviado com estrutura clara e lógica: papel, contexto, tarefa e formato de saída, nessa ordem…</textarea><div class="ipx-row"><button class="ipx-b1 ipx-sm">Salvar</button><button class="ipx-b3 ipx-sm" data-edit>Cancelar</button></div></div></div></div></div>
+              <div class="ipx-pit"><div class="ipx-prow"><i class="ipx-pdot" style="--h:195"></i><span class="nm">Prompt de código</span><button class="ipx-b2 ipx-sm" data-edit>Editar</button><button class="ipx-b3 ipx-sm">Duplicar</button><button class="ipx-trash"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button></div>
+                <div class="ipx-pacc"><div><div class="ipx-form"><input class="ipx-in" value="Prompt de código"><textarea class="ipx-in">Transforme o prompt enviado em uma especificação de engenharia precisa…</textarea><div class="ipx-row"><button class="ipx-b1 ipx-sm">Salvar</button><button class="ipx-b3 ipx-sm" data-edit>Cancelar</button></div></div></div></div></div>
+              <div class="ipx-pit"><div class="ipx-prow"><i class="ipx-pdot" style="--h:150"></i><span class="nm">Corrigir &amp; clarear</span><button class="ipx-b2 ipx-sm" data-edit>Editar</button><button class="ipx-b3 ipx-sm">Duplicar</button><button class="ipx-trash"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button></div>
+                <div class="ipx-pacc"><div><div class="ipx-form"><input class="ipx-in" value="Corrigir &amp; clarear"><textarea class="ipx-in">Corrija gramática, ortografia e ambiguidade do prompt enviado…</textarea><div class="ipx-row"><button class="ipx-b1 ipx-sm">Salvar</button><button class="ipx-b3 ipx-sm" data-edit>Cancelar</button></div></div></div></div></div>
+              <div class="ipx-pit"><div class="ipx-prow"><i class="ipx-pdot" style="--h:45"></i><span class="nm">Traduzir p/ EN</span><button class="ipx-b2 ipx-sm" data-edit>Editar</button><button class="ipx-b3 ipx-sm">Duplicar</button><button class="ipx-trash"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button></div>
+                <div class="ipx-pacc"><div><div class="ipx-form"><input class="ipx-in" value="Traduzir p/ EN"><textarea class="ipx-in">Traduza o prompt enviado para inglês claro e idiomático…</textarea><div class="ipx-row"><button class="ipx-b1 ipx-sm">Salvar</button><button class="ipx-b3 ipx-sm" data-edit>Cancelar</button></div></div></div></div></div>
+              <div class="ipx-pit"><div class="ipx-prow"><i class="ipx-pdot" style="--h:350"></i><span class="nm">Vibe Code</span><span class="ipx-badge ed">editado</span><button class="ipx-b2 ipx-sm" data-edit>Editar</button><button class="ipx-b3 ipx-sm">Duplicar</button><button class="ipx-trash"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button></div>
+                <div class="ipx-pacc"><div><div class="ipx-form"><input class="ipx-in" value="Vibe Code"><textarea class="ipx-in">You are a prompt compiler for software engineering tasks…</textarea><div class="ipx-row"><button class="ipx-b1 ipx-sm">Salvar</button><button class="ipx-b3 ipx-sm" data-edit>Cancelar</button></div></div></div></div></div>
+              <div class="ipx-pit"><div class="ipx-prow"><i class="ipx-pdot" style="--h:250"></i><span class="nm">Resumir</span><button class="ipx-b2 ipx-sm" data-edit>Editar</button><button class="ipx-b3 ipx-sm">Duplicar</button><button class="ipx-trash"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button></div>
+                <div class="ipx-pacc"><div><div class="ipx-form"><input class="ipx-in" value="Resumir"><textarea class="ipx-in">Condense o prompt enviado numa versão bem mais curta e direta…</textarea><div class="ipx-row"><button class="ipx-b1 ipx-sm">Salvar</button><button class="ipx-b3 ipx-sm" data-edit>Cancelar</button></div></div></div></div></div>
+            </div>
+            <div class="ipx-pactions"><button class="ipx-b2">+ Novo preset</button><button class="ipx-b3">Restaurar padrões</button></div>
+          </section>
+          <section class="ipx-cd ipx-swrow">
+            <div><h2 class="ipx-t">Usar exemplos (few-shot)</h2><p class="ipx-help">Cada preset manda um exemplo (entrada → saída) como turnos de conversa antes do seu texto. Costuma melhorar a qualidade da resposta da API.</p></div>
+            <button class="ipx-sw on"></button>
+          </section>
+        </div>
+      </section>
+
+      <!-- ═════════════ API ═════════════ -->
+      <section class="ipx-pg" data-pg="api" hidden>
+        <header class="ipx-head"><h1 class="ipx-h1 sm">API</h1><p class="ipx-lead">O provedor e o modelo que refinam o seu texto.</p></header>
+        <div class="ipx-stack">
+          <section class="ipx-cd">
+            <div class="ipx-cd-h"><h2 class="ipx-t">Provedor</h2></div>
+            <div class="ipx-prov" id="prov"><span class="ipx-ring" id="pring"></span>
+              <button class="ipx-pt on" data-host="api.openai.com"><span class="lg"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#10A37F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11.217 19.384a3.501 3.501 0 0 0 6.783 -1.217v-5.167l-6 -3.35"/><path d="M5.214 15.014a3.501 3.501 0 0 0 4.446 5.266l4.34 -2.534v-6.946"/><path d="M6 7.63c-1.391 -.236 -2.787 .395 -3.534 1.689a3.474 3.474 0 0 0 1.271 4.745l4.263 2.514l6 -3.348"/><path d="M12.783 4.616a3.501 3.501 0 0 0 -6.783 1.217v5.067l6 3.45"/><path d="M18.786 8.986a3.501 3.501 0 0 0 -4.446 -5.266l-4.34 2.534v6.946"/><path d="M18 16.302c1.391 .236 2.787 -.395 3.534 -1.689a3.474 3.474 0 0 0 -1.271 -4.745l-4.308 -2.514l-5.955 3.42"/></svg></span>OpenAI</button>
+              <button class="ipx-pt" data-host="api.anthropic.com"><span class="lg"><svg viewBox="0 0 24 24" width="17" height="17" fill="#D97757"><path d="M6.57 3.52h3.767L16.906 20h-3.674l-1.343-3.461H5.017L3.673 20H0L6.57 3.522zm4.132 9.959L8.453 7.687 6.205 13.48H10.7z"/><path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48z"/></svg></span>Anthropic</button>
+              <button class="ipx-pt" data-host="generativelanguage.googleapis.com"><span class="lg"><svg viewBox="0 0 24 24" width="17" height="17" fill="#8E75B2"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z"/></svg></span>Gemini</button>
+              <button class="ipx-pt" data-host="api.deepseek.com"><span class="lg"><svg viewBox="0 0 24 24" width="17" height="17" fill="#4D6BFE"><circle cx="12" cy="12" r="7"/></svg></span>DeepSeek</button>
+              <button class="ipx-pt" data-host="api.x.ai"><span class="lg"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6.469 8.776L16.512 23h-4.464L2.005 8.776H6.47z"/><path d="M6.465 16.676l2.233 3.164L6.467 23H2l4.465-6.324z"/><path d="M22 1l-9.952 14.095-2.233-3.163L17.533 1H22z"/><path d="M22 2.582V23h-3.659V7.764L22 2.582z"/></svg></span>xAI</button>
+              <button class="ipx-pt" data-host="openrouter.ai"><span class="lg"><svg viewBox="0 0 24 24" width="17" height="17" fill="#64748B"><path d="M16.778 1.844v1.919q-.569-.026-1.138-.032-.708-.008-1.415.037c-1.93.126-4.023.728-6.149 2.237-2.911 2.066-2.731 1.95-4.14 2.75-.396.223-1.342.574-2.185.798-.841.225-1.753.333-1.751.333v4.229s.768.108 1.61.333c.842.224 1.789.575 2.185.799 1.41.798 1.228.683 4.14 2.75 2.126 1.509 4.22 2.11 6.148 2.236.88.058 1.716.041 2.555.005v1.918l7.222-4.168-7.222-4.17v2.176c-.86.038-1.611.065-2.278.021-1.364-.09-2.417-.357-3.979-1.465-2.244-1.593-2.866-2.027-3.68-2.508.889-.518 1.449-.906 3.822-2.59 1.56-1.109 2.614-1.377 3.978-1.466.667-.044 1.418-.017 2.278.02v2.176L24 6.014Z"/></svg></span>OpenRouter</button>
+              <button class="ipx-pt" data-host="seu-servidor.local"><span class="lg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></span>Personalizado</button>
+            </div>
+            <p class="ipx-priv"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg><span>A cada imprompt, seu texto é enviado para <b id="host">api.openai.com</b>.</span></p>
+            <label class="ipx-lab">Base URL</label>
+            <input class="ipx-in ro" value="https://api.openai.com/v1" readonly>
+            <span class="ipx-hint">Definido pelo provedor. Escolha "Personalizado" para editar.</span>
+          </section>
+          <section class="ipx-cd">
+            <div class="ipx-cd-h"><h2 class="ipx-t">Modelo</h2></div>
+            <div class="ipx-dd" id="dd">
+              <button class="ipx-dd-btn"><span class="v" id="ddv">gpt-5.6-luna</span><span class="ipx-mtag">Sugestão para o Imprompt</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="ipx-dd-list">
+                <div class="ipx-opt sel"><span class="t">gpt-5.6-luna<span class="ipx-mtag">Sugestão</span></span><span class="d">US$ 0,20 entrada · US$ 0,80 saída / 1M tokens</span></div>
+                <div class="ipx-opt"><span class="t">gpt-5-nano</span><span class="d">US$ 0,05 entrada · US$ 0,40 saída / 1M tokens</span></div>
+                <div class="ipx-opt"><span class="t">gpt-5.6</span><span class="d">US$ 1,25 entrada · US$ 10,00 saída / 1M tokens</span></div>
+                <div class="ipx-opt"><span class="t">Personalizado…</span></div>
+              </div>
+            </div>
+            <div class="ipx-mi">
+              <div class="ipx-mi-h"><strong>GPT-5.6 Luna</strong><span class="ipx-mtag">Sugestão para o Imprompt</span></div>
+              <p>Rápido e barato, bom para reescrever e estruturar textos do dia a dia.</p>
+              <div class="ipx-bench">
+                <div class="ipx-ax"><div class="ipx-ax-k">qualidade</div><div class="ipx-ax-v">média<small>AA 25</small></div><div class="ipx-segs l2"><i class="on"></i><i class="on"></i><i></i></div></div>
+                <div class="ipx-ax"><div class="ipx-ax-k">velocidade</div><div class="ipx-ax-v">alta<small>182 t/s</small></div><div class="ipx-segs l3"><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+                <div class="ipx-ax"><div class="ipx-ax-k">custo</div><div class="ipx-ax-v">baixo</div><div class="ipx-segs l3"><i class="on"></i><i></i><i></i></div></div>
+              </div>
+              <div class="ipx-price"><span>Entrada<b>US$ 0,20</b></span><span>Saída<b>US$ 0,80</b></span><span>USD / 1 milhão de tokens</span></div>
+            </div>
+            <p class="ipx-help">Exemplo para GPT-5.6 Luna: ~US$ 0,0008 por refino com 1.000 tokens de entrada + 500 de saída.</p>
+          </section>
+          <section class="ipx-cd">
+            <div class="ipx-cd-h"><h2 class="ipx-t">Chave da API</h2></div>
+            <input class="ipx-in" type="password" placeholder="digite para trocar a chave">
+            <span class="ipx-hint">Salva separadamente para este endpoint. Opcional em localhost.</span>
+            <span class="ipx-saved"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Chave salva no cofre do sistema (sk-…TEST)</span>
+          </section>
+          <section class="ipx-cd ipx-swrow">
+            <div><h2 class="ipx-t">Priorizar velocidade</h2><p class="ipx-help">Usa o menor esforço de raciocínio compatível nos modelos conhecidos. Mais rápido para edição e tradução.</p></div>
+            <button class="ipx-sw on"></button>
+          </section>
+        </div>
+        <div class="ipx-apply"><button class="ipx-b1" id="applyBtn">Aplicar e testar</button><span class="ipx-ok" id="okPill"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Conectado</span></div>
+      </section>
+
+      <!-- ═════════════ ATALHO ═════════════ -->
+      <section class="ipx-pg" data-pg="atalho" hidden>
+        <header class="ipx-head"><h1 class="ipx-h1 sm">Atalho</h1><p class="ipx-lead">Como o Imprompt é acionado e para onde vai o resultado.</p></header>
+        <div class="ipx-stack">
+          <section class="ipx-cd">
+            <div class="ipx-cd-h"><h2 class="ipx-t">Atalho</h2></div>
+            <div class="ipx-recbox">
+              <button class="ipx-rec" id="rec"><span class="ipx-kbd">Ctrl</span><span class="ipx-plus">+</span><span class="ipx-kbd">C</span><span class="ipx-x2">× 2</span></button>
+              <span class="ipx-hint" style="margin:0" id="recHint">clique e pressione as teclas</span>
+            </div>
+            <div class="ipx-deb">
+              <div class="ipx-deb-l">Janela entre os 2 toques: <b id="debv">400 ms</b></div>
+              <div class="ipx-range" id="range"><span class="ipx-range-f" id="rf"></span><span class="ipx-range-k" id="rk"></span></div>
+              <div class="ipx-scale"><span>250 ms</span><span>600 ms</span></div>
+            </div>
+            <p class="ipx-help">O 1º toque copia a seleção; o 2º (dentro da janela) ativa o Imprompt. <b>Ctrl+C é o recomendado</b>: é ele que copia o texto.</p>
+          </section>
+          <div class="ipx-2col">
+            <section class="ipx-cd">
+              <div class="ipx-cd-h"><h2 class="ipx-t">Quando ativar</h2></div>
+              <div class="ipx-sg" data-sg="mode"><span class="ipx-sg-ind"></span><button class="on" data-help="Usa seu preset padrão na hora, sem mostrar nada. Mais rápido.">Instantâneo</button><button data-help="Abre o popup pra você escolher o preset a cada ativação.">Mostrar popup</button></div>
+              <p class="ipx-help" data-sg-help>Usa seu preset padrão na hora, sem mostrar nada. Mais rápido.</p>
+            </section>
+            <section class="ipx-cd">
+              <div class="ipx-cd-h"><h2 class="ipx-t">O que fazer com o resultado</h2></div>
+              <div class="ipx-sg" data-sg="out"><span class="ipx-sg-ind"></span><button class="on" data-help="Troca o texto selecionado pelo resultado, automaticamente.">Substituir</button><button data-help="Coloca o resultado na área de transferência. Você dá Ctrl+V onde quiser.">Copiar</button></div>
+              <p class="ipx-help" data-sg-help>Troca o texto selecionado pelo resultado, automaticamente.</p>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════ CONFIGURAÇÕES ═════════════ -->
+      <section class="ipx-pg" data-pg="config" hidden>
+        <header class="ipx-head"><h1 class="ipx-h1 sm">Configurações</h1><p class="ipx-lead">Atualizações, inicialização e idioma.</p></header>
+        <div class="ipx-stack">
+          <div class="ipx-2col">
+            <section class="ipx-cd">
+              <h2 class="ipx-t">Atualizações</h2>
+              <div class="ipx-ver">v0.1.6<small>instalada</small></div>
+              <div class="ipx-upd-s"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Você está usando a versão mais recente.</div>
+              <button class="ipx-b2">Verificar atualizações</button>
+            </section>
+            <div class="ipx-stack">
+              <section class="ipx-cd ipx-swrow"><div><h2 class="ipx-t">Iniciar com o sistema</h2><p class="ipx-help">Abre junto com o sistema, escondido na bandeja.</p></div><button class="ipx-sw"></button></section>
+              <section class="ipx-cd"><h2 class="ipx-t" style="margin-bottom:12px">Idioma</h2><div class="ipx-sg" data-sg="lang"><span class="ipx-sg-ind"></span><button>English</button><button class="on">Português</button></div></section>
+            </div>
+          </div>
+          <section class="ipx-cd ipx-swrow">
+            <div><h2 class="ipx-t">Tema</h2><p class="ipx-help">Sistema acompanha o modo claro ou escuro do seu SO.</p></div>
+            <div class="ipx-sg" data-sg="theme"><span class="ipx-sg-ind"></span><button class="on" data-theme="light">Sistema</button><button data-theme="light">Claro</button><button data-theme="dark">Escuro</button></div>
+          </section>
+          <section class="ipx-support">
+            <span class="hi"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12.6 12 20l-7.5-7.4A5 5 0 1 1 12 6a5 5 0 1 1 7.5 6.6z"/></svg></span>
+            <div><h3>Apoiar o Imprompt</h3><p>Open-source e gratuito. Se ele te ajuda, você pode apoiar o projeto.</p></div>
+            <button class="ipx-b2"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M19.5 12.6 12 20l-7.5-7.4A5 5 0 1 1 12 6a5 5 0 1 1 7.5 6.6z"/></svg>Doar</button>
+          </section>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div></div>
+</div>
+
+<script>
+(function(){
+  var root=document.getElementById('proto');
+  var SPRING='linear(0,0.052 1.7%,0.195 3.6%,0.393 5.9%,0.604 8.6%,0.774 11.4%,0.892 14.4%,0.961 17.6%,0.998 21.1%,1.014 25.1%,1.017 30%,1.012 36.5%,1.003 47.6%,0.999 62%,1)';
+  var OUT='cubic-bezier(.16,1,.3,1)';
+  var ORDER=['inicio','historico','presets','api','atalho','config'];
+  var cur='inicio';
+  var scroll=document.getElementById('scroll');
+  var pages={};root.querySelectorAll('.ipx-pg').forEach(function(p){pages[p.dataset.pg]=p;});
+
+  // Ajusta a janela à largura disponível.
+  function fit(){root.querySelectorAll('.ipx-stage').forEach(function(s){s.firstElementChild.style.zoom=Math.min(1,s.clientWidth/920);});}
+  window.addEventListener('resize',fit);fit();setTimeout(fit,300);
+
+  // Indicador do rail: um bloco só que desliza entre os itens.
+  var rail=document.getElementById('rail'),ind=document.getElementById('ind');
+  function moveInd(to,instant){
+    var item=rail.querySelector('.ipx-ni[data-go="'+to+'"]:not(.ipx-conn)');if(!item)return;
+    var ico=item.querySelector('.ipx-ni-ico');
+    var y=item.offsetTop+ico.offsetTop;
+    if(instant){ind.style.transition='none';}
+    ind.style.transform='translateY('+y+'px)';
+    if(instant){ind.offsetHeight;ind.style.transition='';}
+    rail.querySelectorAll('.ipx-ni').forEach(function(n){n.classList.toggle('on',n===item);});
+  }
+
+  // Troca de página: sai rápido, entra com molas em cascata (direção pelo menu).
+  function go(to){
+    if(!pages[to]||to===cur)return;
+    var dir=ORDER.indexOf(to)>ORDER.indexOf(cur)?1:-1;
+    var outEl=pages[cur],inEl=pages[to];cur=to;moveInd(to);
+    var a=outEl.animate([{opacity:1,transform:'none',filter:'blur(0)'},{opacity:0,transform:'translateY('+(-10*dir)+'px)',filter:'blur(3px)'}],{duration:140,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'});
+    a.onfinish=function(){
+      outEl.hidden=true;a.cancel();inEl.hidden=false;scroll.scrollTop=0;
+      enter(inEl,dir);
+    };
+  }
+  function enter(el,dir){
+    var kids=el.querySelectorAll(':scope > *, :scope > .ipx-stack > *, :scope > .ipx-top > *');
+    var i=0;kids.forEach(function(k){if(k.classList.contains('ipx-stack')||k.classList.contains('ipx-top'))return;
+      k.animate([{opacity:0,transform:'translateY('+(16*dir)+'px)'},{opacity:1,transform:'none'}],{duration:700,delay:i*45,easing:SPRING,fill:'backwards'});i++;});
+    if(el.dataset.pg==='inicio')playHome();
+    syncSegs(el);placeRings();
+  }
+  root.addEventListener('click',function(e){var t=e.target.closest('[data-go]');if(t&&root.contains(t)){go(t.dataset.go);}});
+
+  // Início: números contam, barras crescem, a linha se desenha.
+  var DATA={cost:{k:'Gastos por mês',v:'US$ 0,42',vals:[.12,.31,.22,.38,.29,.42]},count:{k:'Imprompts por mês',v:'132',vals:[38,97,70,121,88,132]}};
+  var metric='cost';
+  function fmt(n,dec){return n.toFixed(dec).replace('.',',');}
+  function countUp(el){var to=parseFloat(el.dataset.count),dec=+el.dataset.dec||0,suf=el.dataset.suf||'',pre=el.dataset.pre||'';var t0=performance.now(),D=900;
+    (function f(t){var p=Math.min(1,(t-t0)/D);var e=1-Math.pow(2,-10*p);el.textContent=pre+fmt(to*(p>=1?1:e),dec)+suf;if(p<1)requestAnimationFrame(f);})(t0);}
+  function drawBars(stagger){var d=DATA[metric];var max=Math.max.apply(null,d.vals);
+    document.querySelectorAll('#chart .ipx-fill').forEach(function(f,i){var h=Math.round(d.vals[i]/max*100);
+      if(stagger){f.style.transition='none';f.style.height='0%';f.offsetHeight;f.style.transition='height .8s '+SPRING+' '+(0.12+i*0.05)+'s';}
+      else{f.style.transition='';}
+      f.style.height=h+'%';});
+    document.getElementById('chartK').textContent=d.k;document.getElementById('chartV').textContent=d.v;}
+  function playHome(){root.querySelectorAll('[data-pg=inicio] [data-count]').forEach(countUp);drawBars(true);
+    var sp=root.querySelector('.spark');sp.style.strokeDasharray='1';sp.animate([{strokeDashoffset:1},{strokeDashoffset:0}],{duration:1100,delay:250,easing:OUT,fill:'backwards'});
+    root.querySelector('.spark-dot').animate([{opacity:0,transform:'scale(.2)'},{opacity:1,transform:'none'}],{duration:500,delay:1150,easing:SPRING,fill:'backwards'});}
+
+  // Segmentados: a peça clara desliza até a opção escolhida.
+  function placeSeg(sg,instant){var on=sg.querySelector('button.on')||sg.querySelector('button');var ind=sg.querySelector('.ipx-sg-ind');
+    if(instant)ind.style.transition='none';ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+on.offsetLeft+'px)';if(instant){ind.offsetHeight;ind.style.transition='';}}
+  function syncSegs(scope){(scope||root).querySelectorAll('.ipx-sg').forEach(function(sg){placeSeg(sg,true);});}
+  root.querySelectorAll('.ipx-sg').forEach(function(sg){sg.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+    sg.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});placeSeg(sg);
+    var help=sg.parentElement.querySelector('[data-sg-help]');if(help&&b.dataset.help){help.animate([{opacity:0,transform:'translateY(3px)'},{opacity:1,transform:'none'}],{duration:320,easing:OUT});help.textContent=b.dataset.help;}
+    if(sg.dataset.sg==='metric'){metric=b.dataset.v;drawBars(false);}
+    if(sg.dataset.sg==='theme'&&b.dataset.theme){setTheme(b.dataset.theme);}
+  });});
+
+  // Anel que desliza entre blocos (preset padrão e provedor).
+  function placeRing(grid,ring,instant){var on=grid.querySelector('.on');if(!on)return;
+    if(instant)ring.style.transition='none';ring.style.width=on.offsetWidth+'px';ring.style.height=on.offsetHeight+'px';ring.style.transform='translate('+on.offsetLeft+'px,'+on.offsetTop+'px)';if(instant){ring.offsetHeight;ring.style.transition='';}}
+  function placeRings(){placeRing(document.getElementById('ptl'),document.getElementById('ring'),true);placeRing(document.getElementById('prov'),document.getElementById('pring'),true);}
+  document.getElementById('ptl').addEventListener('click',function(e){var b=e.target.closest('.ipx-ptile');if(!b)return;this.querySelectorAll('.ipx-ptile').forEach(function(x){x.classList.toggle('on',x===b);});placeRing(this,document.getElementById('ring'));});
+  document.getElementById('prov').addEventListener('click',function(e){var b=e.target.closest('.ipx-pt');if(!b)return;this.querySelectorAll('.ipx-pt').forEach(function(x){x.classList.toggle('on',x===b);});placeRing(this,document.getElementById('pring'));
+    var h=document.getElementById('host');h.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:360,easing:OUT});h.textContent=b.dataset.host;});
+
+  // Chaves, acordeões, dropdown, copiar, aplicar, gravar atalho, slider.
+  root.querySelectorAll('.ipx-sw').forEach(function(s){s.addEventListener('click',function(){s.classList.toggle('on');});});
+  root.querySelectorAll('.ipx-acc-h').forEach(function(h){h.addEventListener('click',function(){h.parentElement.classList.toggle('open');});});
+  root.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){var it=b.closest('.ipx-pit');var was=it.classList.contains('open');root.querySelectorAll('.ipx-pit.open').forEach(function(o){o.classList.remove('open');});if(!was)it.classList.add('open');});});
+  var dd=document.getElementById('dd');dd.querySelector('.ipx-dd-btn').addEventListener('click',function(){dd.classList.toggle('open');});
+  dd.querySelectorAll('.ipx-opt').forEach(function(o){o.addEventListener('click',function(){dd.querySelectorAll('.ipx-opt').forEach(function(x){x.classList.toggle('sel',x===o);});document.getElementById('ddv').textContent=o.querySelector('.t').firstChild.textContent.trim();dd.classList.remove('open');});});
+  root.querySelectorAll('.ipx-copy').forEach(function(c){c.addEventListener('click',function(){c.classList.add('done');setTimeout(function(){c.classList.remove('done');},1500);});});
+  var ab=document.getElementById('applyBtn'),ok=document.getElementById('okPill');
+  ab.addEventListener('click',function(){ok.style.visibility='hidden';ab.innerHTML='<span class="ipx-spin"></span>Testando…';setTimeout(function(){ab.textContent='Aplicar e testar';ok.style.visibility='';ok.classList.remove('pop');ok.offsetWidth;ok.classList.add('pop');},1100);});
+  var rec=document.getElementById('rec'),recHtml=rec.innerHTML,hint=document.getElementById('recHint');
+  rec.addEventListener('click',function(){if(rec.classList.toggle('rec')){rec.innerHTML='<span class="ipx-rec-p">Pressione o atalho<span class="ipx-caret"></span></span>';hint.textContent='Esc cancela';}else{rec.innerHTML=recHtml;hint.textContent='clique e pressione as teclas';rec.querySelectorAll('.ipx-kbd').forEach(function(k,i){k.animate([{transform:'translateY(-6px)',opacity:0},{transform:'none',opacity:1}],{duration:520,delay:i*60,easing:SPRING,fill:'backwards'});});}});
+  var range=document.getElementById('range'),rf=document.getElementById('rf'),rk=document.getElementById('rk');
+  function setDeb(ms){var p=(ms-250)/350*100;rf.style.width=p+'%';rk.style.left=p+'%';document.getElementById('debv').textContent=ms+' ms';}
+  range.addEventListener('click',function(e){var r=range.getBoundingClientRect();var p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));setDeb(Math.round((250+p*350)/10)*10);});
+  setDeb(400);
+
+  // Tema do protótipo.
+  function setTheme(t){root.setAttribute('data-t',t);document.getElementById('thL').classList.toggle('on',t==='light');document.getElementById('thD').classList.toggle('on',t==='dark');}
+  document.getElementById('thL').addEventListener('click',function(){setTheme('light');});
+  document.getElementById('thD').addEventListener('click',function(){setTheme('dark');});
+
+  // Estado inicial.
+  requestAnimationFrame(function(){moveInd(cur,true);enter(pages[cur],1);});
+  setTimeout(function(){moveInd(cur,true);syncSegs(pages[cur]);},350);
+})();
+</script>
+
+</body></html>
