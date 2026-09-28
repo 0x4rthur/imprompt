@@ -195,6 +195,12 @@ export default function Palette() {
     }
   }, [loading, refined, error]);
 
+  // Preset escolhido pelo teclado (1–9) pode estar fora da vista numa janela
+  // pequena ou com muitos presets: traz o chip ativo pra vista.
+  useEffect(() => {
+    paletteRef.current?.querySelector<HTMLElement>(".chip.active")?.scrollIntoView?.({ block: "nearest" });
+  }, [presetId]);
+
   // rola o resultado pra vista quando ele aparece; o botão "Imprompt" (que tinha o
   // foco) sai do rodapé, então o foco volta pro diálogo (Enter passa a aplicar).
   useEffect(() => {
