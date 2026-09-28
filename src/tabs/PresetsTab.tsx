@@ -1,12 +1,16 @@
-// PresetsTab.tsx — aba "Presets": preset padrão, CRUD dos presets do usuário e o
-// toggle de few-shot. O form de edição abre como ACORDEON inline embaixo do preset
-// clicado (expande/colapsa suave). O rascunho (draft) e o erro são locais.
+// PresetsTab.tsx — aba "Presets": preset padrão (blocos com um contorno que
+// DESLIZA até o escolhido), a lista de presets (editar/duplicar/excluir, com o
+// formulário abrindo como acordeon DENTRO do card) e a chave de few-shot. O
+// rascunho (draft) e o erro são locais.
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { motion } from "motion/react";
 import type { Preset, PresetDraft, Settings } from "../types";
 import { presetHue } from "../presetColor";
 import { useT } from "../i18n/useT";
+import { TrashIcon } from "../ui/icons";
+import { spring } from "../motion";
 
 type Props = {
   settings: Settings;
@@ -17,21 +21,8 @@ type Props = {
 
 // Âncora especial: form de "novo preset" abre embaixo da lista (não num preset).
 const NEW = "__new__";
-// Duração do colapso do acordeon (precisa casar com a transition do CSS).
-const ANIM_MS = 240;
-
-// Ícone de lixeira (linha, herda a cor via currentColor).
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 7h16" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-      <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-    </svg>
-  );
-}
+// Duração do fechamento do acordeon (casa com a transition do CSS).
+const ANIM_MS = 300;
 
 export default function PresetsTab({ settings, update, presets, loadPresets }: Props) {
   const { t } = useT();
@@ -140,18 +131,20 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
   }, [confirmId]);
 
   // O form do acordeon (renderizado dentro da âncora ativa). Fica montado também
-  // durante o `closing`, pra animar o colapso com o conteúdo visível.
+  // durante o `closing`, pra animar o colapso com o conteúdo visível. O nome já
+  // abre com o foco, pronto pra digitar.
   const formNode = draft && (
-    <div className="mp-form">
+    <div className="pl-form">
       <input
-        className="mp-input"
+        className="input"
+        autoFocus
         aria-label={t("presets.form.name.aria")}
         placeholder={t("presets.form.name.placeholder")}
         value={draft.label}
         onChange={(e) => setDraft({ ...draft, label: e.target.value })}
       />
       <textarea
-        className="mp-input"
+        className="input"
         aria-label={t("presets.form.instruction.aria")}
         rows={3}
         placeholder={t("presets.form.instruction.placeholder")}
@@ -159,101 +152,111 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
         onChange={(e) => setDraft({ ...draft, instruction: e.target.value })}
       />
       <input
-        className="mp-input"
+        className="input"
         aria-label={t("presets.form.exampleInput.aria")}
         placeholder={t("presets.form.exampleInput.placeholder")}
         value={draft.example_input}
         onChange={(e) => setDraft({ ...draft, example_input: e.target.value })}
       />
       <input
-        className="mp-input"
+        className="input"
         aria-label={t("presets.form.exampleOutput.aria")}
         placeholder={t("presets.form.exampleOutput.placeholder")}
         value={draft.example_output}
         onChange={(e) => setDraft({ ...draft, example_output: e.target.value })}
       />
-      <div className="mp-form-actions">
-        <button className="btn-dl primary" onClick={savePreset}>{draft.id ? t("presets.save") : t("presets.create")}</button>
-        <button className="btn-dl" onClick={closeForm}>{t("presets.cancel")}</button>
+      <div className="pl-form-actions">
+        <button className="btn-dl primary sm" onClick={savePreset}>{draft.id ? t("presets.save") : t("presets.create")}</button>
+        <button className="btn-ghost" onClick={closeForm}>{t("presets.cancel")}</button>
         {presetErr && <span className="field-err">{presetErr}</span>}
       </div>
     </div>
   );
 
   return (
-    <section className="card">
-      {/* Preset padrão */}
-      <div className="field">
-        <h2 className="sec-title" id="default-preset-title">{t("presets.default")}</h2>
-        <div className="chips" role="group" aria-labelledby="default-preset-title">
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              className={"chip" + (settings.default_preset === p.id ? " active" : "")}
-              style={{ "--pc-h": presetHue(p.id) } as CSSProperties}
-              aria-pressed={settings.default_preset === p.id}
-              onClick={() => update({ default_preset: p.id })}
-            >
-              <span className="p-dot" aria-hidden="true" />
-              {p.label}
-            </button>
-          ))}
+    <div className="page-stack">
+      {/* Preset padrão: blocos; o contorno (layoutId) desliza até o escolhido. */}
+      <section className="card" data-enter>
+        <div className="card-head">
+          <h2 className="card-title" id="default-preset-title">{t("presets.default")}</h2>
+          <p className="help">{t("presets.default.help")}</p>
         </div>
-        <p className="help">{t("presets.default.help")}</p>
-      </div>
+        <div className="ptiles" role="group" aria-labelledby="default-preset-title">
+          {presets.map((p) => {
+            const on = settings.default_preset === p.id;
+            return (
+              <button
+                key={p.id}
+                className={"ptile" + (on ? " active" : "")}
+                style={{ "--pc-h": presetHue(p.id) } as CSSProperties}
+                aria-pressed={on}
+                title={p.label}
+                onClick={() => update({ default_preset: p.id })}
+              >
+                {on && <motion.span className="preset-ring" layoutId="preset-ring" transition={spring.snappy} aria-hidden="true" />}
+                <span className="ptile-sq" aria-hidden="true"><span className="p-dot lg" /></span>
+                <span className="ptile-label">{p.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-      {/* Presets (criar/editar/duplicar/excluir) — edição em acordeon inline */}
-      <div className="field">
-        <h2 className="sec-title">{t("presets.list")}</h2>
-        <p className="help">{t("presets.list.help")}</p>
-        <div className="mypresets">
+      {/* Presets (criar/editar/duplicar/excluir) — edição em acordeon dentro do card */}
+      <section className="card" data-enter>
+        <div className="card-head">
+          <h2 className="card-title">{t("presets.list")}</h2>
+          <p className="help">{t("presets.list.help")}</p>
+        </div>
+        <div className="plist">
           {presets.map((p) => {
             const open = anchor === p.id && !closing;
+            const armed = confirmId === p.id;
             return (
-              <div className="mp-item" key={p.id}>
-                <div className="mp-row">
+              <div className={"pl-item" + (open ? " open" : "")} key={p.id}>
+                <div className="pl-row">
                   <span className="p-dot" style={{ "--pc-h": presetHue(p.id) } as CSSProperties} aria-hidden="true" />
-                  <span className="mp-label">{p.label}</span>
-                  {settings.default_preset === p.id && <span className="mp-badge default">{t("presets.badge.default")}</span>}
-                  {p.edited && <span className="mp-badge">{t("presets.badge.edited")}</span>}
-                  <button className="btn-dl" aria-expanded={anchor === p.id} onClick={() => toggleEdit(p)}>{t("presets.edit")}</button>
-                  <button className="btn-dl" onClick={() => startDuplicatePreset(p)}>{t("presets.duplicate")}</button>
+                  <span className="pl-name" title={p.label}>{p.label}</span>
+                  {settings.default_preset === p.id && <span className="badge ink">{t("presets.badge.default")}</span>}
+                  {p.edited && <span className="badge">{t("presets.badge.edited")}</span>}
+                  <button className="btn-dl sm" aria-expanded={anchor === p.id} onClick={() => toggleEdit(p)}>{t("presets.edit")}</button>
+                  <button className="btn-ghost" onClick={() => startDuplicatePreset(p)}>{t("presets.duplicate")}</button>
                   <button
-                    ref={confirmId === p.id ? armedRef : undefined}
-                    className={"trash-btn" + (confirmId === p.id ? " armed" : "")}
-                    onClick={() => (confirmId === p.id ? removePreset(p) : setConfirmId(p.id))}
-                    title={confirmId === p.id ? t("presets.delete.confirm") : t("presets.delete")}
-                    aria-label={confirmId === p.id ? t("presets.delete.confirm") : t("presets.delete")}
+                    ref={armed ? armedRef : undefined}
+                    className={"trash-btn" + (armed ? " armed" : "")}
+                    onClick={() => (armed ? removePreset(p) : setConfirmId(p.id))}
+                    title={armed ? t("presets.delete.confirm") : t("presets.delete")}
+                    aria-label={armed ? t("presets.delete.confirm") : t("presets.delete")}
                   >
-                    <TrashIcon />
+                    <TrashIcon size={15} />
                     <span className="trash-label">{t("presets.delete")}</span>
                   </button>
                 </div>
-                <div className={"mp-acc" + (open ? " open" : "")}>
-                  <div className="mp-acc-inner">{anchor === p.id && formNode}</div>
+                <div className={"pl-acc" + (open ? " open" : "")}>
+                  <div className="pl-acc-inner">{anchor === p.id && formNode}</div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        <div className="mp-actions">
+        <div className="pl-actions">
           <button className="btn-dl" aria-expanded={anchor === NEW} onClick={toggleNew}>{t("presets.new")}</button>
           {confirmId === "__restore__" ? (
             <button ref={armedRef} className="btn-dl danger" onClick={restoreDefaults} title={t("presets.restore.confirm.title")}>{t("presets.restore.confirm")}</button>
           ) : (
-            <button className="btn-dl" onClick={() => setConfirmId("__restore__")} title={t("presets.restore.title")}>{t("presets.restore")}</button>
+            <button className="btn-ghost" onClick={() => setConfirmId("__restore__")} title={t("presets.restore.title")}>{t("presets.restore")}</button>
           )}
         </div>
-        <div className={"mp-acc" + (anchor === NEW && !closing ? " open" : "")}>
-          <div className="mp-acc-inner">{anchor === NEW && formNode}</div>
+        <div className={"pl-acc" + (anchor === NEW && !closing ? " open" : "")}>
+          <div className="pl-acc-inner">{anchor === NEW && <div className="pl-new">{formNode}</div>}</div>
         </div>
-      </div>
+      </section>
 
       {/* Exemplos few-shot */}
-      <div className="field">
+      <section className="card" data-enter>
         <label className="switch-row">
-          <span className="sec-title">{t("presets.fewShot")}</span>
+          <span className="card-title">{t("presets.fewShot")}</span>
           <input type="checkbox" className="switch" checked={settings.use_examples} onChange={(e) => update({ use_examples: e.target.checked })} />
         </label>
         <p className="help">
@@ -261,7 +264,7 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
             ? t("presets.fewShot.on.help")
             : t("presets.fewShot.off.help")}
         </p>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

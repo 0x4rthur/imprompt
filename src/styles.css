@@ -303,6 +303,14 @@ fieldset.api-fields:disabled{opacity:.72}
 .card{padding:18px; border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
 .tag{flex:none; display:inline-block; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:3px 8px; border-radius:6px;
   font:600 10.5px var(--sans); letter-spacing:.01em; color:oklch(var(--tag-fg-l) var(--tag-fg-c) var(--pc-h, 255)); background:oklch(var(--tag-bg-l) var(--tag-bg-c) var(--pc-h, 255))}
+.page-stack{display:flex; flex-direction:column; gap:12px}
+.grid-2{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; align-items:start}
+.card-head{margin-bottom:14px}
+.card-title{display:block; margin:0; font:600 14.5px/1.25 var(--sans); letter-spacing:-.012em; color:var(--ink)}
+.card-head .help{margin-top:5px}
+.card .switch-row + .help{margin-top:8px}
+.badge{flex:none; padding:3px 7px; border-radius:6px; font:700 9.5px var(--sans); letter-spacing:.07em; text-transform:uppercase; color:var(--stone); background:var(--sunken); box-shadow:var(--inset)}
+.badge.ink{color:var(--on-ink); background:var(--ink); box-shadow:none}
 .swap-btn{overflow:hidden}
 .swap{display:inline-flex; align-items:center; gap:6px}
 
@@ -407,16 +415,6 @@ input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; 
 input[type=range]:focus-visible{outline:none}
 input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(--focus-ring)}
 
-/* Botão de excluir preset: lixeira compacta que, ao ARMAR (1º clique), expande
-   revelando "Excluir" e se preenche de vermelho. 2º clique exclui; clicar fora
-   cancela (desarma). */
-.trash-btn{display:inline-flex; align-items:center; height:30px; padding:0 7px; cursor:pointer; color:var(--danger); background:transparent; border:1px solid var(--danger-line); border-radius:var(--rad-btn); transition:background .18s ease, border-color .18s ease, color .18s ease, padding .2s var(--ease-out-expo)}
-.trash-btn svg{flex:none}
-.trash-btn:hover{border-color:var(--danger); background:var(--danger-soft)}
-.trash-label{display:inline-block; max-width:0; overflow:hidden; white-space:nowrap; opacity:0; font-size:12.5px; transition:max-width .22s var(--ease-out-expo), opacity .16s ease, margin-left .22s var(--ease-out-expo)}
-.trash-btn.armed{color:var(--on-ink); background:var(--danger); border-color:var(--danger); padding-right:11px}
-.trash-btn.armed:hover{opacity:.9}
-.trash-btn.armed .trash-label{max-width:64px; opacity:1; margin-left:6px}
 
 /* ── API: provedores, privacidade, ficha do modelo, barra de ação ────────── */
 .prov-grid{display:flex; flex-wrap:wrap; gap:8px}
@@ -639,22 +637,44 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
 .h-empty p{max-width:44ch; margin:0 auto; font:400 13px/1.6 var(--sans); color:var(--dim)}
 
 /* ── Presets ─────────────────────────────────────────────────────────────── */
-.mypresets{display:flex; flex-direction:column; margin-top:14px; border-top:1px solid var(--line)}
-.mp-item{display:flex; flex-direction:column; border-bottom:1px solid var(--line)}
-.mp-row{display:flex; align-items:center; gap:10px; min-height:48px; padding:8px 2px}
-.mp-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13.5px; font-weight:600; color:var(--ink)}
-.mp-badge{flex:none; padding:2px 6px; font-size:10.5px; font-weight:500; letter-spacing:.05em; text-transform:uppercase; color:var(--stone); border:1px solid var(--line-2); border-radius:4px}
-.mp-badge.default{color:var(--ink); border-color:var(--ink)}
-.mp-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px}
-/* Acordeon de edição: abre/fecha suave embaixo do preset (grid 0fr→1fr). */
-.mp-acc{display:grid; grid-template-rows:0fr; transition:grid-template-rows .24s var(--ease-out-expo)}
-.mp-acc.open{grid-template-rows:1fr}
-.mp-acc-inner{overflow:hidden; min-height:0}
-.mp-form{display:flex; flex-direction:column; gap:10px; margin:2px 0 14px; padding:14px; background:var(--surface-soft); border:1px solid var(--line); border-radius:var(--rad-card)}
-.mp-input{background:var(--bg)}
-textarea.mp-input{min-height:180px; resize:vertical; line-height:1.5}
-.mp-form-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
-.mp-form-actions .field-err{margin-top:0}
+/* Preset padrão: blocos; o contorno do escolhido (.preset-ring, layoutId) desliza. */
+.ptiles{display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px}
+.ptile{position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0; padding:12px 6px 11px; border:0; border-radius:var(--r-tile); cursor:pointer;
+  background:var(--sunken); box-shadow:var(--inset); text-align:center; font:600 11.5px/1.25 var(--sans); color:var(--dim); transition:color .25s, transform .4s var(--spring)}
+.ptile:hover{color:var(--ink); transform:translateY(-1px)}
+.ptile:active{transform:scale(.96); transition-duration:.08s}
+.ptile.active{color:var(--ink)}
+.preset-ring{position:absolute; inset:0; border-radius:var(--r-tile); background:var(--card); box-shadow:0 0 0 2px var(--ink), var(--sh-lift)}
+.ptile-sq{position:relative; width:36px; height:36px; display:grid; place-items:center; border-radius:calc(var(--r-tile) - 2px); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.ptile-label{position:relative; max-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word}
+
+/* Lista: linhas separadas por fios dentro do card; o form abre como acordeon. */
+.plist{margin:0 -4px}
+.pl-item{border-top:1px solid var(--line)}
+.pl-item:first-child{border-top:0}
+.pl-row{display:flex; align-items:center; gap:10px; min-height:50px; padding:8px 4px}
+.pl-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 13px var(--sans); color:var(--ink)}
+.pl-acc{display:grid; grid-template-rows:0fr; transition:grid-template-rows .5s var(--out)}
+.pl-acc.open{grid-template-rows:1fr}
+.pl-acc-inner{overflow:hidden; min-height:0}
+.pl-form{display:flex; flex-direction:column; gap:8px; margin:0 4px 12px; padding:12px; border-radius:var(--r-ctl); background:var(--sunken); box-shadow:var(--inset)}
+.pl-new .pl-form{margin:12px 0 0}
+.pl-form .input{background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.pl-form .input:focus{box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
+.pl-form textarea.input{min-height:150px; resize:vertical; line-height:1.5}
+.pl-form-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.pl-form-actions .field-err{margin-top:0}
+.pl-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px}
+
+/* Lixeira: ao ARMAR (1º clique) expande revelando "Excluir" e fica vermelha;
+   2º clique exclui; clicar fora desarma. */
+.trash-btn{display:inline-flex; align-items:center; height:30px; padding:0 7px; border:0; border-radius:var(--r-ctl); cursor:pointer; color:var(--danger); background:transparent;
+  box-shadow:inset 0 0 0 1px var(--danger-line); transition:background-color .2s, color .2s, padding .35s var(--spring)}
+.trash-btn svg{flex:none}
+.trash-btn:hover{background:var(--danger-soft)}
+.trash-label{display:inline-block; max-width:0; overflow:hidden; white-space:nowrap; opacity:0; font:600 12px var(--sans); transition:max-width .35s var(--spring), opacity .2s, margin-left .35s var(--spring)}
+.trash-btn.armed{color:var(--on-ink); background:var(--danger); box-shadow:none; padding-right:11px}
+.trash-btn.armed .trash-label{max-width:80px; opacity:1; margin-left:6px}
 
 /* ── Atalho ──────────────────────────────────────────────────────────────── */
 /* Key-recorder: grava o atalho ao pressionar as teclas. */
