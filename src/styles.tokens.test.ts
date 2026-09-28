@@ -37,6 +37,30 @@ describe("menu lateral", () => {
   });
 });
 
+describe("acordeons", () => {
+  // O formulário de preset abre com o foco no nome enquanto o acordeon ainda tem
+  // altura 0: com overflow:hidden o foco ROLAVA o miolo (31px) e o topo do form
+  // só "caía" no lugar no fim da animação. overflow:clip corta sem rolar.
+  it.each([".pl-acc-inner", ".h-inner"])("%s corta o conteúdo sem virar área de rolagem", (selector) => {
+    const start = css.indexOf("\n" + selector + "{") + 1;
+    expect(start).toBeGreaterThan(0);
+    const body = css.slice(start + selector.length + 1, css.indexOf("}", start));
+    expect(body).toMatch(/overflow:\s*clip/);
+  });
+});
+
+describe("letreiro (Swap)", () => {
+  // Na troca "Copiar" → "Copiado", o rótulo que sai vira position:absolute e sobe
+  // 12px; só o botão POSICIONADO o corta na borda (senão ele vaza por cima).
+  it("o botão do letreiro é posicionado e corta o rótulo que sai", () => {
+    const start = css.indexOf("\n.swap-btn{") + 1;
+    expect(start).toBeGreaterThan(0);
+    const body = css.slice(start + ".swap-btn{".length, css.indexOf("}", start));
+    expect(body).toMatch(/position:\s*relative/);
+    expect(body).toMatch(/overflow:\s*(hidden|clip)/);
+  });
+});
+
 describe("tokens de tema", () => {
   it("todo token de cor do claro existe no escuro", () => {
     const light = tokens(":root");

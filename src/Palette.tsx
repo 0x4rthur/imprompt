@@ -156,7 +156,9 @@ export default function Palette() {
 
   // Fecha com animação de saída: marca closing (toca o pop-out) e esconde após ela.
   // O reset de closing fica no listener captured-text (no reuso), evitando flash.
+  // Com movimento reduzido não há saída animada: esconde na hora.
   const close = useCallback(() => {
+    if (reducedMotion()) { appWindow.hide(); return; }
     setClosing(true);
     window.setTimeout(() => { appWindow.hide(); }, 130);
   }, []);

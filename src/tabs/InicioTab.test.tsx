@@ -68,6 +68,23 @@ describe("Home", () => {
     expect(onNavigate).toHaveBeenCalledWith("motor");
   });
 
+  it("the spending count-up keeps the final value's decimals from the first frame", () => {
+    // Movimento ligado: o valor conta de 0 até US$ 3,27. Com as casas escolhidas
+    // pelo valor animado, o número passava de "0.0000" a "3.27" e mudava de largura.
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false, media: "", onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+      dispatchEvent: () => false,
+    }));
+    try {
+      render(<InicioTab settings={settings} usage={{ ...usage, cost_usd: 3.27 }} usageHistory={months}
+        presets={presets} history={[]} onNavigate={() => {}} />);
+      expect(screen.getByText(/^~US\$ [\d.,]+$/).textContent).toMatch(/^~US\$ \d+\.\d{2}$/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("config tiles open their tabs and keep long values readable", () => {
     const onNavigate = vi.fn();
     const long = { ...settings, api_model: "a-very-long-model-identifier-that-does-not-fit-anywhere" };
