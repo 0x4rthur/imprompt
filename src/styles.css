@@ -406,12 +406,6 @@ fieldset.api-fields:disabled{opacity:.72}
 .chip.active{color:var(--on-ink); background:var(--ink); border-color:var(--ink); font-weight:500}
 .p-dot{flex:none; display:inline-block; width:8px; height:8px; border-radius:2px; background:oklch(var(--dot-l) var(--dot-c) var(--pc-h, 250))}
 
-/* Slider (janela entre os toques): trilho preenchido até o valor (--fill). */
-input[type=range]{-webkit-appearance:none; appearance:none; display:block; width:100%; height:4px; margin:14px 0 0; cursor:pointer; border-radius:var(--pill); background:linear-gradient(var(--ink), var(--ink)) 0 / var(--fill, 50%) 100% no-repeat, var(--track); outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:var(--bg); border:2px solid var(--ink); box-shadow:0 1px 3px oklch(0.21 0.006 286 / .2); transition:box-shadow .15s}
-input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:var(--bg); border:2px solid var(--ink)}
-input[type=range]:focus-visible{outline:none}
-input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(--focus-ring)}
 
 
 /* ── API: provedores, privacidade, ficha do modelo, barra de ação ────────── */
@@ -688,43 +682,63 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 .trash-btn.armed .trash-label{max-width:80px; opacity:1; margin-left:6px}
 
 /* ── Atalho ──────────────────────────────────────────────────────────────── */
-/* Key-recorder: grava o atalho ao pressionar as teclas. */
-.trigger-rec-wrap{display:flex; align-items:center; flex-wrap:wrap; gap:14px}
-.trigger-rec{display:inline-flex; align-items:center; min-width:164px; min-height:48px; padding:8px 14px; cursor:pointer; background:var(--surface-soft); border:1px solid var(--line-2); border-radius:var(--rad-card); transition:border-color .18s, background .18s, box-shadow .18s}
-.trigger-rec:hover{border-color:var(--stone)}
-.trigger-rec.rec{border-color:var(--ink); background:var(--bg); box-shadow:0 0 0 3px var(--focus-ring)}
-.trigger-combo{display:inline-flex; align-items:center; gap:8px}
-.trigger-rec kbd{min-width:28px; padding:5px 9px; font-size:13px; font-weight:600; color:var(--ink)}
-.trigger-plus{font-size:15px; color:var(--faint)}
-.trigger-x2{margin-left:2px; font-size:13.5px; font-weight:600; color:var(--dim)}
-.trigger-rec-prompt{display:inline-flex; align-items:center; font-size:13px; font-weight:500; color:var(--ink)}
-.rec-caret{display:inline-block; width:2px; height:15px; margin-left:3px; background:var(--ink); animation:rec-blink 1.05s step-end infinite}
+/* Gravador: área afundada com as teclas elevadas; ao gravar, cursor piscando;
+   ao salvar um atalho novo, as teclas "caem" no lugar (cascata). */
+.rec-box{display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:14px; border-radius:var(--r-card); background:var(--sunken); box-shadow:var(--inset)}
+.rec-btn{display:inline-flex; align-items:center; min-height:56px; padding:10px 14px; border:0; border-radius:var(--r-ctl); cursor:pointer; background:var(--card); box-shadow:var(--sh-card), var(--hl);
+  transition:transform .4s var(--spring), box-shadow .2s}
+.rec-btn:hover{transform:translateY(-1px); box-shadow:var(--sh-lift), var(--hl)}
+.rec-btn.rec{box-shadow:0 0 0 3px var(--focus-ring), var(--sh-lift), var(--hl)}
+.rec-combo{display:inline-flex; align-items:center; gap:9px}
+.rec-combo kbd{min-width:46px; height:36px; padding:0 11px; font-size:14px; animation:key-drop .55s var(--spring) both}
+.rec-combo kbd:nth-of-type(2){animation-delay:.06s}
+@keyframes key-drop{from{opacity:0; transform:translateY(-8px)} to{opacity:1; transform:none}}
+.rec-combo .plus{font:500 15px var(--mono); color:var(--faint)}
+.rec-combo .x2{margin-left:2px; font:600 13.5px var(--mono); color:var(--dim)}
+.rec-prompt{display:inline-flex; align-items:center; padding:0 4px; font:600 13px var(--sans); color:var(--ink)}
+.rec-caret{display:inline-block; width:2px; height:17px; margin-left:3px; background:var(--ink); animation:rec-blink 1.05s step-end infinite}
 @keyframes rec-blink{50%{opacity:0}}
-.trigger-rec-edit{font-family:var(--sans); font-size:12.5px; color:var(--stone)}
-.trigger-rec-hint{font-family:var(--sans); font-size:12.5px; color:var(--amber-fg)}
+.rec-edit{font:400 12px var(--sans); color:var(--stone)}
+.rec-hint{font:500 12px var(--sans); color:var(--amber-fg)}
 
-/* Janela entre os toques: rótulo com valor + slider em largura útil + escala. */
-.debounce{max-width:440px; margin-top:22px}
-.debounce-label{font-family:var(--sans); font-size:13px; color:var(--body)}
-.debounce-label strong{font-family:var(--mono); font-weight:600; color:var(--ink)}
-.debounce-scale{display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--faint)}
+/* Janela entre os toques: rótulo com valor + trilho afundado + knob quadrado. */
+.debounce{max-width:470px; margin-top:18px}
+.debounce-label{font:400 12.5px var(--sans); color:var(--body)}
+.debounce-label strong{font:600 12.5px var(--mono); color:var(--ink)}
+.range{-webkit-appearance:none; appearance:none; display:block; width:100%; height:8px; margin:14px 0 0; cursor:pointer; border-radius:4px; outline:none;
+  background:linear-gradient(var(--ink), var(--ink)) 0 / var(--fill, 50%) 100% no-repeat, var(--sunken-2); box-shadow:var(--inset)}
+.range::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:22px; height:22px; border-radius:7px; background:var(--card); box-shadow:var(--sh-knob), var(--hl); transition:transform .3s var(--spring), box-shadow .2s}
+.range:hover::-webkit-slider-thumb{transform:scale(1.08)}
+.range:active::-webkit-slider-thumb{transform:scale(.94)}
+.range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(--focus-ring), var(--sh-knob)}
+.range::-moz-range-thumb{width:20px; height:20px; border:0; border-radius:7px; background:var(--card); box-shadow:var(--sh-knob)}
+.debounce-scale{display:flex; justify-content:space-between; margin-top:9px; font:500 10.5px var(--mono); color:var(--faint)}
 
 /* ── Configurações ───────────────────────────────────────────────────────── */
-.update-status{margin:10px 0 12px; font-family:var(--sans); font-size:13px; line-height:1.5; color:var(--dim)}
-.update-status progress{display:block; width:100%; height:6px; margin-top:6px; accent-color:var(--mint-fg)}
+.ver{margin:10px 0 0; font:600 30px/1 var(--sans); letter-spacing:-.04em; color:var(--ink); font-variant-numeric:tabular-nums}
+.ver small{margin-left:8px; font:500 12px var(--sans); letter-spacing:0; color:var(--stone)}
+.update-status{margin:10px 0 14px; font:400 12.5px/1.5 var(--sans); color:var(--dim)}
+.update-status progress{display:block; width:100%; height:6px; margin-top:8px; accent-color:var(--mint-fg)}
 .update-status .field-err{margin-top:0}
+.row-card{display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap}
+.row-text{min-width:0; flex:1 1 240px}
 
-/* Apoio / doação. O ícone hand-heart anima no hover do botão. */
-.support{padding-top:24px; border-top:1px solid var(--line)}
-.support-title{margin:0 0 6px; font-size:13.5px; font-weight:600; color:var(--ink)}
-.support-desc{margin:0 0 14px; font-family:var(--sans); font-size:13px; color:var(--dim)}
-.donate{display:inline-flex; align-items:center; gap:9px; min-height:34px; padding:6px 16px 6px 13px; cursor:pointer; font-size:13px; font-weight:600; color:var(--on-ink); background:var(--ink); border:0; border-radius:var(--rad-btn); transition:opacity .15s}
-.donate:hover{opacity:.86}
+/* Apoio: card grafite (como o de imprompts do Início) com botão claro. */
+.support{position:relative; display:flex; align-items:center; gap:16px; padding:18px; border-radius:var(--r-card); overflow:hidden;
+  background:linear-gradient(160deg, var(--dark-1), var(--dark-2)); box-shadow:var(--sh-float), inset 0 1px 0 oklch(1 0 0 / .13); color:oklch(0.99 0 0)}
+.support-ico{flex:none; width:44px; height:44px; display:grid; place-items:center; border-radius:var(--r-tile); background:oklch(1 0 0 / .12); box-shadow:inset 0 1px 0 oklch(1 0 0 / .15)}
+.support-text{flex:1; min-width:0}
+.support-title{margin:0; font:600 14.5px var(--sans)}
+.support-desc{margin:4px 0 0; font:400 12.5px/1.5 var(--sans); color:oklch(1 0 0 / .72)}
+.donate{flex:none; display:inline-flex; align-items:center; gap:8px; min-height:34px; padding:0 15px 0 12px; border:0; border-radius:var(--r-ctl); cursor:pointer;
+  font:600 12.5px var(--sans); color:oklch(0.21 0.006 286); background:oklch(0.995 0.001 286); box-shadow:0 8px 18px -10px oklch(0 0 0 / .6); transition:transform .35s var(--spring)}
+.donate:hover{transform:translateY(-1px)}
+.donate:active{transform:scale(.97); transition-duration:.08s}
 .hh-heart{transform-box:fill-box; transform-origin:center}
-.donate:hover .hh-heart{animation:hh-pulse .55s var(--ease-out)}
+.donate:hover .hh-heart, .support:hover .support-ico .hh-heart{animation:hh-pulse .55s var(--ease-out)}
 .donate:hover .hh-hand{animation:hh-bob .55s var(--ease-out)}
-@keyframes hh-pulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.28)}}
-@keyframes hh-bob{0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)}}
+@keyframes hh-pulse{0%, 100%{transform:scale(1)} 50%{transform:scale(1.28)}}
+@keyframes hh-bob{0%, 100%{transform:translateY(0)} 50%{transform:translateY(2px)}}
 
 /* ── Status da conexão (rodapé do menu) ──────────────────────────────────── */
 .conn{display:flex; flex-direction:column; align-items:center; gap:6px; width:100%; padding:6px 0 4px; border:0; background:none; cursor:pointer; text-align:center;

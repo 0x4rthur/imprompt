@@ -1,6 +1,7 @@
 // GatilhoTab.tsx — aba "Atalho": grava o atalho de ativação direto pelo teclado
 // (key-recorder, sem dropdowns), janela entre os toques, modo de ativação e destino
-// do resultado.
+// do resultado. Soft UI: o gravador fica numa área afundada com as teclas
+// elevadas (elas "caem" no lugar quando um atalho novo é gravado).
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Settings } from "../types";
@@ -58,25 +59,26 @@ function TriggerRecorder({ settings, update }: Props) {
   const key = (settings.trigger_key || "c").toUpperCase();
 
   return (
-    <div className="trigger-rec-wrap">
+    <div className="rec-box">
       <button
         type="button"
-        className={"trigger-rec" + (recording ? " rec" : "")}
+        className={"rec-btn" + (recording ? " rec" : "")}
         onClick={() => { setRecording((r) => !r); setHint(""); }}
         aria-label={t("gatilho.record.aria")}
         aria-pressed={recording}
       >
         {recording ? (
-          <span className="trigger-rec-prompt">{t("gatilho.record.prompt")}<span className="rec-caret" /></span>
+          <span className="rec-prompt">{t("gatilho.record.prompt")}<span className="rec-caret" /></span>
         ) : (
-          <span className="trigger-combo">
-            <kbd>{mod}</kbd><span className="trigger-plus">+</span><kbd>{key}</kbd>
-            <span className="trigger-x2" title={t("gatilho.record.x2.title")}>{t("gatilho.record.x2")}</span>
+          // key = combinação: remonta ao gravar um atalho novo e as teclas "caem".
+          <span className="rec-combo" key={mod + key}>
+            <kbd>{mod}</kbd><span className="plus">+</span><kbd>{key}</kbd>
+            <span className="x2" title={t("gatilho.record.x2.title")}>{t("gatilho.record.x2")}</span>
           </span>
         )}
       </button>
-      <span className="trigger-rec-edit">{recording ? t("gatilho.record.cancel") : t("gatilho.record.edit")}</span>
-      {hint && <span className="trigger-rec-hint" role="status">{hint}</span>}
+      <span className="rec-edit">{recording ? t("gatilho.record.cancel") : t("gatilho.record.edit")}</span>
+      {hint && <span className="rec-hint" role="status">{hint}</span>}
     </div>
   );
 }
@@ -84,15 +86,16 @@ function TriggerRecorder({ settings, update }: Props) {
 export default function GatilhoTab({ settings, update }: Props) {
   const { t } = useT();
   return (
-    <section className="card">
+    <div className="page-stack">
       {/* Atalho de ativação — gravado direto pelo teclado */}
-      <div className="field">
-        <h2 className="sec-title">{t("gatilho.label")}</h2>
+      <section className="card" data-enter>
+        <div className="card-head"><h2 className="card-title">{t("gatilho.label")}</h2></div>
         <TriggerRecorder settings={settings} update={update} />
         <div className="debounce">
           <span id="debounce-label" className="debounce-label"><Trans k="gatilho.debounce" slots={{ ms: <strong>{settings.debounce_ms} ms</strong> }} /></span>
           <input
             type="range"
+            className="range"
             aria-labelledby="debounce-label"
             aria-valuetext={`${settings.debounce_ms} ms`}
             min={250}
@@ -107,39 +110,40 @@ export default function GatilhoTab({ settings, update }: Props) {
         <p className="help">
           <Trans k="gatilho.help" slots={{ strong: <strong>{t("gatilho.help.strong")}</strong> }} />
         </p>
-      </div>
+      </section>
 
-      {/* Modo de ativação */}
-      <div className="field">
-        <h2 className="sec-title">{t("gatilho.when")}</h2>
-        <Segmented
-          ariaLabel={t("gatilho.when")}
-          value={settings.mode}
-          onChange={(mode) => update({ mode })}
-          options={[{ value: "instant", label: t("gatilho.when.instant") }, { value: "popup", label: t("gatilho.when.popup") }]}
-        />
-        <p className="help">
-          {settings.mode === "instant"
-            ? t("gatilho.when.instant.help")
-            : t("gatilho.when.popup.help")}
-        </p>
-      </div>
+      {/* Modo de ativação e saída, lado a lado */}
+      <div className="grid-2">
+        <section className="card" data-enter>
+          <h2 className="card-title card-label">{t("gatilho.when")}</h2>
+          <Segmented
+            ariaLabel={t("gatilho.when")}
+            value={settings.mode}
+            onChange={(mode) => update({ mode })}
+            options={[{ value: "instant", label: t("gatilho.when.instant") }, { value: "popup", label: t("gatilho.when.popup") }]}
+          />
+          <p className="help">
+            {settings.mode === "instant"
+              ? t("gatilho.when.instant.help")
+              : t("gatilho.when.popup.help")}
+          </p>
+        </section>
 
-      {/* Saída */}
-      <div className="field">
-        <h2 className="sec-title">{t("gatilho.output")}</h2>
-        <Segmented
-          ariaLabel={t("gatilho.output")}
-          value={settings.output}
-          onChange={(output) => update({ output })}
-          options={[{ value: "replace", label: t("gatilho.output.replace") }, { value: "clipboard", label: t("gatilho.output.clipboard") }]}
-        />
-        <p className="help">
-          {settings.output === "replace"
-            ? t("gatilho.output.replace.help")
-            : t("gatilho.output.clipboard.help")}
-        </p>
+        <section className="card" data-enter>
+          <h2 className="card-title card-label">{t("gatilho.output")}</h2>
+          <Segmented
+            ariaLabel={t("gatilho.output")}
+            value={settings.output}
+            onChange={(output) => update({ output })}
+            options={[{ value: "replace", label: t("gatilho.output.replace") }, { value: "clipboard", label: t("gatilho.output.clipboard") }]}
+          />
+          <p className="help">
+            {settings.output === "replace"
+              ? t("gatilho.output.replace.help")
+              : t("gatilho.output.clipboard.help")}
+          </p>
+        </section>
       </div>
-    </section>
+    </div>
   );
 }
