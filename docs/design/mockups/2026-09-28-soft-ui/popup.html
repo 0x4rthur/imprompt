@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Imprompt · mockup soft UI · popup</title>
+<!-- Mockup aprovado em 2026-09-28 (companion visual do brainstorming). Referência de
+     desenho para a implementação; não é código de produção. Abra direto no navegador. -->
+<style>
+:root{--bg-primary:#1d1d1f;--bg-secondary:#2d2d2f;--bg-tertiary:#3d3d3f;--border:#424245;--text-primary:#f5f5f7;--text-secondary:#86868b}
+body{margin:0;padding:32px;background:var(--bg-primary);color:var(--text-primary);font-family:system-ui,sans-serif;line-height:1.5}
+h2{font-size:1.5rem;margin:0 0 .5rem}h3{font-size:1.05rem;margin:0 0 .25rem}.subtitle{color:var(--text-secondary);margin:0 0 1.5rem}
+.options{display:flex;flex-direction:column;gap:.75rem}.option{display:flex;gap:1rem;padding:1rem 1.25rem;border:2px solid var(--border);border-radius:12px;background:var(--bg-secondary)}
+.option .letter{flex:none;width:1.75rem;height:1.75rem;display:grid;place-items:center;border-radius:6px;background:var(--bg-tertiary);color:var(--text-secondary);font-weight:600}
+.option .content p{color:var(--text-secondary);margin:0}
+</style>
+<script>window.toggleSelect=function(el){el.parentElement.querySelectorAll('.option').forEach(function(o){o.style.borderColor='';});el.style.borderColor='#0a84ff';};</script>
+</head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  .ipx{--sans:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+    --r-card:12px;--r-tile:10px;--r-ctl:8px;--r-chip:7px;--r-kbd:5px;
+    --spring:linear(0,0.052 1.7%,0.195 3.6%,0.393 5.9%,0.604 8.6%,0.774 11.4%,0.892 14.4%,0.961 17.6%,0.998 21.1%,1.014 25.1%,1.017 30%,1.012 36.5%,1.003 47.6%,0.999 62%,1);
+    --out:cubic-bezier(.16,1,.3,1);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.4}
+  .ipx *{box-sizing:border-box} .ipx button{font-family:inherit;margin:0}
+  .ipx[data-t=light]{
+    --canvas:oklch(0.952 0.004 286);--glow:oklch(1 0 0 / .75);
+    --card:oklch(0.995 0.001 286);--sunken:oklch(0.926 0.005 286);--sunken-2:oklch(0.902 0.006 286);
+    --line:oklch(0.21 0.006 286 / .08);--line-2:oklch(0.21 0.006 286 / .14);
+    --ink:oklch(0.21 0.006 286);--on-ink:oklch(0.99 0.002 286);
+    --body:oklch(0.37 0.013 286);--dim:oklch(0.44 0.014 286);--stone:oklch(0.49 0.014 286);--faint:oklch(0.52 0.012 286);--bracket:oklch(0.78 0.008 286);
+    --mint:oklch(0.72 0.19 148);--mint-fg:oklch(0.50 0.13 150);--mint-soft:oklch(0.72 0.17 150 / .14);
+    --danger:oklch(0.50 0.19 25);--danger-soft:oklch(0.55 0.20 25 / .08);
+    --dot-l:.62;--dot-c:.15;
+    --sh-card:0 1px 1px oklch(0.21 0.006 286 / .04),0 3px 6px -2px oklch(0.21 0.006 286 / .05),0 14px 30px -12px oklch(0.21 0.006 286 / .16);
+    --sh-float:0 2px 4px oklch(0.21 0.006 286 / .06),0 20px 44px -16px oklch(0.21 0.006 286 / .34);
+    --sh-ink:0 10px 20px -10px oklch(0.21 0.006 286 / .7);
+    --hl:inset 0 1px 0 oklch(1 0 0 / .95);
+    --inset:inset 0 1px 2px oklch(0.21 0.006 286 / .07),inset 0 0 0 1px oklch(0.21 0.006 286 / .025)}
+  .ipx[data-t=dark]{
+    --canvas:oklch(0.17 0.005 286);--glow:oklch(1 0 0 / .045);
+    --card:oklch(0.235 0.006 286);--sunken:oklch(0.145 0.005 286);--sunken-2:oklch(0.128 0.005 286);
+    --line:oklch(0.98 0.003 286 / .07);--line-2:oklch(0.98 0.003 286 / .12);
+    --ink:oklch(0.955 0.003 286);--on-ink:oklch(0.185 0.005 286);
+    --body:oklch(0.87 0.005 286);--dim:oklch(0.79 0.008 286);--stone:oklch(0.72 0.010 286);--faint:oklch(0.68 0.010 286);--bracket:oklch(0.50 0.010 286);
+    --mint:oklch(0.74 0.18 150);--mint-fg:oklch(0.80 0.15 150);--mint-soft:oklch(0.72 0.17 150 / .14);
+    --danger:oklch(0.72 0.17 25);--danger-soft:oklch(0.65 0.20 25 / .14);
+    --dot-l:.72;--dot-c:.14;
+    --sh-card:0 1px 2px oklch(0 0 0 / .35),0 16px 32px -14px oklch(0 0 0 / .65);
+    --sh-float:0 2px 6px oklch(0 0 0 / .45),0 24px 48px -16px oklch(0 0 0 / .75);
+    --sh-ink:0 10px 22px -10px oklch(0 0 0 / .8);
+    --hl:inset 0 1px 0 oklch(1 0 0 / .07);
+    --inset:inset 0 1px 3px oklch(0 0 0 / .5),inset 0 0 0 1px oklch(1 0 0 / .035)}
+
+  .demo-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px;font:500 12px system-ui,sans-serif;color:var(--text-secondary)}
+  .demo-ctl button{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font:500 12.5px system-ui,sans-serif}
+  .demo-ctl button.on{background:var(--text-primary);color:var(--bg-primary)}
+  .demo-ctl .sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+  .demo-keys{margin:10px 0 26px;font:500 12px system-ui,sans-serif;color:var(--text-secondary)}
+  .demo-keys b{font-family:ui-monospace,monospace;color:var(--text-primary);padding:1px 6px;border:1px solid var(--border);border-radius:5px;margin:0 2px}
+
+  /* Botões e teclas (mesmo sistema das Preferências) */
+  .ipx-b1,.ipx-b2{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:32px;padding:0 13px;border:0;border-radius:var(--r-ctl);
+    font:600 12.5px var(--sans);white-space:nowrap;cursor:pointer;transition:transform .35s var(--spring),box-shadow .2s,background-color .2s}
+  .ipx-b1{background:var(--ink);color:var(--on-ink);box-shadow:var(--sh-ink)}
+  .ipx-b2{background:var(--sunken);color:var(--ink)}
+  .ipx-b1:hover,.ipx-b2:hover{transform:translateY(-1px)}
+  .ipx-b2:hover{background:var(--sunken-2)}
+  .ipx-b1:active,.ipx-b2:active{transform:scale(.97);transition-duration:.08s}
+  .ipx-b1[disabled]{opacity:.55;cursor:default;transform:none}
+  .k{font:500 10px var(--mono);padding:2px 5px;border-radius:4px;box-shadow:inset 0 0 0 1px currentColor;opacity:.5}
+  .ipx-kbd{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 7px;border-radius:var(--r-kbd);background:var(--card);
+    box-shadow:0 1px 0 var(--line-2),0 3px 8px -3px oklch(0.21 0.006 286 / .22),var(--hl);font:600 10.5px var(--mono);color:var(--ink)}
+
+  /* ── Popup ── */
+  .pp-win{position:relative;width:496px;height:430px;border-radius:9px;overflow:hidden;color:var(--ink);
+    background:radial-gradient(90% 55% at 80% -10%,var(--glow),transparent 60%),var(--canvas);box-shadow:0 30px 60px -24px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.1)}
+  .pp{position:absolute;inset:0;display:flex;flex-direction:column;transform-origin:50% 40%}
+  .pp-head{flex:none;display:flex;align-items:center;gap:9px;height:44px;padding:0 12px 0 16px}
+  .pp-head .b{fill:var(--bracket)} .pp-head .i{fill:var(--ink)}
+  .pp-title{font:600 13px var(--sans);letter-spacing:-.01em}
+  .pp-esc{margin-left:auto}
+  .pp-body{flex:1;min-height:0;overflow-y:auto;padding:2px 16px 12px;scrollbar-width:none}
+  .pp-body::-webkit-scrollbar{display:none}
+  .pp-caph{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+  .pp-lbl{font:700 10px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--stone)}
+  .pp-link{border:0;background:none;padding:2px 5px;border-radius:5px;font:500 11.5px var(--sans);color:var(--stone);cursor:pointer}
+  .pp-link:hover{color:var(--ink);background:var(--sunken)}
+  .pp-cap{padding:10px 12px;border-radius:var(--r-card);background:var(--sunken);box-shadow:var(--inset);font:400 12px/1.6 var(--mono);color:var(--body)}
+  .pp-cap-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .pp-cap.exp .pp-cap-t{display:block}
+  .pp-track{position:relative;display:flex;flex-wrap:wrap;gap:3px;margin-top:12px;padding:4px;border-radius:calc(var(--r-ctl) + 4px);background:var(--sunken);box-shadow:var(--inset)}
+  .pp-ind{position:absolute;z-index:0;top:0;left:0;border-radius:var(--r-ctl);background:var(--card);box-shadow:var(--sh-card),var(--hl);
+    transition:transform .55s var(--spring),width .55s var(--spring),height .55s var(--spring)}
+  .pp-chip{position:relative;z-index:1;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px 0 5px;border:0;border-radius:var(--r-ctl);background:none;
+    font:500 12px var(--sans);color:var(--dim);cursor:pointer;transition:color .25s}
+  .pp-chip:hover,.pp-chip.on{color:var(--ink)}
+  .pp-num{display:grid;place-items:center;width:20px;height:20px;border-radius:calc(var(--r-ctl) - 3px);background:var(--sunken-2);box-shadow:var(--inset);
+    font:600 10px var(--mono);color:var(--stone);transition:background-color .25s,color .25s}
+  .pp-chip.on .pp-num{background:var(--ink);color:var(--on-ink);box-shadow:none}
+  .pp-chip i{width:8px;height:8px;border-radius:2px;background:oklch(var(--dot-l) var(--dot-c) var(--h))}
+  .pp-res{margin-top:12px}
+  .pp-card{border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card),var(--hl);overflow:hidden}
+  .pp-card-h{display:flex;align-items:center;gap:10px;padding:11px 12px 0}
+  .pp-badge{margin-left:auto;padding:3px 8px;border-radius:6px;background:var(--mint-soft);color:var(--mint-fg);font:600 10.5px var(--sans);white-space:nowrap}
+  .pp-text{padding:8px 12px 12px;font:400 12px/1.6 var(--mono);white-space:pre-wrap;color:var(--ink)}
+  .pp-skel{display:flex;flex-direction:column;gap:9px;padding:14px 12px 16px}
+  .pp-skel span{height:9px;border-radius:4px;background:linear-gradient(90deg,var(--sunken) 0%,var(--sunken-2) 45%,var(--sunken) 90%);background-size:260% 100%;animation:pp-sh 1.25s linear infinite}
+  .pp-skel span:nth-child(2){width:88%;animation-delay:.1s}.pp-skel span:nth-child(3){width:64%;animation-delay:.2s}
+  @keyframes pp-sh{from{background-position:130% 0}to{background-position:-130% 0}}
+  .pp-card.err{background:var(--danger-soft);box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--danger) 35%,transparent)}
+  .pp-card.err .pp-lbl{color:var(--danger)}
+  .pp-card.err .pp-text{font:500 12.5px/1.55 var(--sans);color:var(--danger)}
+  .pp-foot{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 10px 10px;padding:7px 7px 7px 12px;
+    border-radius:calc(var(--r-card) + 2px);background:var(--card);box-shadow:var(--sh-float),var(--hl)}
+  .pp-note{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 11.5px var(--sans);color:var(--stone)}
+  .pp-note i{display:inline-block;width:6px;height:6px;border-radius:2px;background:var(--mint);margin-right:7px;vertical-align:1px}
+  .pp-actions{display:flex;gap:6px}
+  .pp-dots{display:inline-flex;gap:3px;margin-left:2px}
+  .pp-dots i{width:4px;height:4px;border-radius:1.5px;background:currentColor;animation:pp-dot 1s infinite}
+  .pp-dots i:nth-child(2){animation-delay:.15s}.pp-dots i:nth-child(3){animation-delay:.3s}
+  @keyframes pp-dot{0%,60%,100%{opacity:.25;transform:none}30%{opacity:1;transform:translateY(-2px)}}
+  .pp-closed{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;font:500 12.5px/1.6 var(--sans);color:var(--stone)}
+  .pp-closed b{display:block;font:600 14px var(--sans);color:var(--ink);margin-bottom:4px}
+
+  /* ── Loader ── */
+  .ld-row{display:flex;flex-wrap:wrap;gap:18px;margin-top:6px}
+  .ld-cap{font:600 11px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin:0 0 8px}
+  .ld{position:relative;width:210px;height:46px;display:flex;align-items:center;gap:11px;padding:0 14px 0 8px;border-radius:9px;overflow:hidden;
+    background:var(--card);box-shadow:0 18px 36px -16px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.1),var(--hl)}
+  .ld-tile{position:relative;flex:none;width:32px;height:32px;display:grid;place-items:center;border-radius:var(--r-ctl);background:var(--ink)}
+  .ld-tile .b{fill:color-mix(in oklch,var(--on-ink) 42%,transparent)} .ld-tile .i{fill:var(--on-ink);animation:ld-blink 1.05s step-end infinite}
+  @keyframes ld-blink{55%{opacity:0}}
+  .ld-ring{position:absolute;inset:0;border-radius:var(--r-ctl);box-shadow:0 0 0 1.5px color-mix(in oklch,var(--ink) 40%,transparent);animation:ld-ring 1.8s var(--out) infinite}
+  .ld-ring.r2{animation-delay:.6s}
+  @keyframes ld-ring{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+  .ld-text{font:600 13px var(--sans);letter-spacing:-.01em;color:var(--ink);
+    background:linear-gradient(90deg,var(--ink) 0%,var(--ink) 40%,var(--stone) 50%,var(--ink) 60%,var(--ink) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ld-sheen 2.2s linear infinite}
+  @keyframes ld-sheen{from{background-position:120% 0}to{background-position:-120% 0}}
+  .ld .pp-dots{margin-left:auto;color:var(--ink)}
+</style>
+
+<h2>Popup e janelinha "Imprompting…"</h2>
+<p class="subtitle">O popup tem o tamanho real (496×430). Ele funciona: clique ou use o teclado. Depois de fechar, aperte "Reabrir" para ver a entrada de novo.</p>
+
+<div class="demo-ctl">
+  <button id="reopen">Reabrir</button>
+  <button id="errT">Simular erro: não</button>
+  <span class="sep"></span>
+  Tema: <button id="tL" class="on">Claro</button><button id="tD">Escuro</button>
+</div>
+
+<div class="ipx" data-t="light" id="ppRoot">
+  <div class="pp-win" id="ppWin">
+    <div class="pp" id="pp">
+      <div class="pp-head">
+        <svg viewBox="0 0 62 40" width="25" height="16"><g class="b"><rect x="2" y="4" width="5" height="32"/><rect x="2" y="4" width="14" height="5"/><rect x="2" y="31" width="14" height="5"/><rect x="55" y="4" width="5" height="32"/><rect x="46" y="4" width="14" height="5"/><rect x="46" y="31" width="14" height="5"/></g><g class="i"><rect x="28.5" y="4" width="5" height="32"/><rect x="22" y="4" width="18" height="5"/><rect x="22" y="31" width="18" height="5"/></g></svg>
+        <span class="pp-title">Imprompt</span><span class="pp-esc"><span class="ipx-kbd">Esc</span></span>
+      </div>
+      <div class="pp-body" id="ppBody">
+        <div class="pp-caph"><span class="pp-lbl">Texto capturado</span><button class="pp-link" id="ppExp">Expandir</button></div>
+        <div class="pp-cap" id="ppCap"><span class="pp-cap-t">me ajuda a escrever um email pro cliente explicando o atraso da entrega sem parecer desculpa, e diz que a nova data é sexta que vem, com o rastreio</span></div>
+        <div class="pp-track" id="ppTrack"><span class="pp-ind" id="ppInd"></span>
+          <button class="pp-chip on" style="--h:300"><span class="pp-num">1</span><i></i>Estruturar</button>
+          <button class="pp-chip" style="--h:195"><span class="pp-num">2</span><i></i>Prompt de código</button>
+          <button class="pp-chip" style="--h:150"><span class="pp-num">3</span><i></i>Corrigir &amp; clarear</button>
+          <button class="pp-chip" style="--h:45"><span class="pp-num">4</span><i></i>Traduzir p/ EN</button>
+          <button class="pp-chip" style="--h:350"><span class="pp-num">5</span><i></i>Vibe Code</button>
+          <button class="pp-chip" style="--h:250"><span class="pp-num">6</span><i></i>Resumir</button>
+        </div>
+        <div class="pp-res" id="ppRes"></div>
+      </div>
+      <div class="pp-foot">
+        <span class="pp-note"><i></i>vai substituir o texto</span>
+        <div class="pp-actions" id="ppAct"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="demo-keys">Teclado: <b>1</b>–<b>6</b> escolhe o preset · <b>Enter</b> faz o imprompt e, com o resultado, aplica · <b>R</b> refaz · <b>Esc</b> fecha</p>
+
+<h3>Janelinha de carregamento (modo instantâneo)</h3>
+<p class="subtitle">Aparece perto do cursor enquanto o texto é refinado. O "I" do logo pisca como o cursor de texto e ondas saem do bloco.</p>
+<div class="ld-row">
+  <div><div class="ld-cap">Claro</div><div class="ipx" data-t="light"><div class="ld"><span class="ld-tile"><span class="ld-ring"></span><span class="ld-ring r2"></span><svg viewBox="0 0 62 40" width="22" height="14"><g class="b"><rect x="2" y="4" width="5" height="32"/><rect x="2" y="4" width="14" height="5"/><rect x="2" y="31" width="14" height="5"/><rect x="55" y="4" width="5" height="32"/><rect x="46" y="4" width="14" height="5"/><rect x="46" y="31" width="14" height="5"/></g><g class="i"><rect x="28.5" y="4" width="5" height="32"/><rect x="22" y="4" width="18" height="5"/><rect x="22" y="31" width="18" height="5"/></g></svg></span><span class="ld-text">Imprompting</span><span class="pp-dots"><i></i><i></i><i></i></span></div></div></div>
+  <div><div class="ld-cap">Escuro</div><div class="ipx" data-t="dark"><div class="ld"><span class="ld-tile"><span class="ld-ring"></span><span class="ld-ring r2"></span><svg viewBox="0 0 62 40" width="22" height="14"><g class="b"><rect x="2" y="4" width="5" height="32"/><rect x="2" y="4" width="14" height="5"/><rect x="2" y="31" width="14" height="5"/><rect x="55" y="4" width="5" height="32"/><rect x="46" y="4" width="14" height="5"/><rect x="46" y="31" width="14" height="5"/></g><g class="i"><rect x="28.5" y="4" width="5" height="32"/><rect x="22" y="4" width="18" height="5"/><rect x="22" y="31" width="18" height="5"/></g></svg></span><span class="ld-text">Imprompting</span><span class="pp-dots"><i></i><i></i><i></i></span></div></div></div>
+</div>
+
+<h3 style="margin-top:26px">Movimento no popup</h3>
+<div class="options">
+  <div class="option"><div class="letter">1</div><div class="content"><h3>Abrir</h3><p>O popup cresce de 97% para 100% com uma mola curta; cabeçalho, texto, presets e rodapé entram em cascata (40 ms entre eles).</p></div></div>
+  <div class="option"><div class="letter">2</div><div class="content"><h3>Trocar preset</h3><p>A peça clara desliza até o preset (clique ou 1–6) e o número dá um pulinho.</p></div></div>
+  <div class="option"><div class="letter">3</div><div class="content"><h3>Imprompt</h3><p>O botão vira "Imprompting" com pontinhos; nasce um card com brilho passando. Quando o resultado chega, o card cresce até o tamanho do texto e o texto se revela de cima para baixo.</p></div></div>
+  <div class="option"><div class="letter">4</div><div class="content"><h3>Ações</h3><p>Refazer, Copiar e Aplicar entram deslizando da direita, um de cada vez. Copiar vira "Copiado ✓". Aplicar encolhe e some rápido: o texto já vai para o app.</p></div></div>
+  <div class="option"><div class="letter">5</div><div class="content"><h3>Erro e Esc</h3><p>No erro, o card fica vermelho suave com uma tremidinha e o Enter tenta de novo. O Esc some com um fade curto.</p></div></div>
+  <div class="option"><div class="letter">6</div><div class="content"><h3>Movimento reduzido</h3><p>Se o Windows estiver com animações desligadas, tudo vira troca direta, sem deslocamento.</p></div></div>
+</div>
+
+<script>
+(function(){
+  var SPRING='linear(0,0.052 1.7%,0.195 3.6%,0.393 5.9%,0.604 8.6%,0.774 11.4%,0.892 14.4%,0.961 17.6%,0.998 21.1%,1.014 25.1%,1.017 30%,1.012 36.5%,1.003 47.6%,0.999 62%,1)';
+  var OUT='cubic-bezier(.16,1,.3,1)';
+  var root=document.getElementById('ppRoot'),win=document.getElementById('ppWin'),pp=document.getElementById('pp'),res=document.getElementById('ppRes'),act=document.getElementById('ppAct'),track=document.getElementById('ppTrack'),ind=document.getElementById('ppInd'),body=document.getElementById('ppBody');
+  var chips=[].slice.call(track.querySelectorAll('.pp-chip'));
+  var sel=0,phase='idle',simErr=false,closedEl=null,timer=0;
+  var RESULT='Papel: você é um gerente de contas cuidadoso.\nTarefa: escreva um e-mail ao cliente explicando o atraso da entrega.\nTom: profissional e direto, sem soar como desculpa.\nDetalhes: a nova data é sexta que vem; inclua o código de rastreio.\nFormato: até 5 frases.';
+  var ERR='Chave de API inválida ou sem permissão. Verifique a configuração da API nas Preferências.';
+
+  function placeInd(instant){var c=chips[sel];if(instant)ind.style.transition='none';ind.style.width=c.offsetWidth+'px';ind.style.height=c.offsetHeight+'px';ind.style.transform='translate('+c.offsetLeft+'px,'+c.offsetTop+'px)';if(instant){ind.offsetHeight;ind.style.transition='';}}
+  function pick(i){if(i===sel||!chips[i])return;sel=i;chips.forEach(function(c,j){c.classList.toggle('on',j===i);});placeInd();
+    chips[i].querySelector('.pp-num').animate([{transform:'scale(1)'},{transform:'scale(1.28)'},{transform:'scale(1)'}],{duration:380,easing:OUT});}
+  track.addEventListener('click',function(e){var c=e.target.closest('.pp-chip');if(c)pick(chips.indexOf(c));});
+
+  function btn(cls,html,fn){var b=document.createElement('button');b.className=cls;b.innerHTML=html;b.addEventListener('click',fn);return b;}
+  function setActions(list,animate){act.innerHTML='';list.forEach(function(b,i){act.appendChild(b);if(animate)b.animate([{opacity:0,transform:'translateX(14px)'},{opacity:1,transform:'none'}],{duration:520,delay:i*55,easing:SPRING,fill:'backwards'});});}
+  function idleActions(animate){setActions([btn('ipx-b1','Imprompt<span class="k">Enter</span>',refine)],animate);}
+  function resultActions(){
+    var copy=btn('ipx-b2','Copiar',function(){copy.textContent='Copiado ✓';copy.animate([{transform:'scale(.94)'},{transform:'none'}],{duration:400,easing:SPRING});setTimeout(function(){copy.textContent='Copiar';},1400);});
+    if(phase==='error'){setActions([btn('ipx-b1','Refazer<span class="k">Enter</span>',refine)],true);return;}
+    setActions([btn('ipx-b2','Refazer<span class="k">R</span>',refine),copy,btn('ipx-b1','Aplicar<span class="k">Enter</span>',apply)],true);}
+
+  function refine(){
+    if(phase==='loading')return;phase='loading';
+    var b=act.querySelector('.ipx-b1');
+    setActions([btn('ipx-b1','Imprompting<span class="pp-dots"><i></i><i></i><i></i></span>',function(){})]);act.firstChild.disabled=true;
+    var oldH=res.offsetHeight;
+    res.innerHTML='<div class="pp-card" id="ppCard"><div class="pp-skel"><span></span><span></span><span></span></div></div>';
+    var card=document.getElementById('ppCard');
+    card.animate([{opacity:0,transform:'translateY(8px) scale(.985)'},{opacity:1,transform:'none'}],{duration:520,easing:SPRING});
+    setTimeout(function(){body.scrollTo({top:body.scrollHeight,behavior:'smooth'});},60);
+    clearTimeout(timer);timer=setTimeout(function(){show(card);},1400);
+  }
+  function show(card){
+    phase=simErr?'error':'result';
+    var h0=card.offsetHeight;
+    if(phase==='error'){card.classList.add('err');card.innerHTML='<div class="pp-card-h"><span class="pp-lbl">Erro</span></div><div class="pp-text">'+ERR+'</div>';}
+    else{card.innerHTML='<div class="pp-card-h"><span class="pp-lbl">Resultado</span><span class="pp-badge">API · gpt-5.6-luna</span></div><div class="pp-text"></div>';card.querySelector('.pp-text').textContent=RESULT;}
+    var h1=card.offsetHeight;
+    card.animate([{height:h0+'px'},{height:h1+'px'}],{duration:620,easing:OUT});
+    var t=card.querySelector('.pp-text');
+    t.animate([{clipPath:'inset(0 0 100% 0)',opacity:.2},{clipPath:'inset(0 0 0 0)',opacity:1}],{duration:700,delay:60,easing:OUT,fill:'backwards'});
+    if(phase==='error')card.animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(4px)'},{transform:'translateX(-2px)'},{transform:'none'}],{duration:420,delay:120,easing:'ease-out'});
+    setTimeout(function(){body.scrollTo({top:body.scrollHeight,behavior:'smooth'});},80);
+    resultActions();
+  }
+  function apply(){if(phase!=='result')return;var a=pp.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(6px) scale(.965)'}],{duration:190,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'});a.onfinish=function(){closedState('Aplicado','O texto foi colocado no lugar da seleção. Clique em Reabrir.');};}
+  function close(){if(phase==='closed')return;var a=pp.animate([{opacity:1,transform:'none'},{opacity:0,transform:'scale(.985)'}],{duration:140,easing:'ease-in',fill:'forwards'});a.onfinish=function(){closedState('Fechado','Clique em Reabrir.');};}
+  function closedState(t,s){phase='closed';pp.style.visibility='hidden';closedEl=document.createElement('div');closedEl.className='pp-closed';closedEl.innerHTML='<div><b>'+t+'</b>'+s+'</div>';win.appendChild(closedEl);}
+  function open(){
+    clearTimeout(timer);if(closedEl){closedEl.remove();closedEl=null;}pp.style.visibility='';pp.getAnimations().forEach(function(a){a.cancel();});
+    phase='idle';res.innerHTML='';idleActions(false);body.scrollTop=0;
+    pp.animate([{opacity:0,transform:'translateY(8px) scale(.965)'},{opacity:1,transform:'none'}],{duration:560,easing:SPRING});
+    [pp.querySelector('.pp-head'),pp.querySelector('.pp-caph'),document.getElementById('ppCap'),track,pp.querySelector('.pp-foot')].forEach(function(el,i){
+      el.animate([{opacity:0,transform:'translateY(10px)'},{opacity:1,transform:'none'}],{duration:620,delay:40+i*40,easing:SPRING,fill:'backwards'});});
+    chips.forEach(function(c,i){c.animate([{opacity:0,transform:'translateY(6px) scale(.96)'},{opacity:1,transform:'none'}],{duration:520,delay:150+i*22,easing:SPRING,fill:'backwards'});});
+    requestAnimationFrame(function(){placeInd(true);});
+  }
+  document.getElementById('reopen').addEventListener('click',open);
+  var errT=document.getElementById('errT');errT.addEventListener('click',function(){simErr=!simErr;errT.textContent='Simular erro: '+(simErr?'sim':'não');errT.classList.toggle('on',simErr);});
+  var exp=document.getElementById('ppExp'),cap=document.getElementById('ppCap');exp.addEventListener('click',function(){var on=cap.classList.toggle('exp');exp.textContent=on?'Recolher':'Expandir';cap.animate([{opacity:.6},{opacity:1}],{duration:250});});
+  function theme(t){root.setAttribute('data-t',t);document.getElementById('tL').classList.toggle('on',t==='light');document.getElementById('tD').classList.toggle('on',t==='dark');}
+  document.getElementById('tL').addEventListener('click',function(){theme('light');});document.getElementById('tD').addEventListener('click',function(){theme('dark');});
+  document.addEventListener('keydown',function(e){if(e.ctrlKey||e.altKey||e.metaKey)return;
+    if(phase==='closed'){return;}
+    if(e.key==='Escape'){e.preventDefault();close();}
+    else if(e.key==='Enter'){e.preventDefault();if(e.repeat)return;if(phase==='result')apply();else if(phase!=='loading')refine();}
+    else if((e.key==='r'||e.key==='R')&&(phase==='result'||phase==='error')){e.preventDefault();refine();}
+    else if(/^[1-6]$/.test(e.key)){pick(+e.key-1);}});
+  window.addEventListener('resize',function(){placeInd(true);});
+  open();setTimeout(function(){placeInd(true);},400);
+})();
+</script>
+
+</body></html>
