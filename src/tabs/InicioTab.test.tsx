@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { Profiler } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MonthUsage, Preset, RefineRecord, Settings, UsageSummary } from "../types";
 
@@ -80,6 +81,48 @@ describe("Home", () => {
       render(<InicioTab settings={settings} usage={{ ...usage, cost_usd: 3.27 }} usageHistory={months}
         presets={presets} history={[]} onNavigate={() => {}} />);
       expect(screen.getByText(/^~US\$ [\d.,]+$/).textContent).toMatch(/^~US\$ \d+\.\d{2}$/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("counting up the numbers doesn't redraw the whole Home on every frame", async () => {
+    // Travada ao clicar em Início: os 3 números que contam re-renderizavam a aba
+    // inteira a cada frame (~300 atualizações por visita).
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false, media: "", onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+      dispatchEvent: () => false,
+    }));
+    try {
+      let commits = 0;
+      render(
+        <Profiler id="home" onRender={() => { commits++; }}>
+          <InicioTab settings={settings} usage={{ ...usage, refinements: 480, cost_usd: 9.87 }} usageHistory={months}
+            presets={presets} history={history} onNavigate={() => {}} />
+        </Profiler>,
+      );
+      await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+      expect(commits).toBeLessThanOrEqual(3);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("coming back to Home shows the numbers right away instead of counting from zero", async () => {
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false, media: "", onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+      dispatchEvent: () => false,
+    }));
+    try {
+      const home = () => <InicioTab settings={settings} usage={{ ...usage, refinements: 77 }} usageHistory={months}
+        presets={presets} history={history} onNavigate={() => {}} />;
+      const first = render(home());
+      await act(() => new Promise((resolve) => setTimeout(resolve, 1200)));
+      first.unmount();
+      render(home());
+      expect(screen.getAllByText("77").length).toBeGreaterThan(0);
     } finally {
       vi.unstubAllGlobals();
     }

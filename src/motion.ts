@@ -4,7 +4,7 @@
 // entrada em cascata das seções de uma aba e números que "contam". Tudo respeita
 // o "reduzir animações" do sistema; sem matchMedia (testes em jsdom) também
 // conta como reduzido, então os testes veem o estado final na hora.
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, type RefObject } from "react";
 import { animate, stagger, type Transition } from "motion/react";
 
 export const spring = {
@@ -42,24 +42,4 @@ export function usePageEnter(ref: RefObject<HTMLElement | null>, key: unknown, d
     const controls = animate(els, { opacity: [0, 1], y: [16 * dir, 0] }, { ...spring.soft, delay: stagger(0.045) });
     return () => controls.complete();
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-}
-
-/** Número que conta do último valor mostrado até `value` (imediato se o movimento é reduzido). */
-export function useCountUp(value: number): number {
-  const [shown, setShown] = useState(() => (reducedMotion() ? value : 0));
-  const last = useRef(shown);
-  useEffect(() => {
-    if (reducedMotion() || !Number.isFinite(value)) {
-      last.current = value;
-      setShown(value);
-      return;
-    }
-    const controls = animate(last.current, value, {
-      duration: 0.9,
-      ease: ease.out,
-      onUpdate: (v) => { last.current = v; setShown(v); },
-    });
-    return () => controls.stop();
-  }, [value]);
-  return shown;
 }
