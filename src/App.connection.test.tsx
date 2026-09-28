@@ -62,6 +62,19 @@ describe("rail", () => {
   });
 });
 
+describe("API provider tiles", () => {
+  it("keeps one ring on the chosen provider and moves it on selection", async () => {
+    await openApp();
+    const openai = screen.getByRole("button", { name: "OpenAI" });
+    expect(openai.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelectorAll(".provider-ring")).toHaveLength(1);
+    expect(openai.querySelector(".provider-ring")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Anthropic" }));
+    expect(screen.getByRole("button", { name: "Anthropic" }).querySelector(".provider-ring")).toBeTruthy();
+    expect(document.querySelectorAll(".provider-ring")).toHaveLength(1);
+  });
+});
+
 describe("API settings navigation", () => {
   it("keeps the speed preference through navigation and sends it with the tested configuration", async () => {
     await openApp();

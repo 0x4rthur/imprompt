@@ -23,13 +23,13 @@ export default function ModelBenchmark({ model, modelId = model?.id }: { model?:
       <div className="bench">
         {axes.map((axis) => (
           <div key={axis.key} className="bench-axis">
-            <span>{axis.label} · {t((axis.key === "cost" ? COST_KEYS : LEVEL_KEYS)[axis.level])}</span>
+            <span className="bench-k">{axis.label}</span>
+            <span className="bench-v">{t((axis.key === "cost" ? COST_KEYS : LEVEL_KEYS)[axis.level])}{axis.value && <small>{axis.value}</small>}</span>
             <span className={`bench-dots lvl-${axis.color}`} aria-hidden="true">{[1, 2, 3].map((i) => <span key={i} className={`bench-dot${i <= axis.level ? " on" : ""}`} />)}</span>
-            {axis.value && <small>{axis.value}</small>}
           </div>
         ))}
       </div>
-      <details className="model-price-details">
+      <details className="model-price-details help-more">
         <summary>{t("motor.benchmark.details")}</summary>
         {data?.source ? <>
           <p>{t("motor.benchmark.reference", { variant: data.variant, version: data.indexVersion ?? "", date: BENCHMARK_CHECKED_AT })}</p>
