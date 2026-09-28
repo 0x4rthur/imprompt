@@ -1,141 +1,305 @@
 /* ============================================================================
-   Imprompt — sistema visual "Mono / Cream" (claro) + "Mono / Ink" (escuro)
+   Imprompt — "Soft UI" (claro: Mono / Cream · escuro: Mono / Ink)
    ----------------------------------------------------------------------------
    • Tema: tokens no :root (claro), sobrescritos em :root[data-theme="dark"]. O
-     data-theme é SEMPRE o tema resolvido (public/theme.js), seja "Sistema"
-     (prefers-color-scheme) ou a escolha manual do usuário em Geral. Nenhum
-     componente usa cor literal; tudo passa por token.
-   • Tipografia: JetBrains Mono é a VOZ (títulos, rótulos, valores, atalhos, o
-     texto do usuário); a sans do sistema é a EXPLICAÇÃO (ajudas, descrições).
-   • Cor é sinal, não decoração: mint = conectado/seguro; âmbar = o texto sai da
-     máquina / atenção; vermelho = erro/destrutivo. Presets ganham um matiz próprio
-     (--pc-h, ver presetColor.ts) só como ponto de identificação.
-   Janelas: Preferências (App.tsx + abas), Popup (popup.tsx). O loader tem CSS
-   próprio inline em loader.html, com os mesmos valores.
+     data-theme é SEMPRE o tema resolvido (public/theme.js), seja "Sistema" ou a
+     escolha manual em Configurações. Nenhum componente usa cor literal.
+   • Superfícies: --canvas (fundo) · --card (elevado, sombra longa e suave +
+     brilho na borda de cima) · --sunken (afundado: trilhos, blocos, campos).
+     O menu é um bloco grafite flutuante; o card escuro reusa o grafite.
+   • Tipografia: Plus Jakarta Sans é a interface; JetBrains Mono são os dados
+     da máquina (atalhos, modelo, URL, chave, texto do usuário, resultado).
+   • Cor é sinal, não decoração: tinta = ação principal/ativo; mint =
+     conectado/seguro; âmbar = o texto sai da máquina; vermelho = erro.
+   • Forma: card 12 · bloco 10 · controle 8 · chip 7 · tecla 5 (menu 18).
+     Nada de pílula ou círculo, exceto pontos de status (eco do [I]).
+   • Movimento: molas (--spring, e as do Motion em src/motion.ts); tudo cai
+     sob prefers-reduced-motion.
+   Janelas: Preferências (App.tsx + abas), Popup (Palette.tsx). O loader tem
+   CSS próprio inline em loader.html, com os mesmos valores.
    ============================================================================ */
 
 :root{
   color-scheme:light;
 
   /* Superfícies (neutros levemente frios, matiz 286) */
-  --bg:oklch(0.992 0.002 286);            /* página */
-  --bg-rail:oklch(0.975 0.003 286);       /* rail / rodapés (2ª camada neutra) */
-  --surface-soft:oklch(0.975 0.003 286);  /* inputs, blocos sutis */
-  --surface-card:oklch(0.952 0.004 286);  /* realce / skeleton */
-  --track:oklch(0.93 0.004 286);          /* trilhos (switch, slider, barras) */
-  --knob:oklch(0.995 0.001 286);          /* botão do switch desligado */
-  --switch-off:oklch(0.85 0.006 286);     /* trilho do switch desligado */
+  --canvas:oklch(0.952 0.004 286);
+  --glow:oklch(1 0 0 / .75);
+  --card:oklch(0.995 0.001 286);
+  --sunken:oklch(0.926 0.005 286);
+  --sunken-2:oklch(0.902 0.006 286);
+  --panel:oklch(0.935 0.005 286);
+  --line:oklch(0.21 0.006 286 / .08);
+  --line-2:oklch(0.21 0.006 286 / .14);
 
-  /* Linhas */
-  --line:oklch(0.21 0.006 286 / .11);
-  --line-2:oklch(0.21 0.006 286 / .19);
-
-  /* Tinta e rampa de texto (todas ≥ 4.5:1 sobre --bg e --surface-soft) */
+  /* Tinta e rampa de texto (≥ 4.5:1 sobre --canvas, --card e --sunken) */
   --ink:oklch(0.21 0.006 286);
-  --on-ink:oklch(0.992 0.002 286);
-  --text:var(--ink);
+  --on-ink:oklch(0.99 0.002 286);
   --body:oklch(0.37 0.013 286);
-  --dim:oklch(0.44 0.014 286);
-  --stone:oklch(0.50 0.014 286);
-  --faint:oklch(0.54 0.012 286);
-  --ghost:oklch(0.76 0.009 286);          /* só decoração: colchetes, divisores */
-  --bracket:oklch(0.82 0.008 286);        /* colchetes do logo [I] */
+  --dim:oklch(0.43 0.014 286);
+  --stone:oklch(0.47 0.014 286);
+  --faint:oklch(0.50 0.012 286);
+  --ghost:oklch(0.76 0.009 286);          /* só decoração */
+  --bracket:oklch(0.78 0.008 286);        /* colchetes do logo [I] */
+
+  /* Menu grafite e card escuro */
+  --rail-1:oklch(0.44 0.006 286);
+  --rail-2:oklch(0.285 0.006 286);
+  --rail-tile:oklch(1 0 0 / .10);
+  --rail-ico:oklch(0.95 0.003 286);
+  --rail-lbl:oklch(0.88 0.004 286);
+  --rail-on:oklch(0.995 0.001 286);
+  --rail-on-ico:oklch(0.21 0.006 286);
+  --dark-1:oklch(0.43 0.006 286);
+  --dark-2:oklch(0.27 0.006 286);
 
   /* Sinais */
   --mint:oklch(0.72 0.19 148);
-  --mint-fg:oklch(0.50 0.13 150);
-  --mint-soft:oklch(0.72 0.17 150 / .13);
+  --mint-fg:oklch(0.49 0.13 150);
+  --mint-soft:oklch(0.72 0.17 150 / .15);
   --mint-line:oklch(0.62 0.16 150 / .42);
   --amber:oklch(0.78 0.17 68);
-  --amber-fg:oklch(0.52 0.12 65);
-  --amber-soft:oklch(0.80 0.16 70 / .14);
-  --amber-line:oklch(0.70 0.16 65 / .45);
-  --danger:oklch(0.47 0.19 25);
-  --danger-soft:oklch(0.55 0.20 25 / .07);
-  --danger-line:oklch(0.47 0.19 25 / .35);
+  --amber-fg:oklch(0.50 0.12 62);
+  --amber-soft:oklch(0.80 0.16 70 / .17);
+  --amber-line:oklch(0.70 0.16 65 / .40);
+  --danger:oklch(0.50 0.19 25);
+  --danger-soft:oklch(0.55 0.20 25 / .08);
+  --danger-line:oklch(0.50 0.19 25 / .32);
+  --danger-hot:oklch(0.58 0.2 27);        /* hover do fechar */
 
-  /* Gráficos do Início */
-  --bar-in:oklch(0.84 0.006 286);
-  --bar-mute:oklch(0.62 0.010 286);
+  /* Gráficos */
+  --bar-track:oklch(0.21 0.006 286 / .07);
+  --bar-fill:oklch(0.74 0.008 286);
 
-  /* Matiz dos presets (tag da timeline / ponto): luminância e croma por tema */
-  --tag-fg-l:.46; --tag-fg-c:.12;
-  --tag-bg-l:.96; --tag-bg-c:.03;
-  --tag-bd-l:.88; --tag-bd-c:.06;
+  /* Matiz dos presets (etiqueta / ponto): luminância e croma por tema */
+  --tag-fg-l:.44; --tag-fg-c:.12;
+  --tag-bg-l:.93; --tag-bg-c:.04;
   --dot-l:.62; --dot-c:.15;
 
   /* Profundidade e foco */
-  --shadow:0 10px 28px oklch(0.21 0.006 286 / .12), 0 1px 2px oklch(0.21 0.006 286 / .06);
-  --focus-ring:oklch(0.21 0.006 286 / .12);
+  --sh-card:0 1px 1px oklch(0.21 0.006 286 / .04), 0 3px 6px -2px oklch(0.21 0.006 286 / .05), 0 14px 30px -12px oklch(0.21 0.006 286 / .16);
+  --sh-lift:0 1px 1px oklch(0.21 0.006 286 / .05), 0 6px 10px -3px oklch(0.21 0.006 286 / .07), 0 20px 38px -14px oklch(0.21 0.006 286 / .22);
+  --sh-float:0 2px 4px oklch(0.21 0.006 286 / .06), 0 20px 44px -16px oklch(0.21 0.006 286 / .34);
+  --sh-ink:0 10px 20px -10px oklch(0.21 0.006 286 / .7);
+  --sh-key:0 1px 0 oklch(0.21 0.006 286 / .14), 0 3px 8px -3px oklch(0.21 0.006 286 / .22);
+  --sh-knob:0 2px 5px oklch(0.21 0.006 286 / .28);
+  --hl:inset 0 1px 0 oklch(1 0 0 / .95);
+  --inset:inset 0 1px 2px oklch(0.21 0.006 286 / .07), inset 0 0 0 1px oklch(0.21 0.006 286 / .025);
+  --focus-ring:oklch(0.21 0.006 286 / .14);
 
   /* Forma */
-  --rad-card:6px; --rad-btn:5px; --pill:9999px;
+  --r-card:12px; --r-tile:10px; --r-ctl:8px; --r-chip:7px; --r-kbd:5px; --r-rail:18px;
 
   /* Tipografia */
+  --sans:'Plus Jakarta Sans', "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --mono:'JetBrains Mono', ui-monospace, "Cascadia Code", SFMono-Regular, Menlo, Consolas, monospace;
-  --sans:"Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
 
-  /* Movimento (sem bounce: só ease-out) */
+  /* Movimento: mola curta (quase sem rebote) e saída expo */
+  --spring:linear(0, 0.052 1.7%, 0.195 3.6%, 0.393 5.9%, 0.604 8.6%, 0.774 11.4%, 0.892 14.4%, 0.961 17.6%, 0.998 21.1%, 1.014 25.1%, 1.017 30%, 1.012 36.5%, 1.003 47.6%, 0.999 62%, 1);
+  --out:cubic-bezier(.16, 1, .3, 1);
   --ease-out:cubic-bezier(.22, 1, .36, 1);
   --ease-out-expo:cubic-bezier(.16, 1, .3, 1);
 }
 
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:oklch(0.185 0.005 286);
-  --bg-rail:oklch(0.162 0.005 286);
-  --surface-soft:oklch(0.215 0.006 286);
-  --surface-card:oklch(0.25 0.007 286);
-  --track:oklch(0.30 0.007 286);
-  --knob:oklch(0.80 0.008 286);
-  --switch-off:oklch(0.36 0.008 286);
-
-  --line:oklch(0.98 0.003 286 / .09);
-  --line-2:oklch(0.98 0.003 286 / .16);
+  --canvas:oklch(0.17 0.005 286);
+  --glow:oklch(1 0 0 / .045);
+  --card:oklch(0.235 0.006 286);
+  --sunken:oklch(0.145 0.005 286);
+  --sunken-2:oklch(0.128 0.005 286);
+  --panel:oklch(0.155 0.005 286);
+  --line:oklch(0.98 0.003 286 / .07);
+  --line-2:oklch(0.98 0.003 286 / .12);
 
   --ink:oklch(0.955 0.003 286);
   --on-ink:oklch(0.185 0.005 286);
   --body:oklch(0.87 0.005 286);
   --dim:oklch(0.79 0.008 286);
   --stone:oklch(0.72 0.010 286);
-  --faint:oklch(0.66 0.010 286);
+  --faint:oklch(0.68 0.010 286);
   --ghost:oklch(0.44 0.010 286);
-  --bracket:oklch(0.48 0.010 286);
+  --bracket:oklch(0.50 0.010 286);
+
+  --rail-1:oklch(0.275 0.006 286);
+  --rail-2:oklch(0.215 0.006 286);
+  --rail-tile:oklch(1 0 0 / .06);
+  --rail-ico:oklch(0.88 0.004 286);
+  --rail-lbl:oklch(0.80 0.006 286);
+  --rail-on:oklch(0.955 0.003 286);
+  --rail-on-ico:oklch(0.185 0.005 286);
+  --dark-1:oklch(0.36 0.006 286);
+  --dark-2:oklch(0.265 0.006 286);
 
   --mint:oklch(0.74 0.18 150);
   --mint-fg:oklch(0.80 0.15 150);
-  --mint-soft:oklch(0.72 0.17 150 / .12);
+  --mint-soft:oklch(0.72 0.17 150 / .14);
   --mint-line:oklch(0.72 0.17 150 / .34);
   --amber:oklch(0.80 0.16 70);
-  --amber-fg:oklch(0.82 0.13 75);
-  --amber-soft:oklch(0.80 0.16 70 / .10);
-  --amber-line:oklch(0.80 0.16 70 / .32);
+  --amber-fg:oklch(0.83 0.13 75);
+  --amber-soft:oklch(0.80 0.16 70 / .12);
+  --amber-line:oklch(0.80 0.16 70 / .30);
   --danger:oklch(0.72 0.17 25);
-  --danger-soft:oklch(0.65 0.20 25 / .12);
-  --danger-line:oklch(0.72 0.17 25 / .40);
+  --danger-soft:oklch(0.65 0.20 25 / .14);
+  --danger-line:oklch(0.72 0.17 25 / .38);
+  --danger-hot:oklch(0.58 0.2 27);
 
-  --bar-in:oklch(0.42 0.008 286);
-  --bar-mute:oklch(0.60 0.010 286);
+  --bar-track:oklch(1 0 0 / .06);
+  --bar-fill:oklch(0.42 0.008 286);
 
   --tag-fg-l:.84; --tag-fg-c:.10;
-  --tag-bg-l:.27; --tag-bg-c:.04;
-  --tag-bd-l:.38; --tag-bd-c:.06;
+  --tag-bg-l:.29; --tag-bg-c:.05;
   --dot-l:.72; --dot-c:.14;
 
-  --shadow:0 12px 32px oklch(0 0 0 / .45), 0 1px 2px oklch(0 0 0 / .30);
-  --focus-ring:oklch(0.955 0.003 286 / .16);
+  --sh-card:0 1px 2px oklch(0 0 0 / .35), 0 16px 32px -14px oklch(0 0 0 / .65);
+  --sh-lift:0 2px 4px oklch(0 0 0 / .4), 0 22px 40px -14px oklch(0 0 0 / .75);
+  --sh-float:0 2px 6px oklch(0 0 0 / .45), 0 24px 48px -16px oklch(0 0 0 / .75);
+  --sh-ink:0 10px 22px -10px oklch(0 0 0 / .8);
+  --sh-key:0 1px 0 oklch(0 0 0 / .5), 0 3px 8px -3px oklch(0 0 0 / .6);
+  --sh-knob:0 2px 5px oklch(0 0 0 / .5);
+  --hl:inset 0 1px 0 oklch(1 0 0 / .07);
+  --inset:inset 0 1px 3px oklch(0 0 0 / .5), inset 0 0 0 1px oklch(1 0 0 / .035);
+  --focus-ring:oklch(0.955 0.003 286 / .18);
+}
+
+/* Ponte temporária da migração: nomes antigos → tokens novos (sai no fim). */
+:root{
+  --bg:var(--canvas); --bg-rail:var(--sunken); --surface-soft:var(--sunken); --surface-card:var(--sunken-2);
+  --track:var(--sunken-2); --knob:var(--card); --switch-off:var(--sunken-2); --text:var(--ink);
+  --rad-card:var(--r-card); --rad-btn:var(--r-ctl); --pill:9999px; --bar-in:var(--bar-track); --bar-mute:var(--bar-fill);
+  --shadow:var(--sh-float);
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0; background:var(--bg); color:var(--text); font-family:var(--mono); font-size:13px; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; overflow:hidden}
+body{margin:0; background:var(--canvas); color:var(--ink); font-family:var(--sans); font-size:13px; line-height:1.45; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; overflow:hidden}
 h1,h2,h3,p{margin:0}
 button,input,select,textarea{font:inherit; color:inherit}
 ::selection{background:oklch(0.72 0.17 150 / .28)}
-*:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:2px}
-kbd{font-family:var(--mono); font-size:11.5px; font-weight:500; line-height:1; color:var(--body); background:var(--bg); border:1px solid var(--line-2); border-bottom-width:2px; border-radius:4px; padding:3px 6px; min-width:20px; text-align:center; display:inline-block}
+*:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:4px}
+.mono{font-family:var(--mono)}
+kbd{display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 7px; border-radius:var(--r-kbd); background:var(--card); box-shadow:var(--sh-key), var(--hl); font:600 11px/1 var(--mono); color:var(--ink); vertical-align:middle}
+.bm-bracket{fill:var(--bracket)}
+.bm-ink{fill:var(--ink)}
 
+/* ── Barra de rolagem custom (overlay com fade) — lógica em autoscroll.ts ── */
+.has-cscroll{scrollbar-width:none}
+.has-cscroll::-webkit-scrollbar{width:0; height:0}
+.cscroll-thumb{position:fixed; width:6px; z-index:9999; background:var(--ink); border-radius:3px; opacity:0; pointer-events:none; transition:opacity .3s ease}
+.cscroll-thumb.on{opacity:.32; pointer-events:auto}
+.cscroll-thumb.on:hover{opacity:.55}
+.cscroll-thumb.drag{opacity:.7; pointer-events:auto}
+
+/* ── Textos de apoio e erro ──────────────────────────────────────────────── */
+.help{margin-top:6px; max-width:66ch; font:400 12.5px/1.55 var(--sans); color:var(--dim)}
+.help strong, .help b{font-weight:600; color:var(--ink)}
+.field-err{margin-top:10px; padding:9px 12px; border-radius:var(--r-ctl); background:var(--danger-soft); box-shadow:inset 0 0 0 1px var(--danger-line); font:500 12.5px/1.5 var(--sans); color:var(--danger); word-break:break-word}
+.help-more{margin-top:10px; font:400 12.5px var(--sans); color:var(--dim)}
+.help-more>summary{display:inline-flex; align-items:center; gap:6px; width:fit-content; cursor:pointer; list-style:none; user-select:none; font-weight:500; color:var(--stone); border-radius:6px; transition:color .2s}
+.help-more>summary::-webkit-details-marker{display:none}
+.help-more>summary::before{content:"" / ""; width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(-45deg); transition:transform .45s var(--spring)}
+.help-more[open]>summary::before{transform:rotate(45deg) translate(-1px,-1px)}
+.help-more>summary:hover{color:var(--ink)}
+.help-more p{margin-top:8px; max-width:66ch; line-height:1.55; animation:fade-soft .3s var(--out)}
+@keyframes fade-soft{from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none}}
+
+/* ── Botões ──────────────────────────────────────────────────────────────── */
+/* Secundário = card elevado; primário = tinta; perigo = contorno vermelho.
+   Sobe 1px no hover, encolhe no clique (mola). Sobre um card, o secundário
+   vira bloco cinza sem sombra (a sombra some no branco). */
+.btn-dl{display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:34px; padding:0 15px; border:0; border-radius:var(--r-ctl);
+  font:600 12.5px var(--sans); white-space:nowrap; cursor:pointer; color:var(--ink); background:var(--card); box-shadow:var(--sh-card), var(--hl);
+  transition:transform .35s var(--spring), box-shadow .2s, background-color .2s, color .2s, opacity .2s}
+.btn-dl:hover{transform:translateY(-1px); box-shadow:var(--sh-lift), var(--hl)}
+.btn-dl:active{transform:scale(.97); transition-duration:.08s}
+.btn-dl:disabled{opacity:.5; cursor:default; transform:none}
+.btn-dl.primary{color:var(--on-ink); background:var(--ink); box-shadow:var(--sh-ink)}
+.btn-dl.primary:hover{box-shadow:var(--sh-ink)}
+.btn-dl.danger{color:var(--danger); background:transparent; box-shadow:inset 0 0 0 1px var(--danger-line)}
+.btn-dl.danger:hover{background:var(--danger-soft)}
+.btn-dl.sm{min-height:30px; padding:0 12px; font-size:12px}
+.btn-ghost{display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:30px; padding:0 12px; border:0; border-radius:var(--r-ctl); background:transparent;
+  font:500 12px var(--sans); color:var(--dim); cursor:pointer; white-space:nowrap; transition:background-color .2s, color .2s, transform .35s var(--spring)}
+.btn-ghost:hover{background:var(--sunken); color:var(--ink)}
+.btn-ghost:active{transform:scale(.97)}
+.card .btn-dl:not(.primary):not(.danger){background:var(--sunken); box-shadow:none}
+.card .btn-dl:not(.primary):not(.danger):hover{background:var(--sunken-2)}
+
+/* ── Seletor segmentado: trilho afundado + peça clara que desliza (Segmented.tsx) ── */
+.seg{position:relative; display:inline-flex; flex-wrap:wrap; gap:2px; padding:3px; border-radius:calc(var(--r-ctl) + 3px); background:var(--sunken); box-shadow:var(--inset)}
+.seg button{position:relative; min-height:30px; padding:0 16px; border:0; background:none; border-radius:var(--r-ctl); font:500 12.5px var(--sans); color:var(--stone); cursor:pointer; white-space:nowrap; transition:color .2s}
+.seg button:hover{color:var(--ink)}
+.seg button.active{color:var(--ink)}
+.seg-pill{position:absolute; inset:0; border-radius:var(--r-ctl); background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.seg-label{position:relative}
+
+/* ── Chave liga/desliga: checkbox nativo, retangular, knob com mola ───────── */
+.switch-row{display:flex; align-items:center; justify-content:space-between; gap:24px; cursor:pointer}
+.switch{-webkit-appearance:none; appearance:none; flex:none; position:relative; width:44px; height:26px; margin:0; cursor:pointer; border:0; border-radius:var(--r-ctl);
+  background:var(--sunken-2); box-shadow:var(--inset); transition:background-color .3s}
+.switch::before{content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:calc(var(--r-ctl) - 2px); background:var(--card);
+  box-shadow:var(--sh-knob), var(--hl); transition:transform .5s var(--spring), width .2s var(--out), background-color .3s}
+.switch:checked{background:var(--ink)}
+.switch:checked::before{transform:translateX(18px); background:var(--on-ink)}
+.switch:active::before{width:24px}
+.switch:checked:active::before{transform:translateX(14px)}
+.switch:disabled{opacity:.5; cursor:default}
+.switch:focus-visible{outline-offset:3px; border-radius:var(--r-ctl)}
+
+/* ── Campos: afundados; foco vira card com anel ──────────────────────────── */
+.in, .api-cfg input:not([type=checkbox]):not([type=range]), fieldset.api-fields select, .mp-input{width:100%; min-height:38px; padding:8px 12px; border:0; border-radius:var(--r-ctl);
+  background:var(--sunken); box-shadow:var(--inset); font:500 12.5px/1.45 var(--mono); color:var(--ink); outline:none; transition:box-shadow .2s, background-color .2s}
+.in::placeholder, .api-cfg input::placeholder, .mp-input::placeholder{color:var(--faint)}
+.in:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus, .mp-input:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
+.in[readonly], .api-cfg input[readonly]{background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
+.in[readonly]:focus, .api-cfg input[readonly]:focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
+select.in, fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a95' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center}
+.api-label{display:block; margin:16px 0 6px; font:500 11.5px var(--sans); color:var(--stone)}
+.api-hint{display:block; margin-top:6px; font:400 11.5px/1.45 var(--sans); color:var(--stone); animation:fade-soft .3s var(--out)}
+.api-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.api-saved{display:inline-flex; align-items:center; gap:7px; margin-top:9px; padding:5px 10px; border-radius:7px; background:var(--mint-soft); color:var(--mint-fg); font:600 11.5px var(--sans)}
+.api-saved svg{flex:none}
+.dd-extra-input{margin-top:8px}
+fieldset.api-fields:disabled{opacity:.72}
+
+/* ── Lista suspensa (modelo): botão elevado, lista flutuante com cascata ─── */
+.dd{position:relative}
+.dd-btn{width:100%; min-height:40px; display:flex; align-items:center; gap:10px; padding:0 12px; border:0; border-radius:var(--r-ctl); cursor:pointer; text-align:left;
+  background:var(--card); box-shadow:var(--sh-card), var(--hl), inset 0 0 0 1px var(--line); font:500 12.5px var(--mono); color:var(--ink); transition:box-shadow .2s}
+.dd-btn:hover{box-shadow:var(--sh-lift), var(--hl), inset 0 0 0 1px var(--line-2)}
+.dd-btn.open{box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card), var(--hl)}
+.dd-val{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dd-chev{flex:none; color:var(--dim); transition:transform .5s var(--spring)}
+.dd-btn.open .dd-chev{transform:rotate(180deg)}
+.dd-list{position:absolute; z-index:20; top:calc(100% + 6px); left:0; right:0; margin:0; padding:5px; list-style:none; border-radius:var(--r-card); background:var(--card);
+  box-shadow:var(--sh-float), var(--hl); max-height:280px; overflow:auto; transform-origin:top center; animation:dd-in .45s var(--spring)}
+@keyframes dd-in{from{opacity:0; transform:translateY(-6px) scale(.97)} to{opacity:1; transform:none}}
+.dd-opt{cursor:pointer; padding:8px 10px; border-radius:calc(var(--r-ctl) - 2px); outline:none; animation:dd-opt .4s var(--spring) both; transition:background-color .15s}
+.dd-opt:nth-child(2){animation-delay:.02s} .dd-opt:nth-child(3){animation-delay:.04s} .dd-opt:nth-child(4){animation-delay:.06s}
+.dd-opt:nth-child(5){animation-delay:.08s} .dd-opt:nth-child(n+6){animation-delay:.1s}
+@keyframes dd-opt{from{opacity:0; transform:translateY(-3px)} to{opacity:1; transform:none}}
+.dd-opt:hover, .dd-opt:focus-visible, .dd-opt.sel{background:var(--sunken)}
+.dd-opt.sel .model-option-title{font-weight:600}
+.model-option-title{display:flex; align-items:center; justify-content:space-between; gap:8px; font:500 12.5px var(--mono); color:var(--ink); overflow-wrap:anywhere}
+.model-option-detail{display:block; margin-top:3px; font:500 11px var(--sans); color:var(--stone)}
+.model-tag{flex-shrink:0; display:inline-block; padding:3px 8px; border-radius:6px; background:var(--mint-soft); color:var(--mint-fg); font:600 10.5px var(--sans); white-space:nowrap}
+
+/* ── Avisos globais (permissão / atualização) e chamado de primeiro uso ──── */
+.banner, .callout{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border-radius:var(--r-card)}
+.banner{margin:0 0 14px; background:var(--amber-soft); box-shadow:inset 0 0 0 1px var(--amber-line)}
+.banner.update{background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.banner-text strong, .callout-text strong{font:600 13.5px var(--sans); color:var(--ink)}
+.banner-text p, .callout-text p{margin-top:3px; font:400 12.5px/1.5 var(--sans); color:var(--amber-fg)}
+.banner.update .banner-text p{color:var(--dim)}
+.banner .update-status{margin:3px 0 0}
+.banner button, .callout button{flex:none}
+.callout{background:var(--card); box-shadow:var(--sh-card), var(--hl)}
+.callout-text p{color:var(--dim)}
+
+/* ═══ Seções antigas (migradas tarefa a tarefa) ═══ */
 /* ── Shell: rail (altura total) + coluna de conteúdo ─────────────────────── */
 /* A janela roda SEM decoração nativa (decorations:false): barra de título e
    controles são desenhados aqui. O rail sobe até o topo; a barra de título fica
@@ -177,26 +341,6 @@ kbd{font-family:var(--mono); font-size:11.5px; font-weight:500; line-height:1; c
 .page-head h1{font-size:20px; font-weight:600; letter-spacing:-.02em; line-height:1.25; color:var(--ink)}
 .page-head p{margin-top:6px; font-family:var(--sans); font-size:13.5px; line-height:1.5; color:var(--dim)}
 
-/* ── Barra de rolagem custom (overlay com fade) — lógica em autoscroll.ts ── */
-.has-cscroll{scrollbar-width:none}
-.has-cscroll::-webkit-scrollbar{width:0; height:0}
-.cscroll-thumb{position:fixed; width:6px; z-index:9999; background:var(--ink); border-radius:4px; opacity:0; pointer-events:none; transition:opacity .3s ease}
-.cscroll-thumb.on{opacity:.5; pointer-events:auto}
-.cscroll-thumb.on:hover{opacity:.7}
-.cscroll-thumb.drag{opacity:.8; pointer-events:auto}
-
-/* ── Banners globais (permissão / atualização) e aviso de primeiro uso ───── */
-.banner, .callout{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 16px; border-radius:var(--rad-card)}
-.banner{margin:0 0 20px; background:var(--amber-soft); border:1px solid var(--amber-line)}
-.banner-text strong, .callout-text strong{font-size:13.5px; font-weight:600; color:var(--ink)}
-.banner-text p, .callout-text p{margin-top:3px; font-family:var(--sans); font-size:13px; line-height:1.5; color:var(--amber-fg)}
-.banner.update{background:var(--surface-soft); border-color:var(--line-2)}
-.banner.update .banner-text p{color:var(--dim)}
-.banner .update-status{margin:3px 0 0}
-.banner button, .callout button{flex:none}
-.callout{background:var(--surface-soft); border:1px solid var(--line-2)}
-.callout-text p{color:var(--dim)}
-
 /* ── Páginas de configuração: seções separadas por fios (sem caixa) ──────── */
 .card{animation:tab-in .2s var(--ease-out) both}
 .field{padding:24px 0; border-top:1px solid var(--line)}
@@ -211,53 +355,10 @@ fieldset.api-fields + .field{border-top:1px solid var(--line)}
 .sec-title::after{content:"]" / ""; color:var(--ghost); font-weight:500; margin-left:.5em}
 .sec-meta{font-weight:500; color:var(--stone); margin-left:.6em}
 
-.help{margin-top:10px; max-width:68ch; font-family:var(--sans); font-size:13px; line-height:1.55; color:var(--dim)}
-.help strong{font-weight:600; color:var(--ink)}
 .sub-field{margin-top:16px}
 .notes .help:first-child{margin-top:0}
 
-/* Erro inline perto do controle que falhou. */
-.field-err{margin-top:10px; font-family:var(--sans); font-size:13px; line-height:1.5; color:var(--danger); background:var(--danger-soft); border:1px solid var(--danger-line); border-radius:var(--rad-btn); padding:8px 12px; word-break:break-word}
-
-/* Help recolhível (divulgação progressiva). */
-.help-more{margin-top:10px; font-family:var(--sans); font-size:13px; color:var(--dim)}
-.help-more>summary{cursor:pointer; color:var(--stone); list-style:none; user-select:none; width:fit-content}
-.help-more>summary::-webkit-details-marker{display:none}
-.help-more>summary::before{content:"▸" / ""; display:inline-block; width:1em; color:var(--faint)}
-.help-more[open]>summary::before{content:"▾" / ""}
-.help-more>summary:hover{color:var(--ink)}
-.help-more p{margin-top:8px; max-width:68ch; line-height:1.55}
-
 /* ── Controles ───────────────────────────────────────────────────────────── */
-/* Botões utilitários: neutro, primário (tinta) e destrutivo. */
-.btn-dl{display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:30px; padding:5px 12px; cursor:pointer; font-size:12.5px; font-weight:500; white-space:nowrap; color:var(--body); background:var(--bg); border:1px solid var(--line-2); border-radius:var(--rad-btn); transition:background .15s, border-color .15s, color .15s, opacity .15s}
-.btn-dl:hover{border-color:var(--stone); color:var(--ink)}
-.btn-dl:active{background:var(--surface-soft)}
-.btn-dl:disabled{opacity:.5; cursor:default}
-.btn-dl:disabled:hover{border-color:var(--line-2); color:var(--body)}
-.btn-dl.primary{min-height:34px; padding:6px 15px; font-weight:600; color:var(--on-ink); background:var(--ink); border-color:var(--ink)}
-.btn-dl.primary:hover{opacity:.86; color:var(--on-ink)}
-.btn-dl.primary:disabled:hover{opacity:.5; border-color:var(--ink); color:var(--on-ink)}
-.btn-dl.danger{color:var(--danger); border-color:var(--danger-line)}
-.btn-dl.danger:hover{border-color:var(--danger); background:var(--danger-soft)}
-
-/* Segmented control (escolha exclusiva): trilho + segmento ativo em tinta.
-   Visualmente distinto de botões de ação. */
-.seg{display:inline-flex; flex-wrap:wrap; gap:2px; padding:3px; background:var(--surface-soft); border:1px solid var(--line); border-radius:calc(var(--rad-btn) + 3px)}
-.seg button{cursor:pointer; min-height:30px; padding:5px 16px; font-size:13px; font-weight:500; white-space:nowrap; color:var(--dim); background:transparent; border:0; border-radius:var(--rad-btn); transition:background .15s, color .15s}
-.seg button:hover{color:var(--ink); background:var(--surface-card)}
-.seg button.active{color:var(--on-ink); background:var(--ink)}
-
-/* Switch (liga/desliga): checkbox nativo estilizado — mesma semântica, um só
-   vocabulário pra todo booleano do app. */
-.switch-row{display:flex; align-items:center; justify-content:space-between; gap:20px; cursor:pointer}
-.switch-row .sec-title{margin:0}
-.switch{-webkit-appearance:none; appearance:none; flex:none; position:relative; width:36px; height:20px; margin:0; cursor:pointer; border-radius:var(--pill); background:var(--switch-off); border:1px solid transparent; transition:background .18s var(--ease-out), border-color .18s var(--ease-out)}
-.switch::before{content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--knob); box-shadow:0 1px 2px oklch(0.21 0.006 286 / .25); transition:transform .18s var(--ease-out), background .18s var(--ease-out)}
-.switch:checked{background:var(--ink); border-color:var(--ink)}
-.switch:checked::before{transform:translateX(16px); background:var(--on-ink)}
-.switch:disabled{opacity:.5; cursor:default}
-.switch:focus-visible{outline-offset:3px; border-radius:var(--pill)}
 
 /* Chips de preset: neutros; o matiz da tarefa vira só um ponto (.p-dot). */
 .chips{display:flex; flex-wrap:wrap; gap:8px}
@@ -265,38 +366,6 @@ fieldset.api-fields + .field{border-top:1px solid var(--line)}
 .chip:hover{border-color:var(--stone); color:var(--ink)}
 .chip.active{color:var(--on-ink); background:var(--ink); border-color:var(--ink); font-weight:500}
 .p-dot{flex:none; display:inline-block; width:8px; height:8px; border-radius:2px; background:oklch(var(--dot-l) var(--dot-c) var(--pc-h, 250))}
-
-/* Campos de texto */
-.api-cfg input:not([type=checkbox]):not([type=range]), fieldset.api-fields select, .mp-input, .dd-btn{width:100%; min-height:36px; padding:7px 11px; font-family:var(--mono); font-size:13px; color:var(--ink); background:var(--surface-soft); border:1px solid var(--line-2); border-radius:var(--rad-btn); transition:border-color .15s, background .15s, box-shadow .15s}
-.api-cfg input::placeholder, .mp-input::placeholder{color:var(--faint)}
-.api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus, .mp-input:focus{outline:none; border-color:var(--ink); background:var(--bg); box-shadow:0 0 0 3px var(--focus-ring)}
-.api-cfg input[readonly]{color:var(--dim); background:transparent; border-style:dashed; cursor:default}
-.api-cfg input[readonly]:focus{border-color:var(--line-2); box-shadow:none; background:transparent}
-fieldset.api-fields:disabled{opacity:.72}
-.api-label{display:block; margin-bottom:6px; font-size:12px; font-weight:500; color:var(--stone)}
-.api-hint{display:block; margin-top:6px; font-family:var(--sans); font-size:12.5px; line-height:1.45; color:var(--stone)}
-.api-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
-.api-saved{display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; color:var(--mint-fg)}
-.api-saved svg{flex:none}
-.dd-extra-input{margin-top:8px}
-
-/* Dropdown estilizado (modelo) — substitui o <select> nativo. */
-.dd{position:relative}
-.dd-btn{display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; text-align:left}
-.dd-btn:hover{border-color:var(--stone)}
-.dd-btn.open{border-color:var(--ink); background:var(--bg); box-shadow:0 0 0 3px var(--focus-ring)}
-.dd-val{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.dd-chev{flex:none; color:var(--dim); transition:transform .18s var(--ease-out)}
-.dd-btn.open .dd-chev{transform:rotate(180deg)}
-.dd-list{position:absolute; z-index:20; top:calc(100% + 4px); left:0; right:0; margin:0; padding:4px; list-style:none; background:var(--bg); border:1px solid var(--line-2); border-radius:var(--rad-card); box-shadow:var(--shadow); max-height:260px; overflow:auto; animation:dd-in .14s var(--ease-out)}
-@keyframes dd-in{from{opacity:0; transform:translateY(-3px)}to{opacity:1; transform:none}}
-.dd-opt{cursor:pointer; padding:8px 10px; font-size:13px; color:var(--ink); border-radius:calc(var(--rad-btn) - 1px); outline:none}
-.dd-opt:hover, .dd-opt:focus-visible{background:var(--surface-soft)}
-.dd-opt.sel{background:var(--surface-soft)}
-.dd-opt.sel .model-option-title{font-weight:600}
-.model-option-title{display:flex; align-items:center; justify-content:space-between; gap:8px; overflow-wrap:anywhere}
-.model-option-detail{display:block; margin-top:3px; font-size:11.5px; color:var(--stone)}
-.model-tag{flex-shrink:0; display:inline-block; padding:2px 6px; font-size:10.5px; font-weight:500; color:var(--mint-fg); background:var(--mint-soft); border:1px solid var(--mint-line); border-radius:4px}
 
 /* Slider (janela entre os toques): trilho preenchido até o valor (--fill). */
 input[type=range]{-webkit-appearance:none; appearance:none; display:block; width:100%; height:4px; margin:14px 0 0; cursor:pointer; border-radius:var(--pill); background:linear-gradient(var(--ink), var(--ink)) 0 / var(--fill, 50%) 100% no-repeat, var(--track); outline:none}
@@ -419,10 +488,6 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px var(-
 .prov-pill:hover .ico-openrouter{transform:scale(1.12)}
 .prov-pill:hover .ico-code .br-l{transform:translateX(-3px)}
 .prov-pill:hover .ico-code .br-r{transform:translateX(3px)}
-
-/* Aparições suaves das dicas e da ficha do modelo. */
-.api-hint, .model-info{animation:fade-soft .22s var(--ease-out)}
-@keyframes fade-soft{from{opacity:0; transform:translateY(2px)}to{opacity:1; transform:none}}
 
 /* ── Início (dashboard) ──────────────────────────────────────────────────── */
 .inicio{display:flex; flex-direction:column; gap:30px; animation:tab-in .2s var(--ease-out) both}
@@ -578,8 +643,6 @@ button.conn:disabled{cursor:default}
 @keyframes conn-pulse{0%,100%{opacity:1} 50%{opacity:.35}}
 
 /* ── Logo (tema) e tela de carregamento ──────────────────────────────────── */
-.bm-bracket{fill:var(--bracket)}
-.bm-ink{fill:var(--ink)}
 .loading-brand{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px}
 .loading-brand .lb-text{font-size:12.5px; letter-spacing:.04em; color:var(--stone)}
 
