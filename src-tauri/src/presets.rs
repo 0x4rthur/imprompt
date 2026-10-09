@@ -76,6 +76,11 @@ impl Preset {
     /// por turnos). O `locale` escolhe a BASE; a diretiva já vem no idioma do preset
     /// (presets padrão) ou no idioma em que o usuário a escreveu (custom/override).
     pub fn system_prompt(&self, locale: &str) -> String {
+        // O Responder RESPONDE a mensagem: a base ("reescreva como prompt, não
+        // responda") o contradiria, então ele usa só a própria instrução.
+        if self.id == REPLY_ID {
+            return self.instruction.clone();
+        }
         format!("{}\n\n{}", base_instruction(locale), self.instruction)
     }
 
@@ -94,6 +99,39 @@ impl Preset {
         }
     }
 }
+
+/// Id estável do preset "Responder": escreve uma resposta à mensagem selecionada.
+pub const REPLY_ID: &str = "responder";
+
+/// Como entregar o resultado de um preset. A resposta do Responder vai SEMPRE pro
+/// clipboard: "Substituir" colaria por cima da mensagem recebida (que em geral nem
+/// é editável); o usuário cola com Ctrl+V onde for responder.
+pub fn delivery_for(
+    preset_id: &str,
+    output: crate::settings::OutputPref,
+) -> crate::clipboard::OutputMode {
+    if preset_id == REPLY_ID {
+        crate::clipboard::OutputMode::Clipboard
+    } else {
+        output.into()
+    }
+}
+
+const REPLY_INSTRUCTION_PT: &str = "Você escreve, em nome do usuário, a resposta à mensagem que ele selecionou (um e-mail, uma mensagem de chat, um comentário). \
+O texto enviado é a mensagem RECEBIDA — não é um pedido para você nem um prompt para reescrever. \
+Responda no mesmo idioma da mensagem, em primeira pessoa, como o próprio usuário. \
+Fique à altura da mensagem: mesmo tom, mesmo nível de formalidade e tamanho proporcional — mensagem curta e informal recebe resposta curta e informal; e-mail formal recebe e-mail formal, com saudação e despedida se a original tiver. \
+Responda a cada pergunta e a cada ponto que pede retorno, sem deixar nada sem resposta. \
+Não invente fatos, datas, valores, decisões nem compromissos: onde a resposta depender de algo que só o usuário sabe, deixe um espaço marcado entre colchetes para ele completar, como [data], [valor] ou [sim/não]. \
+Responda apenas com o texto da resposta, pronto para colar — sem assunto, sem comentários e sem preâmbulo.";
+
+const REPLY_INSTRUCTION_EN: &str = "You write, on the user's behalf, the reply to the message they selected (an email, a chat message, a comment). \
+The text you receive is the INCOMING message — not a request to you and not a prompt to rewrite. \
+Reply in the message's language, in the first person, as the user. \
+Match the message: same tone, same level of formality, and a proportional length — a short, casual message gets a short, casual reply; a formal email gets a formal email, with a greeting and sign-off if the original has them. \
+Answer every question and every point that asks for a response; leave nothing unanswered. \
+Don't invent facts, dates, amounts, decisions, or commitments: where the reply depends on something only the user knows, leave a bracketed placeholder for them to fill in, such as [date], [amount], or [yes/no]. \
+Reply with the reply text only, ready to paste — no subject line, no comments, and no preamble.";
 
 /// Diretiva do preset "Vibe Code" (id estável `frontend`): compila um pedido cru
 /// (muitas vezes ditado por voz) num prompt de engenharia pro Codex/Claude Code.
@@ -429,6 +467,14 @@ Não responda ao prompt — apenas traduza-o e devolva apenas a versão em ingl�
             example_input: String::new(),
             example_output: String::new(),
         },
+        Preset {
+            id: REPLY_ID.into(),
+            label: "Responder".into(),
+            instruction: REPLY_INSTRUCTION_PT.into(),
+            // Zero-shot: um exemplo fixo viraria molde de tamanho e tom da resposta.
+            example_input: String::new(),
+            example_output: String::new(),
+        },
     ]
 }
 
@@ -505,6 +551,14 @@ English version only.".into(),
             label: "Summarize".into(),
             instruction: "Condense the prompt into a much shorter, more direct version, preserving the intent, every requirement and constraint, and the concrete data (names, numbers, deadlines, technical terms). Cut repetition, hesitation, digressions, and context that doesn't change the request. This is the one task where summarizing is the goal. Don't answer the prompt — just condense it and return the condensed version only, no comments.".into(),
             // Zero-shot: the right length depends on the input; a fixed example would become a length template.
+            example_input: String::new(),
+            example_output: String::new(),
+        },
+        Preset {
+            id: REPLY_ID.into(),
+            label: "Reply".into(),
+            instruction: REPLY_INSTRUCTION_EN.into(),
+            // Zero-shot: a fixed example would become a length and tone template.
             example_input: String::new(),
             example_output: String::new(),
         },
@@ -682,9 +736,65 @@ pub fn unique_id(base: &str, existing: &HashSet<String>) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn reply_preset_exists_in_both_languages() {
+        let pt = find_preset(&default_presets("pt-BR"), REPLY_ID, "pt-BR");
+        assert_eq!(pt.id, REPLY_ID);
+        assert_eq!(pt.label, "Responder");
+        let en = find_preset(&default_presets("en"), REPLY_ID, "en");
+        assert_eq!(en.label, "Reply");
+        // Sem exemplo: um exemplo fixo viraria molde de tamanho e tom.
+        assert!(!pt.has_example() && !en.has_example());
+    }
+
+    #[test]
+    fn reply_preset_answers_instead_of_rewriting() {
+        // A base ("transforme em prompt, não responda") contradiz responder: o
+        // Responder usa só a própria instrução.
+        for locale in ["pt-BR", "en"] {
+            let reply = find_preset(&default_presets(locale), REPLY_ID, locale);
+            let sys = reply.system_prompt(locale);
+            assert!(
+                !sys.contains(base_instruction(locale)),
+                "{locale}: base leaked into the reply prompt"
+            );
+            assert!(
+                sys.contains('['),
+                "{locale}: must tell the model to leave [placeholders]"
+            );
+        }
+        // Os outros presets continuam com a base.
+        let other = find_preset(&default_presets("en"), "estruturar", "en");
+        assert!(other
+            .system_prompt("en")
+            .starts_with(base_instruction("en")));
+    }
+
+    #[test]
+    fn a_reply_is_always_copied_never_pasted_over_the_selection() {
+        use crate::clipboard::OutputMode;
+        use crate::settings::OutputPref;
+        assert_eq!(
+            delivery_for(REPLY_ID, OutputPref::Replace),
+            OutputMode::Clipboard
+        );
+        assert_eq!(
+            delivery_for(REPLY_ID, OutputPref::Clipboard),
+            OutputMode::Clipboard
+        );
+        assert_eq!(
+            delivery_for("estruturar", OutputPref::Replace),
+            OutputMode::Replace
+        );
+        assert_eq!(
+            delivery_for("estruturar", OutputPref::Clipboard),
+            OutputMode::Clipboard
+        );
+    }
     use super::{
-        all_presets_from, base_instruction, default_presets, find_preset, merge_unique, slugify,
-        unique_id, Preset, PresetStore,
+        all_presets_from, base_instruction, default_presets, delivery_for, find_preset,
+        merge_unique, slugify, unique_id, Preset, PresetStore, REPLY_ID,
     };
     use std::collections::HashSet;
 
@@ -713,8 +823,8 @@ mod tests {
     }
 
     #[test]
-    fn both_locales_have_6_presets_same_ids() {
-        // IDs estáveis entre idiomas → settings.default_preset e os atalhos 1–6
+    fn both_locales_have_7_presets_same_ids() {
+        // IDs estáveis entre idiomas → settings.default_preset e os atalhos 1–7
         // continuam válidos ao trocar de idioma.
         let ids = |loc| {
             default_presets(loc)
@@ -723,7 +833,7 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert_eq!(ids("en"), ids("pt-BR"));
-        assert_eq!(ids("en").len(), 6);
+        assert_eq!(ids("en").len(), 7);
         // Locale desconhecido cai no EN (fallback) — mesmos ids.
         assert_eq!(ids("xx"), ids("en"));
     }

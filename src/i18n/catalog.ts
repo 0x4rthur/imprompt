@@ -285,6 +285,7 @@ const en = {
   // Modo de saída (rótulo da loc-note + title do botão Aplicar).
   "popup.output.replace": "will replace the text",
   "popup.output.clipboard": "will copy to the clipboard",
+  "popup.output.reply": "will copy the reply — paste it with Ctrl+V",
   // Badge da API (modelo).
   "popup.badge.api": "API · {model}",
   "popup.badge.noModel": "(no model set)",
@@ -570,6 +571,7 @@ const ptBR: Record<keyof typeof en, string> = {
   // ── Popup (palette) ──
   "popup.output.replace": "vai substituir o texto",
   "popup.output.clipboard": "vai copiar pra área de transferência",
+  "popup.output.reply": "vai copiar a resposta — cole com Ctrl+V",
   "popup.badge.api": "API · {model}",
   "popup.badge.noModel": "(modelo não definido)",
   "popup.error.fallback": "Não consegui concluir o imprompt. Verifique a configuração da API nas Preferências.",

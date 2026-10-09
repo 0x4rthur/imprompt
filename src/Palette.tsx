@@ -27,6 +27,8 @@ import Swap from "./ui/Swap";
 // Preset usado enquanto get_settings/list_presets não respondem (e se o
 // default_preset vier vazio). Mantido como constante pra não vazar literal solto.
 const FALLBACK_PRESET = "estruturar";
+// Preset "Responder" (id estável, igual ao do backend).
+const REPLY_ID = "responder";
 // Saída do "Aplicar": o popup encolhe e some antes de colar (casa com o CSS).
 const LEAVE_MS = 190;
 
@@ -44,7 +46,7 @@ export default function Palette() {
   const [refined, setRefined] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [outNote, setOutNote] = useState("");
+  const [output, setOutput] = useState<Settings["output"]>("replace");
   const [badge, setBadge] = useState("");
   const [expanded, setExpanded] = useState(false); // citação expandida (texto longo)
   const [closing, setClosing] = useState(false);    // tocando a animação de saída (Esc)
@@ -59,6 +61,9 @@ export default function Palette() {
   // "Aplicar" em andamento (animação de saída → esconder → colar): um 2º Enter,
   // R ou clique nesse meio-tempo não pode colar de novo nem refazer escondido.
   const applying = useRef(false);
+  // Preset que gerou o resultado na tela (o "Aplicar" entrega conforme ELE, mesmo
+  // que o usuário troque de chip depois de refinar).
+  const resultPreset = useRef(presetId);
 
   // refs com os valores atuais (pro handler de teclado e o refine não pegarem
   // closures velhas).
@@ -89,7 +94,7 @@ export default function Palette() {
       // no idioma da 1ª abertura mesmo após o usuário trocar nas Preferências.
       setLocale(s.locale);
       applyTheme(s.theme);
-      setOutNote(t(s.output === "replace" ? "popup.output.replace" : "popup.output.clipboard"));
+      setOutput(s.output);
       setBadge(t("popup.badge.api", { model: s.api_model || t("popup.badge.noModel") }));
     } catch (e) {
       console.error(e);
@@ -168,6 +173,7 @@ export default function Palette() {
     if (!text || loadingRef.current || applying.current) return;
     setLoading(true); setRefined(null); setError(false); setCopied(false);
     try {
+      resultPreset.current = presetIdRef.current;
       const out = await invoke<string>("refine_text", { text, presetId: presetIdRef.current });
       setError(false);
       setRefined(out);
@@ -223,7 +229,7 @@ export default function Palette() {
     if (!reducedMotion()) { setLeaving(true); await wait(LEAVE_MS); }
     await appWindow.hide();                 // devolve o foco pro app de origem antes de colar
     try {
-      await invoke("deliver_result", { text: refined });
+      await invoke("deliver_result", { text: refined, presetId: resultPreset.current });
     } catch (e) {
       // A entrega falhou (clipboard/paste rejeitado pelo SO). O popup já sumiu —
       // reexibe pra o usuário não perder o resultado e poder copiar manualmente
@@ -318,6 +324,12 @@ export default function Palette() {
     window.addEventListener("keydown", onTrap);
     return () => window.removeEventListener("keydown", onTrap);
   }, []);
+
+  // Pra onde vai o resultado. O Responder sempre copia (colar por cima da
+  // mensagem recebida não faz sentido) — o backend aplica a mesma regra.
+  const outNote = presetId === REPLY_ID
+    ? t("popup.output.reply")
+    : t(output === "replace" ? "popup.output.replace" : "popup.output.clipboard");
 
   const long = captured.length > 140; // citação longa: recolhida em 2 linhas, expansível
   const hasResult = refined != null;

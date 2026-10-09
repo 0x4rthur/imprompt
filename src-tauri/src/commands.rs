@@ -540,11 +540,17 @@ pub fn get_captured_text(state: State<AppState>) -> String {
 }
 
 /// Entrega o resultado do popup conforme o modo de saída das settings
-/// (Substituir = cola por cima da seleção; Clipboard = só copia).
+/// (Substituir = cola por cima da seleção; Clipboard = só copia). O Responder
+/// sempre copia (ver `presets::delivery_for`).
 #[tauri::command]
-pub fn deliver_result(state: State<AppState>, text: String) -> Result<(), String> {
-    let mode = lock(&state.settings).output.clone();
-    crate::clipboard::deliver(&text, mode.into()).map_err(|e| i18n_err(&state, &e.to_string()))
+pub fn deliver_result(
+    state: State<AppState>,
+    text: String,
+    preset_id: Option<String>,
+) -> Result<(), String> {
+    let output = lock(&state.settings).output.clone();
+    let mode = crate::presets::delivery_for(preset_id.as_deref().unwrap_or_default(), output);
+    crate::clipboard::deliver(&text, mode).map_err(|e| i18n_err(&state, &e.to_string()))
 }
 
 /// Devolve o histórico de refinos (mais recente primeiro) pra timeline da tela Início.
