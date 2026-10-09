@@ -51,7 +51,7 @@ it("Enter refines, then Enter applies the result", async () => {
   await screen.findByText("Better text");
   expect(invoke).toHaveBeenCalledWith("refine_text", { text: "make this better", presetId: "p0" });
   fireEvent.keyDown(window, { key: "Enter" });
-  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text" }));
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text", presetId: "p0" }));
   expect(hide).toHaveBeenCalled();
 });
 
@@ -70,7 +70,7 @@ it("a second Enter while the popup is leaving does not deliver twice", async () 
     fireEvent.keyDown(window, { key: "Enter" });
     fireEvent.keyDown(window, { key: "Enter" });
     fireEvent.keyDown(window, { key: "r" });
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text", presetId: "p0" }));
     await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
     const calls = vi.mocked(invoke).mock.calls.map(([c]) => c);
     expect(calls.filter((c) => c === "deliver_result")).toHaveLength(1);
@@ -118,6 +118,27 @@ it("a failed delivery brings the popup back and Enter applies again", async () =
   } finally {
     quiet.mockRestore();
   }
+});
+
+it("a reply is copied, not pasted over the message, and the footer says so", async () => {
+  vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+    switch (cmd) {
+      case "list_presets": return [...presets.slice(0, 2), { ...presets[0], id: "responder", label: "Reply" }];
+      case "get_captured_text": return "Can we move the call to Friday?";
+      case "get_settings": return SETTINGS; // output: "replace"
+      case "refine_text": return "Sure, Friday works. [time]?";
+      default: return null;
+    }
+  });
+  render(<Palette />);
+  await screen.findByText("Can we move the call to Friday?");
+  expect(screen.getByText("will replace the text")).toBeTruthy();
+  fireEvent.keyDown(window, { key: "3" });
+  expect(screen.getByText("will copy the reply — paste it with Ctrl+V")).toBeTruthy();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await screen.findByText("Sure, Friday works. [time]?");
+  fireEvent.keyDown(window, { key: "Enter" });
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Sure, Friday works. [time]?", presetId: "responder" }));
 });
 
 it("number keys pick presets and only the first nine get a number", async () => {

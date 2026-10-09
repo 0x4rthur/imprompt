@@ -366,7 +366,7 @@ fn run_refine_flow(app: &tauri::AppHandle) {
                         let state: tauri::State<AppState> = app.state();
                         state.push_history(&text, &refined, &preset_id);
                     }
-                    let _ = clipboard::deliver(&refined, output.into());
+                    let _ = clipboard::deliver(&refined, presets::delivery_for(&preset_id, output));
                 }
                 Err(e) => {
                     // Sem janela no modo Instantâneo → avisa com uma notificação

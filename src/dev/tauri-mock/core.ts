@@ -44,6 +44,7 @@ const BUILTIN: Array<[string, string, string]> = [
   ["ingles", "Traduzir p/ EN", "Translate to English"],
   ["frontend", "Vibe Code", "Vibe Code"],
   ["resumir", "Resumir", "Summarize"],
+  ["responder", "Responder", "Reply"],
 ];
 function defaults(): Preset[] {
   const list: Preset[] = BUILTIN.map(([id, pt, en]) => ({

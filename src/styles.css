@@ -635,7 +635,7 @@ fieldset.api-fields{border:0; padding:0; margin:0; min-width:0}
 
 /* ── Presets ─────────────────────────────────────────────────────────────── */
 /* Preset padrão: blocos; o contorno do escolhido (.preset-ring, layoutId) desliza. */
-.ptiles{display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px}
+.ptiles{display:grid; grid-template-columns:repeat(auto-fill, minmax(86px, 1fr)); gap:8px}
 .ptile{position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0; padding:12px 6px 11px; border:0; border-radius:var(--r-tile); cursor:pointer;
   background:var(--sunken); box-shadow:var(--inset); text-align:center; font:600 11.5px/1.25 var(--sans); color:var(--dim); transition:color .25s, transform .4s var(--spring)}
 .ptile:hover{color:var(--ink); transform:translateY(-1px)}
