@@ -23,7 +23,7 @@ Comportamento no app:
 
 Já foram geradas:
 
-- **Privada:** `C:\Users\arthu\.tauri\imprompt-updater.key` (gerada **sem senha**).
+- **Privada:** `C:\Users\arthu\.tauri\imprompt-updater.key` (gerada **sem senha**; cópia de segurança no Google Drive pessoal — ver `docs/SETUP.md`).
 - **Pública:** `C:\Users\arthu\.tauri\imprompt-updater.key.pub` → já está no
   `tauri.conf.json` em `plugins.updater.pubkey`.
 
@@ -76,37 +76,41 @@ no mesmo lugar apontado pela `url` (ex.: anexos do release do GitHub).
 
 ---
 
-## 3. Fluxo de release (passa a existir)
+## 3. Publicar uma versão (passo a passo)
 
-1. **Bump da versão** em `src-tauri/tauri.conf.json` (`version`), e
-   em `package.json` e `src-tauri/Cargo.toml`, incluindo ambos os lockfiles.
-2. **Exporte a chave de assinatura** (PowerShell):
-   ```powershell
-   $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content "C:\Users\arthu\.tauri\imprompt-updater.key" -Raw
-   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""   # sem senha
+É o fluxo usado em todas as releases desde a 0.1.6. Rode os comandos no
+**Git Bash** (no PowerShell, `$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""` *apaga* a
+variável e o build trava pedindo senha depois de gerar o instalador).
+
+1. **Branch e versão.** Numa branch nova a partir do `main`, suba a versão em
+   `package.json`, `package-lock.json` (2 lugares), `src-tauri/Cargo.toml`,
+   `src-tauri/Cargo.lock` (pacote `imprompt`) e `src-tauri/tauri.conf.json`, e
+   escreva as notas em `docs/releases/vX.Y.Z.md` (viram o texto da atualização).
+2. **Conferir:** `npm run typecheck && npm test && npm run build` e, em
+   `src-tauri/`, `cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+3. **PR:** commit, `git push -u origin <branch>` e `gh pr create --base main`.
+   O CI (`.github/workflows/ci.yml`, ~7 min) roda as mesmas verificações.
+4. **Build assinado** (Git Bash, na raiz do repositório):
+   ```bash
+   export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/imprompt-updater.key)"
+   export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+   npm run tauri build -- --config src-tauri/tauri.release.conf.json < /dev/null
    ```
-   (`.env` NÃO funciona pra isso — tem que ser variável de ambiente do processo.)
-3. **Build:**
-   ```powershell
-   npm run tauri build -- --config src-tauri/tauri.release.conf.json
-   ```
-   A configuração de release ativa `bundle.createUpdaterArtifacts = true` e gera o instalador **e** o
-   `.sig` em `src-tauri/target/release/bundle/` (ex.: `nsis/Imprompt_<v>_x64-setup.exe`
-   e `..._setup.exe.sig`).
-4. **Monte o `latest.json`** com a nova `version`, a `url` do instalador e a
-   `signature` = conteúdo do `.sig`.
-5. **Publique** o instalador + o `latest.json` no host do endpoint (ex.: crie um
-   release `v0.2.0` no GitHub e anexe os dois; a URL `releases/latest/download/latest.json`
-   passa a servir o novo arquivo).
+   Gera `src-tauri/target/release/bundle/nsis/Imprompt_X.Y.Z_x64-setup.exe` e o
+   `.sig`. (Se ainda assim pedir senha: `npx tauri signer sign -f ~/.tauri/imprompt-updater.key -p "" <instalador>`.)
+5. **Arquivos da release:** `python scripts/release-assets.py` — confere a
+   assinatura contra a `pubkey` do `tauri.conf.json` (para se não bater), escreve
+   `latest.json` e `SHA256SUMS.txt` ao lado do instalador e imprime o comando abaixo.
+6. **Rascunho:** `gh release create vX.Y.Z --draft --target main --title "Imprompt vX.Y.Z" --notes-file docs/releases/vX.Y.Z.md`
+   com os 4 arquivos (instalador, `.sig`, `latest.json`, `SHA256SUMS.txt`).
+   Confira baixando de volta: `gh release download vX.Y.Z --dir conferir && (cd conferir && sha256sum -c SHA256SUMS.txt)`.
+7. **Com o CI verde:** `gh pr merge <n> --rebase`, depois
+   `gh release edit vX.Y.Z --draft=false --latest`.
+8. **Verificar:** `https://github.com/0x4rthur/imprompt/releases/latest/download/latest.json`
+   deve responder a versão nova. Os apps instalados a oferecem na próxima checagem.
 
-Os apps instalados detectam a nova versão na próxima checagem (startup ou bandeja).
-
-A configuração padrão mantém a assinatura desativada para builds locais de
-desenvolvimento. Use o arquivo `tauri.release.conf.json` e a chave existente para
-distribuir atualizações compatíveis. Não troque a chave pública entre releases.
-Mantenha também `package-lock.json` e `src-tauri/Cargo.lock` com a mesma versão.
-Crie o release inicialmente como rascunho, anexe instalador, `.sig`, `latest.json`
-e checksums, confira assinatura e CI, e só então publique como release mais recente.
+Regras: não troque a chave pública entre releases; o build de desenvolvimento
+(`tauri.conf.json` sem o arquivo de release) não assina, de propósito.
 
 ---
 
