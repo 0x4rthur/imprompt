@@ -117,7 +117,6 @@ pub fn run() {
             commands::refine_text,
             commands::test_api_connection,
             commands::apply_api_configuration,
-            commands::set_api_key,
             commands::get_api_key_status,
             commands::deliver_result,
             commands::get_history,
@@ -131,7 +130,6 @@ pub fn run() {
             commands::get_usage,
             commands::get_api_balance,
             commands::get_usage_history,
-            commands::reset_usage,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

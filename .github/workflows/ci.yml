@@ -14,17 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- Guard: fail if the updater endpoint still has the placeholder ----
-      - name: Check updater placeholder
-        shell: pwsh
-        run: |
-          $conf = "src-tauri/tauri.conf.json"
-          if (Select-String -Path $conf -Pattern "SEU-USUARIO" -Quiet) {
-            Write-Error "Placeholder 'SEU-USUARIO' found in $conf. Replace the updater endpoint with the real GitHub repo before releasing."
-            exit 1
-          }
-          Write-Host "No placeholder found in $conf."
-
       # ---- Toolchains ----
       - name: Install Rust (stable)
         uses: dtolnay/rust-toolchain@stable

@@ -12,13 +12,10 @@ export const spring = {
   snappy: { type: "spring", stiffness: 520, damping: 40, mass: 0.9 } as Transition,
   /** Entradas de seções e cards. */
   soft: { type: "spring", stiffness: 260, damping: 28 } as Transition,
-  /** Pequenos "pops" (selo Conectado, número do preset). */
-  pop: { type: "spring", stiffness: 600, damping: 22 } as Transition,
 };
 
 export const ease = {
   out: [0.16, 1, 0.3, 1] as [number, number, number, number],
-  in: [0.4, 0, 1, 1] as [number, number, number, number],
 };
 
 /** true quando o sistema pede menos movimento (ou não dá pra saber, ex.: testes). */

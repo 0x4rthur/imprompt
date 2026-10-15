@@ -23,7 +23,6 @@ Thumbs.db
 *.zip
 # protótipos e screenshots ANTIGOS (refs do modelo local removido) — ficam no disco
 # local; tire daqui se quiser republicar versões atualizadas.
-preview/
 ui-redesign/
 reference/
 # editor

@@ -1,8 +1,0 @@
-# deps
-node_modules
-# build
-dist
-src-tauri/target
-# OS
-.DS_Store
-Thumbs.db

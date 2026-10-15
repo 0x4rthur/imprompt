@@ -63,7 +63,6 @@
   --mint:oklch(0.72 0.19 148);
   --mint-fg:oklch(0.49 0.13 150);
   --mint-soft:oklch(0.72 0.17 150 / .15);
-  --mint-line:oklch(0.62 0.16 150 / .42);
   --amber:oklch(0.78 0.17 68);
   --amber-fg:oklch(0.50 0.12 62);
   --amber-soft:oklch(0.80 0.16 70 / .17);
@@ -104,7 +103,6 @@
   --spring:linear(0, 0.052 1.7%, 0.195 3.6%, 0.393 5.9%, 0.604 8.6%, 0.774 11.4%, 0.892 14.4%, 0.961 17.6%, 0.998 21.1%, 1.014 25.1%, 1.017 30%, 1.012 36.5%, 1.003 47.6%, 0.999 62%, 1);
   --out:cubic-bezier(.16, 1, .3, 1);
   --ease-out:cubic-bezier(.22, 1, .36, 1);
-  --ease-out-expo:cubic-bezier(.16, 1, .3, 1);
 }
 
 :root[data-theme="dark"]{
@@ -146,7 +144,6 @@
   --mint:oklch(0.74 0.18 150);
   --mint-fg:oklch(0.80 0.15 150);
   --mint-soft:oklch(0.72 0.17 150 / .14);
-  --mint-line:oklch(0.72 0.17 150 / .34);
   --amber:oklch(0.80 0.16 70);
   --amber-fg:oklch(0.83 0.13 75);
   --amber-soft:oklch(0.80 0.16 70 / .12);
@@ -260,7 +257,7 @@ kbd{display:inline-flex; align-items:center; justify-content:center; min-width:2
 .input:focus, .api-cfg input:not([type=checkbox]):not([type=range]):focus, fieldset.api-fields select:focus{background:var(--card); box-shadow:0 0 0 3px var(--focus-ring), var(--sh-card)}
 .input[readonly], .api-cfg input[readonly]:not([type=checkbox]):not([type=range]){background:transparent; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--dim); cursor:default}
 .input[readonly]:focus, .api-cfg input[readonly]:not([type=checkbox]):not([type=range]):focus{box-shadow:inset 0 0 0 1px var(--line-2); background:transparent}
-select.input, fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
+fieldset.api-fields select{appearance:none; padding-right:34px; cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a95' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center}
 .api-label{display:block; margin:16px 0 6px; font:500 11.5px var(--sans); color:var(--stone)}
@@ -369,8 +366,8 @@ fieldset.api-fields:disabled{opacity:.72}
 /* Janela fixa em 900×640: o menu usa a medida compacta pra caber inteiro. */
 .rail{padding:12px 10px 12px}
 .rail-brand{height:28px; margin-bottom:4px}
-.nav-item, .conn{gap:4px; padding:4px 0 5px}
-.nav-ico, .conn-ico{width:36px; height:36px}
+.nav-item{gap:4px; padding:4px 0 5px}
+.nav-ico{width:36px; height:36px}
 .rail-foot{padding-top:6px}
 
 /* Conteúdo rolável */
