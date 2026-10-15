@@ -442,15 +442,6 @@ pub struct ApiKeyStatus {
     pub masked: String,
 }
 
-/// Salva (ou apaga, se vier vazia) a chave da API no cofre do SO.
-#[tauri::command]
-pub fn set_api_key(state: State<AppState>, base_url: String, key: String) -> Result<(), String> {
-    let mut engine = lock(&state.engine);
-    crate::secrets::save_api_key(&base_url, &key).map_err(|e| i18n_err(&state, &e.to_string()))?;
-    *engine = None;
-    Ok(())
-}
-
 /// Diz se há uma chave salva e devolve uma forma mascarada pra UI. O valor real
 /// nunca cruza essa fronteira.
 #[tauri::command]
@@ -795,10 +786,4 @@ pub fn get_usage(state: State<AppState>) -> crate::usage::UsageSummary {
 #[tauri::command]
 pub fn get_usage_history(state: State<AppState>) -> Vec<crate::usage::MonthSummary> {
     state.usage.history()
-}
-
-/// Zera o contador de uso da API ("Zerar").
-#[tauri::command]
-pub fn reset_usage(state: State<AppState>) {
-    state.usage.reset();
 }

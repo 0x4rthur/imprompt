@@ -38,5 +38,3 @@ export const TrashIcon = (p: P) => (
     <path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
   </Line>
 );
-export const PlusIcon = (p: P) => <Line {...p} strokeWidth={1.9}><path d="M12 5v14" /><path d="M5 12h14" /></Line>;
-export const RestoreIcon = (p: P) => <Line {...p}><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4" /></Line>;

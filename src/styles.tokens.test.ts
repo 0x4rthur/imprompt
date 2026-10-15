@@ -16,7 +16,7 @@ function tokens(selector: string): string[] {
 }
 
 // Tokens que não dependem do tema (forma, fonte, curvas) só moram no :root.
-const THEME_FREE = ["--sans", "--mono", "--r-card", "--r-tile", "--r-ctl", "--r-chip", "--r-kbd", "--r-rail", "--spring", "--out", "--ease-out", "--ease-out-expo"];
+const THEME_FREE = ["--sans", "--mono", "--r-card", "--r-tile", "--r-ctl", "--r-chip", "--r-kbd", "--r-rail", "--spring", "--out", "--ease-out"];
 
 // Lightness OKLCH de uma propriedade `prop:oklch(L ...)` na regra de topo do
 // seletor (começo de linha — não a de uma media query que o repete).

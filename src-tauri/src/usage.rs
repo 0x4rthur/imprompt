@@ -124,6 +124,7 @@ impl UsageTracker {
     }
 
     /// Zera o contador (limpa todos os meses) e persiste.
+    #[cfg(test)]
     pub fn reset(&self) {
         let mut data = self.data.lock().unwrap_or_else(|e| e.into_inner());
         data.months.clear();

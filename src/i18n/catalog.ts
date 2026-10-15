@@ -85,7 +85,6 @@ const en = {
   "conn.checking": "Checking…",
   "conn.connected": "Connected",
   "conn.disconnected": "No connection",
-  "conn.noKey": "no saved key",
   "conn.title.error": "{name}: {detail}",
   "conn.title.test": "{name} ({host}). Click to test the connection.",
   // Fallback genérico quando o host não casa com nenhuma marca conhecida.
@@ -401,7 +400,6 @@ const ptBR: Record<keyof typeof en, string> = {
   "conn.checking": "Verificando…",
   "conn.connected": "Conectado",
   "conn.disconnected": "Sem conexão",
-  "conn.noKey": "sem chave salva",
   "conn.title.error": "{name}: {detail}",
   "conn.title.test": "{name} ({host}). Clique para testar a conexão.",
   "conn.providerFallback": "API",

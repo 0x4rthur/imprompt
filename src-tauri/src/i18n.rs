@@ -234,11 +234,6 @@ const ENTRIES: &[(&str, &str, &str)] = &[
         "Teste interrompido.",
     ),
     ("err.test.ok", "Connection OK.", "Conexão OK."),
-    (
-        "err.test.no_key",
-        "Set the API key in Preferences.",
-        "Configure a chave da API nas Preferências.",
-    ),
     // ── err.url.invalid (abrir URL externa) ──────────────────────────────────
     ("err.url.invalid", "Invalid URL.", "URL inválida."),
     // ── err.update.failed ────────────────────────────────────────────────────
