@@ -53,7 +53,6 @@ export default function Palette() {
   const [leaving, setLeaving] = useState(false);    // tocando a saída do "Aplicar"
   const [copied, setCopied] = useState(false);      // feedback "Copiado"
   const [animSeq, setAnimSeq] = useState(0);         // bump → replay da entrada quando a janela é reusada
-  const firstCapture = useRef(true);                 // 1ª captura não re-anima (o mount já animou)
   const resultRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
   const copiedTimer = useRef(0);
@@ -160,9 +159,9 @@ export default function Palette() {
       setClosing(false);
       setLeaving(false);
       setCopied(false);
-      // Replay da animação de entrada a cada reuso (a 1ª captura não, pois o mount já animou).
-      if (firstCapture.current) firstCapture.current = false;
-      else setAnimSeq((s) => s + 1);
+      // Replay da animação de entrada a cada abertura: a janela é pré-criada
+      // oculta no startup, então a animação do mount ninguém viu.
+      setAnimSeq((s) => s + 1);
       applySettings();
       requestAnimationFrame(focusPalette);
     });

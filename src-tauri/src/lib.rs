@@ -276,6 +276,10 @@ pub fn run() {
                 }
             });
 
+            // 4b) Pré-aquece popup, loader e cliente de API (fora da thread principal).
+            let warm_handle = handle.clone();
+            thread::spawn(move || prewarm(&warm_handle));
+
             // 5) Checagem de atualização no startup — SILENCIOSA: só avisa (e mostra
             //    o banner) se ACHAR algo; erro de rede/endpoint é ignorado.
             spawn_update_check(handle.clone(), false);
@@ -364,7 +368,11 @@ fn run_refine_flow(app: &tauri::AppHandle) {
                         let state: tauri::State<AppState> = app.state();
                         state.push_history(&text, &refined, &preset_id);
                     }
-                    let _ = clipboard::deliver(&refined, presets::delivery_for(&preset_id, output));
+                    if let Err(e) =
+                        clipboard::deliver(&refined, presets::delivery_for(&preset_id, output))
+                    {
+                        notify_error(app, &i18n::tr_msg(&locale, &e.to_string()));
+                    }
                 }
                 Err(e) => {
                     // Sem janela no modo Instantâneo → avisa com uma notificação
@@ -381,6 +389,45 @@ fn run_refine_flow(app: &tauri::AppHandle) {
             open_popup_window(app, &text);
         }
     }
+}
+
+/// Constrói a janela do popup OCULTA. Janela OPACA com sombra nativa (igual à
+/// principal) — sem transparência, então nenhuma animação revela o desktop atrás.
+fn build_popup_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
+    match WebviewWindowBuilder::new(app, "popup", WebviewUrl::App("popup.html".into()))
+        .title("Imprompt")
+        .inner_size(POPUP_W, POPUP_H)
+        // Limites de redimensionamento: sem eles a janela sem bordas podia ser
+        // espremida até sumir o conteúdo ou esticada até a tela toda (fundo preto).
+        .min_inner_size(POPUP_MIN_W, POPUP_MIN_H)
+        .max_inner_size(POPUP_MAX_W, POPUP_MAX_H)
+        .maximizable(false)
+        .decorations(false)
+        .shadow(true)
+        .skip_taskbar(true)
+        .always_on_top(true)
+        .visible(false) // constrói oculto; quem abre posiciona e mostra (sem flash)
+        .build()
+    {
+        Ok(win) => Some(win),
+        Err(e) => {
+            eprintln!("[popup] falha ao criar a janela: {e}");
+            None
+        }
+    }
+}
+
+/// Pré-aquece o caminho quente logo após o startup, numa thread à parte: cria o
+/// popup e o loader ocultos (o 1º Ctrl+C×2 não espera o WebView nascer) e
+/// constrói o cliente de API (lê a chave do cofre). Nada disso usa a rede.
+fn prewarm(app: &tauri::AppHandle) {
+    if app.get_webview_window("popup").is_none() {
+        build_popup_window(app);
+    }
+    if app.get_webview_window("loader").is_none() {
+        build_loader_window(app);
+    }
+    let _ = commands::ensure_engine_loaded(app);
 }
 
 /// Tamanho (lógico) da janelinha "Imprompting…": cabe o logo animado aberto
@@ -403,6 +450,15 @@ fn show_loader(app: &tauri::AppHandle) {
     // 1ª vez: constrói a micro-janela OPACA (sombra nativa, SEM transparência —
     // janela transparente revela o desktop atrás, que é o efeito "vidro"). Constrói
     // oculta, posiciona perto do cursor e só então mostra (sem flash no canto).
+    if let Some(win) = build_loader_window(app) {
+        position_loader(app, &win);
+        let _ = win.show();
+    }
+}
+
+/// Constrói a micro-janela do loader OCULTA (sombra nativa, SEM transparência —
+/// janela transparente revela o desktop atrás, o efeito "vidro").
+fn build_loader_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
     match WebviewWindowBuilder::new(app, "loader", WebviewUrl::App("loader.html".into()))
         .title("Imprompt")
         .inner_size(LOADER_W, LOADER_H)
@@ -414,11 +470,11 @@ fn show_loader(app: &tauri::AppHandle) {
         .visible(false)
         .build()
     {
-        Ok(win) => {
-            position_loader(app, &win);
-            let _ = win.show();
+        Ok(win) => Some(win),
+        Err(e) => {
+            eprintln!("[loader] falha ao criar a janelinha: {e}");
+            None
         }
-        Err(e) => eprintln!("[loader] falha ao criar a janelinha: {e}"),
     }
 }
 
@@ -517,7 +573,10 @@ fn undo_last_refine(app: &tauri::AppHandle) {
 
     // Deixa o menu da bandeja fechar e o foco voltar pro app de origem antes do paste.
     std::thread::sleep(std::time::Duration::from_millis(150));
-    let _ = clipboard::deliver(&original, mode);
+    if let Err(e) = clipboard::deliver(&original, mode) {
+        notify_error(app, &i18n::tr_msg(&loc, &e.to_string()));
+        return;
+    }
 
     let msg_key = match mode {
         clipboard::OutputMode::Replace => "notif.undo.pasted",
@@ -603,7 +662,11 @@ fn position_loader(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
         }
     };
     let (cx, cy) = (cursor.x as i32, cursor.y as i32);
-    let (w, h) = (LOADER_W as i32, LOADER_H as i32);
+    // Tamanho REAL (físico, respeita o DPI); fallback: o tamanho lógico.
+    let (w, h) = win
+        .outer_size()
+        .map(|sz| (sz.width as i32, sz.height as i32))
+        .unwrap_or((LOADER_W as i32, LOADER_H as i32));
     let mon = app
         .available_monitors()
         .ok()
@@ -653,35 +716,24 @@ fn open_popup_window(app: &tauri::AppHandle, captured_text: &str) {
         *lock(&state.captured) = captured_text.to_string();
     }
 
-    if let Some(win) = app.get_webview_window("popup") {
-        position_popup(app, &win); // re-ancora perto do cursor a CADA abertura (não só no build)
+    // A janela normalmente já existe (pré-criada no startup, ou de um uso anterior).
+    let win = app
+        .get_webview_window("popup")
+        .or_else(|| build_popup_window(app));
+    if let Some(win) = win {
+        position_popup(app, &win); // re-ancora perto do cursor a CADA abertura
         let _ = win.show();
         let _ = win.set_focus();
-    } else {
-        match WebviewWindowBuilder::new(app, "popup", WebviewUrl::App("popup.html".into()))
-            .title("Imprompt")
-            .inner_size(POPUP_W, POPUP_H)
-            // Limites de redimensionamento: sem eles a janela sem bordas podia ser
-            // espremida até sumir o conteúdo ou esticada até a tela toda (fundo preto).
-            .min_inner_size(POPUP_MIN_W, POPUP_MIN_H)
-            .max_inner_size(POPUP_MAX_W, POPUP_MAX_H)
-            .maximizable(false)
-            .decorations(false)
-            .shadow(true) // janela OPACA com sombra nativa (igual à principal) — sem
-            // transparência, então nenhuma animação revela o desktop atrás ("vidro").
-            .skip_taskbar(true)
-            .always_on_top(true)
-            .visible(false) // constrói oculto, posiciona, e só então mostra (sem flash no centro)
-            .build()
-        {
-            Ok(win) => {
-                position_popup(app, &win);
-                let _ = win.show();
-                let _ = win.set_focus();
-            }
-            Err(e) => eprintln!("[popup] falha ao criar a janela: {e}"),
-        }
     }
+
+    // O usuário vai apertar Enter em instantes: abre a conexão com o provedor
+    // agora, em paralelo (sem texto nem chave), pra o refino não pagar DNS+TLS.
+    let warm = app.clone();
+    thread::spawn(move || {
+        if let Ok(engine) = commands::ensure_engine_loaded(&warm) {
+            engine.warm_up();
+        }
+    });
 
     // Avisa a janela do texto novo (chega se o listener já estiver montado).
     let _ = app.emit_to("popup", "captured-text", captured_text.to_string());

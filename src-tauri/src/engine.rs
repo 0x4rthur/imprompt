@@ -21,6 +21,11 @@ pub trait Engine: Send + Sync {
         example: Option<(&str, &str)>,
         user_text: &str,
     ) -> Result<String>;
+
+    /// Abre a conexão com o provedor ANTES do 1º pedido (DNS + TCP + TLS), pra o
+    /// refino seguinte não pagar esse custo. Não envia texto nem a chave. Padrão:
+    /// não faz nada.
+    fn warm_up(&self) {}
 }
 
 /// Limpeza da saída — o passo "chato mas essencial". Modelos às vezes embrulham o

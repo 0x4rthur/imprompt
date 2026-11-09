@@ -137,7 +137,33 @@ fn request_body(model: &str, format: ApiFormat, messages: &[ChatMsg<'_>]) -> Val
     }
 }
 
+/// Origem (esquema + host + porta) de uma URL — o alvo do aquecimento de conexão.
+fn origin_of(url: &str) -> Option<String> {
+    let u = url::Url::parse(url).ok()?;
+    let host = u.host_str()?;
+    Some(match u.port() {
+        Some(port) => format!("{}://{}:{}/", u.scheme(), host, port),
+        None => format!("{}://{}/", u.scheme(), host),
+    })
+}
+
 impl Engine for ApiEngine {
+    /// Um HEAD na raiz do provedor, sem chave e sem corpo: só pra deixar a conexão
+    /// (DNS + TCP + TLS) pronta no pool do cliente. A resposta é ignorada (404
+    /// serve). Endpoint local não precisa.
+    fn warm_up(&self) {
+        if self.endpoint.local {
+            return;
+        }
+        if let Some(origin) = origin_of(&self.endpoint.url) {
+            let _ = self
+                .client
+                .head(origin)
+                .timeout(std::time::Duration::from_secs(5))
+                .send();
+        }
+    }
+
     /// Refino robusto: timeout curto, retentativas com backoff em falhas
     /// transitórias (429, 5xx 500–504, timeout/conexão) e mensagens claras e
     /// acionáveis. Falhas do usuário (400/401/403) NÃO são repetidas.
@@ -463,6 +489,20 @@ fn should_retry(attempt: usize, elapsed: std::time::Duration, transient: bool) -
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn warm_up_targets_the_provider_origin_only() {
+        // Sem caminho, query nem credenciais: só esquema + host (+ porta).
+        assert_eq!(
+            super::origin_of("https://api.deepseek.com/v1/chat/completions").as_deref(),
+            Some("https://api.deepseek.com/")
+        );
+        assert_eq!(
+            super::origin_of("http://localhost:11434/v1/chat/completions?x=1").as_deref(),
+            Some("http://localhost:11434/")
+        );
+        assert_eq!(super::origin_of("not a url"), None);
+    }
+
     use super::*;
 
     // Real HTTP transport against loopback only. Never reads the user's vault.

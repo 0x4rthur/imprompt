@@ -130,6 +130,8 @@ Protocol references: [OpenAI models](https://developers.openai.com/api/docs/mode
 
 > **Privacy:** the text you select is sent to the API provider you configure. The UI states
 > this explicitly. Your API key stays in the OS credential vault, never in plain text.
+> When the popup opens, Imprompt opens a connection to that provider (no text, no key) so the
+> result comes back faster; in popup mode your text is only sent when you press Enter.
 
 ---
 
