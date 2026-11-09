@@ -55,6 +55,23 @@ npm run build
 cd src-tauri && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test
 ```
 
+### Teste de ponta a ponta (o ato de colar)
+
+Os testes acima não apertam teclas nem colam em outro app. Para isso existe
+`scripts/e2e/run.ps1`: ele roda o `.exe` de release com uma API falsa local
+(`scripts/e2e/mock_api.py`) e uma pasta de dados temporária
+(`IMPROMPT_CONFIG_DIR`), aperta Ctrl+C×2 numa janela de teste e confere o que foi
+colado — modo instantâneo, popup, sem seleção e trocando de janela no meio.
+
+```bash
+npm run tauri build -- --no-bundle
+powershell -ExecutionPolicy Bypass -File scripts/e2e/run.ps1
+```
+
+Por ~30 s ele usa o teclado e o foco da tela (não digite), fecha o Imprompt
+instalado no início e o reabre no fim. Rode antes de publicar qualquer mudança
+em `clipboard.rs`, `hotkey.rs` ou no fluxo de `lib.rs`.
+
 Para ver a interface sem o backend Rust: `npm run dev:mock` (abre em
 <http://localhost:5174>; aceita `?lang=en`, `?empty=1`, `?err=1`, `?lowbal=1`).
 Para o app de verdade: `npm run tauri dev`.

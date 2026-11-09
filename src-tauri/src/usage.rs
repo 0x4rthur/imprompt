@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// Preço de um modelo, em US$ por 1 milhão de tokens.
@@ -186,11 +186,7 @@ pub fn estimate_tokens(text: &str) -> u64 {
 // ── Persistência ─────────────────────────────────────────────────────────────
 
 fn config_dir() -> Result<PathBuf> {
-    let dir = dirs::config_dir()
-        .ok_or_else(|| anyhow!("err.config.no_dir"))?
-        .join("imprompt");
-    std::fs::create_dir_all(&dir).ok();
-    Ok(dir)
+    crate::settings::data_dir()
 }
 
 fn usage_path() -> Result<PathBuf> {
@@ -203,11 +199,13 @@ fn prices_path() -> Result<PathBuf> {
 fn load_usage() -> Result<UsageData> {
     let path = usage_path()?;
     let json = std::fs::read_to_string(&path)?;
-    Ok(serde_json::from_str(&json).unwrap_or_else(|_| {
-        // Ilegível: guarda uma cópia antes que o próximo refino grave por cima.
-        crate::settings::keep_corrupt_copy(&path);
-        UsageData::default()
-    }))
+    Ok(
+        serde_json::from_str(crate::settings::strip_bom(&json)).unwrap_or_else(|_| {
+            // Ilegível: guarda uma cópia antes que o próximo refino grave por cima.
+            crate::settings::keep_corrupt_copy(&path);
+            UsageData::default()
+        }),
+    )
 }
 fn save_usage(data: &UsageData) -> Result<()> {
     // Gravação ATÔMICA: escreve num .tmp e renomeia, pra um crash no meio não
@@ -265,6 +263,7 @@ fn default_prices() -> HashMap<String, ModelPrice> {
 /// Merge partial user overrides without losing newly added catalog prices.
 fn merge_price_overrides(json: &str) -> HashMap<String, ModelPrice> {
     let mut prices = default_prices();
+    let json = crate::settings::strip_bom(json);
     if let Ok(overrides) = serde_json::from_str::<HashMap<String, ModelPrice>>(json) {
         prices.extend(overrides.into_iter().filter(|(_, price)| {
             price.input_per_1m.is_finite()

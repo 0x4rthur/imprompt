@@ -150,9 +150,37 @@ impl Default for Settings {
     }
 }
 
+/// Pasta dos dados do app (settings, uso, presets): `<config do SO>/imprompt`, ou
+/// a pasta da variável `IMPROMPT_CONFIG_DIR` quando definida (testes de ponta a
+/// ponta e instalações portáteis rodam sem tocar nos dados reais do usuário).
+pub fn data_dir() -> Result<PathBuf> {
+    let dir = resolve_data_dir(
+        std::env::var_os("IMPROMPT_CONFIG_DIR").map(PathBuf::from),
+        dirs::config_dir(),
+    )
+    .ok_or_else(|| anyhow!("err.config.no_dir"))?;
+    fs::create_dir_all(&dir).ok();
+    Ok(dir)
+}
+
+/// PURA → testável. A variável de ambiente (não vazia) vence; senão, a do SO.
+fn resolve_data_dir(env: Option<PathBuf>, os_config: Option<PathBuf>) -> Option<PathBuf> {
+    match env {
+        Some(dir) if !dir.as_os_str().is_empty() => Some(dir),
+        _ => os_config.map(|base| base.join("imprompt")),
+    }
+}
+
 /// Interpreta o conteúdo do settings.json. `None` = ilegível.
 fn parse_settings(json: &str) -> Option<Settings> {
-    serde_json::from_str(json).ok()
+    serde_json::from_str(strip_bom(json)).ok()
+}
+
+/// Tira a marca BOM (U+FEFF) do começo de um arquivo de texto. Editores no
+/// Windows (Bloco de Notas, PowerShell) gravam JSON com ela, e o serde_json a
+/// rejeita — o arquivo inteiro viraria "ilegível".
+pub fn strip_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
 }
 
 /// Copia um arquivo de dados que não deu pra ler pra `<nome>.corrupt`, ao lado
@@ -173,11 +201,7 @@ impl Settings {
     /// Caminho do arquivo de settings, dentro da pasta de dados do app.
     /// (No app real, prefira usar o `app_data_dir()` do Tauri.)
     fn path() -> Result<PathBuf> {
-        let dir = dirs::config_dir()
-            .ok_or_else(|| anyhow!("err.config.no_dir"))?
-            .join("imprompt");
-        fs::create_dir_all(&dir).ok();
-        Ok(dir.join("settings.json"))
+        Ok(data_dir()?.join("settings.json"))
     }
 
     /// Carrega do disco, ou devolve o padrão se não existir.
@@ -240,7 +264,7 @@ impl Settings {
 /// cofre. É PURA (sem efeitos colaterais nem keyring) — dá pra testar a lógica de
 /// detecção sem tocar no cofre do sistema.
 fn extract_legacy_api_key(json: &str) -> Option<String> {
-    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    let value: serde_json::Value = serde_json::from_str(strip_bom(json)).ok()?;
     let key = value.get("api_key")?.as_str()?.trim();
     if key.is_empty() {
         None
@@ -329,6 +353,10 @@ mod tests {
         assert!(matches!(s.output, super::OutputPref::Clipboard));
         assert!(matches!(s.mode, super::ActivationMode::Instant)); // padrão
         assert!(super::parse_settings("{ not json").is_none());
+        // Arquivo salvo com BOM (Bloco de Notas, PowerShell) continua legível.
+        let bom =
+            super::parse_settings("\u{feff}{\"default_preset\":\"resumir\"}").expect("BOM ok");
+        assert_eq!(bom.default_preset, "resumir");
     }
 
     #[test]
@@ -344,5 +372,24 @@ mod tests {
         );
         assert!(file.exists()); // o original fica onde está
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_data_folder_can_be_redirected_by_the_environment() {
+        use std::path::PathBuf;
+        let os = Some(PathBuf::from("C:/Users/x/AppData/Roaming"));
+        assert_eq!(
+            super::resolve_data_dir(None, os.clone()),
+            Some(PathBuf::from("C:/Users/x/AppData/Roaming/imprompt"))
+        );
+        assert_eq!(
+            super::resolve_data_dir(Some(PathBuf::from("D:/tmp/e2e")), os.clone()),
+            Some(PathBuf::from("D:/tmp/e2e"))
+        );
+        // Variável vazia não conta.
+        assert_eq!(
+            super::resolve_data_dir(Some(PathBuf::new()), os),
+            Some(PathBuf::from("C:/Users/x/AppData/Roaming/imprompt"))
+        );
     }
 }

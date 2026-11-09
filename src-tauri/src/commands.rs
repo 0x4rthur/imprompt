@@ -62,6 +62,8 @@ pub struct AppState {
     /// Espaço em branco (início, fim) que cercava a seleção capturada — devolvido
     /// ao colar por cima, pra não comer a quebra de linha do fim.
     pub capture_wrap: Mutex<(String, String)>,
+    /// Janela que estava na frente na captura — o resultado só é colado nela.
+    pub capture_origin: Mutex<crate::clipboard::Origin>,
     /// Versão de uma atualização disponível (a UI puxa via `get_pending_update`,
     /// cobrindo o caso do evento ter sido emitido antes da janela montar).
     pub pending_update: Mutex<Option<String>>,
@@ -102,6 +104,7 @@ impl AppState {
             history: Mutex::new(Vec::new()),
             last_delivered: Mutex::new(None),
             capture_wrap: Mutex::new((String::new(), String::new())),
+            capture_origin: Mutex::new(crate::clipboard::Origin::default()),
             pending_update: Mutex::new(None),
             update_operation: tokio::sync::Mutex::new(()),
             usage: Arc::new(crate::usage::UsageTracker::load()),
@@ -555,6 +558,7 @@ pub fn get_captured_text(state: State<AppState>) -> String {
 /// resposta sempre copia (ver `presets::delivery_for`).
 #[tauri::command]
 pub fn deliver_result(
+    app: tauri::AppHandle,
     state: State<AppState>,
     text: String,
     preset_id: Option<String>,
@@ -572,10 +576,17 @@ pub fn deliver_result(
     } else {
         text
     };
-    crate::clipboard::deliver(&text, mode).map_err(|e| i18n_err(&state, &e.to_string()))?;
-    if replacing {
-        let original = lock(&state.captured).clone();
-        state.mark_delivered(&original);
+    let origin = *lock(&state.capture_origin);
+    match crate::clipboard::deliver_to(&text, mode, origin)
+        .map_err(|e| i18n_err(&state, &e.to_string()))?
+    {
+        crate::clipboard::Delivery::Pasted => {
+            let original = lock(&state.captured).clone();
+            state.mark_delivered(&original);
+        }
+        // A janela de origem não voltou pra frente: não cola em outro lugar.
+        crate::clipboard::Delivery::CopiedWindowChanged => crate::notify_window_changed(&app),
+        crate::clipboard::Delivery::Copied => {}
     }
     Ok(())
 }

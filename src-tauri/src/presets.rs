@@ -28,7 +28,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// Base enxuta e positiva, sempre presente, POR IDIOMA. A cláusula final deixa o
@@ -614,11 +614,7 @@ pub fn find_preset(presets: &[Preset], id: &str, locale: &str) -> Preset {
 
 /// Caminho do arquivo de presets do usuário, ao lado do settings.json.
 fn user_presets_path() -> Result<PathBuf> {
-    let dir = dirs::config_dir()
-        .ok_or_else(|| anyhow!("err.config.no_dir"))?
-        .join("imprompt");
-    std::fs::create_dir_all(&dir).ok();
-    Ok(dir.join("presets_user.json"))
+    Ok(crate::settings::data_dir()?.join("presets_user.json"))
 }
 
 /// Estado persistido dos presets do usuário (ver bloco acima).
@@ -644,11 +640,12 @@ pub fn load_store() -> PresetStore {
         Err(_) => return PresetStore::default(),
     };
     // Formato atual: objeto { custom, overrides, hidden }.
-    if let Ok(store) = serde_json::from_str::<PresetStore>(&json) {
+    let json = crate::settings::strip_bom(&json);
+    if let Ok(store) = serde_json::from_str::<PresetStore>(json) {
         return store;
     }
     // Formato legado: só um array de presets custom → migra.
-    if let Ok(custom) = serde_json::from_str::<Vec<Preset>>(&json) {
+    if let Ok(custom) = serde_json::from_str::<Vec<Preset>>(json) {
         return PresetStore {
             custom,
             ..Default::default()

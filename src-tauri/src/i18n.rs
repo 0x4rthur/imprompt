@@ -78,6 +78,16 @@ const ENTRIES: &[(&str, &str, &str)] = &[
         "Original back on the clipboard — press Ctrl+V.",
         "Original de volta no clipboard — dê Ctrl+V.",
     ),
+    (
+        "notif.copied.title",
+        "Result copied, not pasted",
+        "Resultado copiado, não colado",
+    ),
+    (
+        "notif.copied.moved",
+        "You switched windows while Imprompt was working. Press Ctrl+V where you want it.",
+        "Você trocou de janela enquanto o Imprompt trabalhava. Dê Ctrl+V onde quiser.",
+    ),
     // ── err.api.* (motor de API) ─────────────────────────────────────────────
     (
         "err.api.truncated",
