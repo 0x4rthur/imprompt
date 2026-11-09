@@ -336,10 +336,15 @@ fn run_refine_flow(app: &tauri::AppHandle) {
     };
 
     // Captura o texto que o usuário acabou de copiar.
-    let text = match clipboard::read_selection() {
+    let (text, lead, trail) = match clipboard::read_selection_wrapped() {
         Ok(t) => t,
         Err(_) => return, // clipboard vazio: não faz nada (e não atrapalha)
     };
+    // Espaço em volta da seleção: devolvido ao colar por cima (popup e instantâneo).
+    {
+        let state: tauri::State<AppState> = app.state();
+        *lock(&state.capture_wrap) = (lead.clone(), trail.clone());
+    }
 
     match mode {
         ActivationMode::Instant => {
@@ -368,10 +373,20 @@ fn run_refine_flow(app: &tauri::AppHandle) {
                         let state: tauri::State<AppState> = app.state();
                         state.push_history(&text, &refined, &preset_id);
                     }
-                    if let Err(e) =
-                        clipboard::deliver(&refined, presets::delivery_for(&preset_id, output))
-                    {
-                        notify_error(app, &i18n::tr_msg(&locale, &e.to_string()));
+                    let mode = presets::delivery_for(&preset_id, &locale, output);
+                    let replacing = mode == clipboard::OutputMode::Replace;
+                    let out = if replacing {
+                        clipboard::rewrap(&lead, &refined, &trail)
+                    } else {
+                        refined.clone()
+                    };
+                    match clipboard::deliver(&out, mode) {
+                        Ok(()) if replacing => {
+                            let state: tauri::State<AppState> = app.state();
+                            state.mark_delivered(&text);
+                        }
+                        Ok(()) => {}
+                        Err(e) => notify_error(app, &i18n::tr_msg(&locale, &e.to_string())),
                     }
                 }
                 Err(e) => {
@@ -558,7 +573,7 @@ fn undo_last_refine(app: &tauri::AppHandle) {
     let loc = lock(&state.settings).locale.clone();
 
     // Pega o original do refino mais recente (sem segurar o lock além do statement).
-    let original = lock(&state.history).first().map(|r| r.original.clone());
+    let original = state.last_delivered();
     let Some(original) = original else {
         notify(
             app,

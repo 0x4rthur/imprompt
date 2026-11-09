@@ -69,6 +69,11 @@ pub struct Preset {
     /// Saída do exemplo few-shot (vira um turno `assistant`). Opcional no JSON.
     #[serde(default)]
     pub example_output: String,
+    /// Preset de RESPOSTA (o "Responder" e as cópias dele): a instrução vai sem a
+    /// base de "reescreva como prompt" e o resultado é sempre copiado, nunca
+    /// colado por cima da seleção. Ausente no JSON = `false`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub reply: bool,
 }
 
 impl Preset {
@@ -78,7 +83,7 @@ impl Preset {
     pub fn system_prompt(&self, locale: &str) -> String {
         // O Responder RESPONDE a mensagem: a base ("reescreva como prompt, não
         // responda") o contradiria, então ele usa só a própria instrução.
-        if self.id == REPLY_ID {
+        if self.id == REPLY_ID || self.reply {
             return self.instruction.clone();
         }
         format!("{}\n\n{}", base_instruction(locale), self.instruction)
@@ -103,14 +108,20 @@ impl Preset {
 /// Id estável do preset "Responder": escreve uma resposta à mensagem selecionada.
 pub const REPLY_ID: &str = "responder";
 
-/// Como entregar o resultado de um preset. A resposta do Responder vai SEMPRE pro
-/// clipboard: "Substituir" colaria por cima da mensagem recebida (que em geral nem
-/// é editável); o usuário cola com Ctrl+V onde for responder.
+/// `preset_id` é um preset de resposta? (o "Responder" ou uma cópia dele)
+pub fn is_reply_in(all: &[Preset], preset_id: &str) -> bool {
+    preset_id == REPLY_ID || all.iter().any(|p| p.id == preset_id && p.reply)
+}
+
+/// Como entregar o resultado de um preset. A resposta de um preset de resposta
+/// vai SEMPRE pro clipboard: "Substituir" colaria por cima da mensagem recebida
+/// (que em geral nem é editável); o usuário cola com Ctrl+V onde for responder.
 pub fn delivery_for(
     preset_id: &str,
+    locale: &str,
     output: crate::settings::OutputPref,
 ) -> crate::clipboard::OutputMode {
-    if preset_id == REPLY_ID {
+    if is_reply_in(&all_presets(locale), preset_id) {
         crate::clipboard::OutputMode::Clipboard
     } else {
         output.into()
@@ -414,6 +425,7 @@ versão reestruturada, sem comentários.".into(),
             // só as seções que o conteúdo sustenta"). Nos modelos atuais via API a instrução basta.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: "codigo".into(),
@@ -429,6 +441,7 @@ comentários.".into(),
             // adicionar o não pedido". A instrução guia melhor sem o exemplo travando o formato.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: "corrigir".into(),
@@ -439,6 +452,7 @@ tom do original — não expanda nem reescreva o que já está claro. Não respo
 corrija-o e devolva só a versão corrigida, sem comentários.".into(),
             example_input: "me faz um resumo desse texto ai mas nao muito grande pra eu manda pro meu chefe amanha".into(),
             example_output: "Me faz um resumo desse texto aí, mas não muito grande, pra eu mandar pro meu chefe amanhã.".into(),
+            reply: false,
         },
         Preset {
             id: "ingles".into(),
@@ -449,6 +463,7 @@ trechos que não se traduzem (código, nomes próprios, termos técnicos canôni
 Não responda ao prompt — apenas traduza-o e devolva apenas a versão em inglês.".into(),
             example_input: "Crie uma função Python chamada `calcular_total` que some uma lista de preços.".into(),
             example_output: "Write a Python function named `calcular_total` that sums a list of prices.".into(),
+            reply: false,
         },
         Preset {
             id: "frontend".into(),
@@ -458,6 +473,7 @@ Não responda ao prompt — apenas traduza-o e devolva apenas a versão em ingl�
             // Sem exemplo: a instrução já é longa e específica → roda zero-shot.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: "resumir".into(),
@@ -466,6 +482,7 @@ Não responda ao prompt — apenas traduza-o e devolva apenas a versão em ingl�
             // Zero-shot: o tamanho ideal depende do input; um exemplo fixo viraria molde de comprimento.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: REPLY_ID.into(),
@@ -474,6 +491,7 @@ Não responda ao prompt — apenas traduza-o e devolva apenas a versão em ingl�
             // Zero-shot: um exemplo fixo viraria molde de tamanho e tom da resposta.
             example_input: String::new(),
             example_output: String::new(),
+            reply: true,
         },
     ]
 }
@@ -497,6 +515,7 @@ return the restructured version only, no comments.".into(),
             // ("only the sections the content supports"). On current API models the instruction suffices.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: "codigo".into(),
@@ -511,6 +530,7 @@ summarize it. Don't implement or answer — produce the spec only, no comments."
             // wasn't asked" rule. The instruction guides better without the example locking the format.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: "corrigir".into(),
@@ -523,6 +543,7 @@ corrected version only, no comments.".into(),
             // example stays colloquial after the fix (not formalized), so the model doesn't over-polish.
             example_input: "can u send me that report b4 the meeting tmrw i need it for my boss".into(),
             example_output: "Can you send me that report before the meeting tomorrow? I need it for my boss.".into(),
+            reply: false,
         },
         Preset {
             id: "ingles".into(),
@@ -536,6 +557,7 @@ English version only.".into(),
             // task this preset performs (useful when the user pastes non-English text).
             example_input: "Crie uma função Python chamada `calcular_total` que some uma lista de preços.".into(),
             example_output: "Write a Python function named `calcular_total` that sums a list of prices.".into(),
+            reply: false,
         },
         Preset {
             id: "frontend".into(),
@@ -545,6 +567,7 @@ English version only.".into(),
             // No example: the instruction is already long and specific → runs zero-shot.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: "resumir".into(),
@@ -553,6 +576,7 @@ English version only.".into(),
             // Zero-shot: the right length depends on the input; a fixed example would become a length template.
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         },
         Preset {
             id: REPLY_ID.into(),
@@ -561,6 +585,7 @@ English version only.".into(),
             // Zero-shot: a fixed example would become a length and tone template.
             example_input: String::new(),
             example_output: String::new(),
+            reply: true,
         },
     ]
 }
@@ -629,6 +654,9 @@ pub fn load_store() -> PresetStore {
             ..Default::default()
         };
     }
+    // Existe mas não dá pra ler: guarda uma cópia antes que o próximo save
+    // (criar/editar/excluir) grave por cima e apague os presets do usuário.
+    crate::settings::keep_corrupt_copy(&path);
     PresetStore::default()
 }
 
@@ -776,19 +804,19 @@ mod tests {
         use crate::clipboard::OutputMode;
         use crate::settings::OutputPref;
         assert_eq!(
-            delivery_for(REPLY_ID, OutputPref::Replace),
+            delivery_for(REPLY_ID, "en", OutputPref::Replace),
             OutputMode::Clipboard
         );
         assert_eq!(
-            delivery_for(REPLY_ID, OutputPref::Clipboard),
+            delivery_for(REPLY_ID, "en", OutputPref::Clipboard),
             OutputMode::Clipboard
         );
         assert_eq!(
-            delivery_for("estruturar", OutputPref::Replace),
+            delivery_for("estruturar", "en", OutputPref::Replace),
             OutputMode::Replace
         );
         assert_eq!(
-            delivery_for("estruturar", OutputPref::Clipboard),
+            delivery_for("estruturar", "en", OutputPref::Clipboard),
             OutputMode::Clipboard
         );
     }
@@ -888,6 +916,7 @@ mod tests {
             instruction: "x".into(),
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         }
     }
 
@@ -919,6 +948,7 @@ mod tests {
                 instruction: "x".into(),
                 example_input: String::new(),
                 example_output: String::new(),
+                reply: false,
             },
         ); // edita um padrão
         store.custom.push(mk("meu"));
@@ -965,6 +995,7 @@ mod tests {
             instruction: "faça X".into(),
             example_input: String::new(),
             example_output: String::new(),
+            reply: false,
         });
         save_user_presets(&list).unwrap();
         // Releitura do disco = o que aconteceria no próximo arranque do app.
@@ -973,5 +1004,32 @@ mod tests {
         // Restaura o estado original (não deixa lixo).
         save_user_presets(&original).unwrap();
         assert!(!load_user_presets().iter().any(|p| p.id == "selftest-xyz"));
+    }
+
+    #[test]
+    fn a_duplicate_of_reply_keeps_the_reply_behaviour() {
+        // Duplicar o Responder muda o id; o comportamento (responde em vez de
+        // reescrever, sempre copia) vem da flag `reply`, que a cópia herda.
+        for locale in ["pt-BR", "en"] {
+            let mut copy = find_preset(&default_presets(locale), REPLY_ID, locale);
+            assert!(copy.reply);
+            copy.id = "responder-copia".into();
+            assert!(!copy
+                .system_prompt(locale)
+                .contains(base_instruction(locale)));
+            assert!(super::is_reply_in(&[copy], "responder-copia"));
+        }
+        assert!(!super::is_reply_in(&default_presets("en"), "estruturar"));
+    }
+
+    #[test]
+    fn the_reply_flag_survives_a_save_and_is_absent_for_other_presets() {
+        let reply = find_preset(&default_presets("en"), REPLY_ID, "en");
+        let json = serde_json::to_string(&reply).unwrap();
+        assert!(serde_json::from_str::<Preset>(&json).unwrap().reply);
+        // Presets comuns (e os arquivos antigos) não têm o campo.
+        let plain = serde_json::to_string(&mk("x")).unwrap();
+        assert!(!plain.contains("reply"));
+        assert!(!serde_json::from_str::<Preset>(&plain).unwrap().reply);
     }
 }
