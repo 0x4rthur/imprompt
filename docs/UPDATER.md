@@ -88,6 +88,8 @@ variável e o build trava pedindo senha depois de gerar o instalador).
    escreva as notas em `docs/releases/vX.Y.Z.md` (viram o texto da atualização).
 2. **Conferir:** `npm run typecheck && npm test && npm run build` e, em
    `src-tauri/`, `cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+   Se a versão mexe em colar/atalho/fluxo, rode também o teste de ponta a ponta
+   (`scripts/e2e/run.ps1`, ver `docs/SETUP.md`) no `.exe` do passo 4.
 3. **PR:** commit, `git push -u origin <branch>` e `gh pr create --base main`.
    O CI (`.github/workflows/ci.yml`, ~7 min) roda as mesmas verificações.
 4. **Build assinado** (Git Bash, na raiz do repositório):

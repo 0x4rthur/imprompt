@@ -37,8 +37,10 @@ const REPEAT_STALE_MS: u64 = 1_500;
 
 /// Mensagem enviada pro resto do app quando o gatilho dispara.
 pub enum HotkeyEvent {
-    /// Combo×2 detectado — hora de capturar a seleção e refinar.
-    Triggered,
+    /// Combo×2 detectado — hora de capturar a seleção e refinar. `clip_seq` é o
+    /// contador do clipboard lido no 1º toque (antes de o app copiar): se não
+    /// mudou até o disparo, o gesto não copiou nada.
+    Triggered { clip_seq: u32 },
 }
 
 /// Config do gatilho, compartilhada e atualizável ao vivo (atômicos = sem lock
@@ -155,6 +157,8 @@ struct TapState {
     /// — sem isto, SEGURAR Ctrl+C disparava. Timestamp (não bool) pelo mesmo
     /// motivo do modificador: um KeyRelease perdido expira sozinho.
     key_down_at: Option<Instant>,
+    /// Contador do clipboard no 1º toque (ver `HotkeyEvent::Triggered`).
+    seq_at_first_tap: u32,
 }
 
 impl TapState {
@@ -164,6 +168,7 @@ impl TapState {
             mod_down_at: None,
             last: None,
             key_down_at: None,
+            seq_at_first_tap: 0,
         }
     }
 
@@ -227,6 +232,7 @@ impl TapState {
                     // 1º toque → só registra o tempo. O atalho normal do SO
                     // acontece naturalmente; a gente nem intercepta.
                     self.last = Some(now);
+                    self.seq_at_first_tap = crate::clipboard::sequence();
                     false
                 }
             }
@@ -242,7 +248,9 @@ pub fn run(tx: Sender<HotkeyEvent>, shared: Arc<TriggerShared>) {
     let callback = move |event: Event| {
         if state.handle(&event) {
             // Ignora erro de envio: se o receptor sumiu, o app está fechando.
-            let _ = tx.send(HotkeyEvent::Triggered);
+            let _ = tx.send(HotkeyEvent::Triggered {
+                clip_seq: state.seq_at_first_tap,
+            });
         }
     };
     if let Err(err) = listen(callback) {

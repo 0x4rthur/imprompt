@@ -88,7 +88,7 @@ pub fn run() {
             if argv.iter().any(|a| a == "--trigger") {
                 // Refina usando o motor (cliente de API) em cache da instância atual.
                 let h = app.clone();
-                std::thread::spawn(move || run_refine_flow(&h));
+                std::thread::spawn(move || run_refine_flow(&h, None));
             } else {
                 // 2ª abertura normal → traz a janela de Preferências pra frente.
                 show_main_window(app);
@@ -259,13 +259,17 @@ pub fn run() {
             thread::spawn(move || hotkey::run(tx, trigger));
             let flow_handle = handle.clone();
             thread::spawn(move || {
-                while rx.recv().is_ok() {
+                while let Ok(hotkey::HotkeyEvent::Triggered { clip_seq }) = rx.recv() {
                     // catch_unwind: se run_refine_flow entrar em panic (ex.: pânico
                     // interno do arboard/enigo/tauri), a thread NÃO morre — senão o
                     // gatilho ficaria permanentemente morto sem aviso. O RefiningGuard
                     // já zera REFINING no unwind; o estado compartilhado é protegido
                     // por locks poison-safe, então AssertUnwindSafe é aceitável.
-                    if catch_unwind(AssertUnwindSafe(|| run_refine_flow(&flow_handle))).is_err() {
+                    if catch_unwind(AssertUnwindSafe(|| {
+                        run_refine_flow(&flow_handle, Some(clip_seq))
+                    }))
+                    .is_err()
+                    {
                         eprintln!(
                             "[fluxo] run_refine_flow entrou em panic; mantendo a thread viva."
                         );
@@ -312,7 +316,10 @@ impl Drop for RefiningGuard {
 }
 
 /// O FLUXO completo, do gatilho à entrega. Roda fora da UI thread.
-fn run_refine_flow(app: &tauri::AppHandle) {
+///
+/// `clip_seq` = contador do clipboard no 1º toque do atalho (`None` quando o
+/// disparo não veio do teclado, ex.: `imprompt --trigger`).
+fn run_refine_flow(app: &tauri::AppHandle, clip_seq: Option<u32>) {
     // Anti-sobreposição: se já tem um refino rolando, ignora este gatilho.
     if REFINING
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -322,8 +329,11 @@ fn run_refine_flow(app: &tauri::AppHandle) {
     }
     let _guard = RefiningGuard; // libera o flag ao sair (qualquer caminho)
 
+    // A janela de onde o texto vem: é nela (e só nela) que o resultado é colado.
+    let origin = clipboard::foreground();
+
     // Lê as preferências atuais.
-    let (mode, preset_id, output, use_examples, locale) = {
+    let (mode, preset_id, output, use_examples, locale, copies) = {
         let state: tauri::State<AppState> = app.state();
         let s = lock(&state.settings);
         (
@@ -332,8 +342,18 @@ fn run_refine_flow(app: &tauri::AppHandle) {
             s.output.clone(),
             s.use_examples,
             s.locale.clone(),
+            gesture_copies(&s.trigger_modifier, &s.trigger_key),
         )
     };
+
+    // O gesto (Ctrl+C×2) copiou algo? Se o clipboard não mudou desde o 1º toque,
+    // nada estava selecionado e o que há lá é texto ANTIGO. No modo instantâneo —
+    // que envia e cola sem mostrar nada — não faz nada. No popup segue: o usuário
+    // vê o texto antes de enviar.
+    let fresh = !copies || clipboard::copied_since(clip_seq);
+    if !fresh && matches!(mode, ActivationMode::Instant) {
+        return;
+    }
 
     // Captura o texto que o usuário acabou de copiar.
     let (text, lead, trail) = match clipboard::read_selection_wrapped() {
@@ -344,6 +364,7 @@ fn run_refine_flow(app: &tauri::AppHandle) {
     {
         let state: tauri::State<AppState> = app.state();
         *lock(&state.capture_wrap) = (lead.clone(), trail.clone());
+        *lock(&state.capture_origin) = origin;
     }
 
     match mode {
@@ -380,12 +401,14 @@ fn run_refine_flow(app: &tauri::AppHandle) {
                     } else {
                         refined.clone()
                     };
-                    match clipboard::deliver(&out, mode) {
-                        Ok(()) if replacing => {
+                    match clipboard::deliver_to(&out, mode, origin) {
+                        Ok(clipboard::Delivery::Pasted) => {
                             let state: tauri::State<AppState> = app.state();
                             state.mark_delivered(&text);
                         }
-                        Ok(()) => {}
+                        // O usuário trocou de janela enquanto a API respondia.
+                        Ok(clipboard::Delivery::CopiedWindowChanged) => notify_window_changed(app),
+                        Ok(clipboard::Delivery::Copied) => {}
                         Err(e) => notify_error(app, &i18n::tr_msg(&locale, &e.to_string())),
                     }
                 }
@@ -512,6 +535,23 @@ fn current_locale(app: &tauri::AppHandle) -> String {
     let state: tauri::State<AppState> = app.state();
     let guard = lock(&state.settings);
     guard.locale.clone()
+}
+
+/// O atalho configurado é o Ctrl+C (o próprio gesto copia a seleção)? Com outro
+/// combo o usuário copia antes, então não dá pra exigir uma cópia nova.
+fn gesture_copies(modifier: &str, key: &str) -> bool {
+    cfg!(windows) && modifier.eq_ignore_ascii_case("ctrl") && key.eq_ignore_ascii_case("c")
+}
+
+/// Avisa que o resultado NÃO foi colado porque a janela de origem saiu da
+/// frente — ele está no clipboard, pra colar onde o usuário quiser.
+pub(crate) fn notify_window_changed(app: &tauri::AppHandle) {
+    let loc = current_locale(app);
+    notify(
+        app,
+        i18n::tr(&loc, "notif.copied.title"),
+        i18n::tr(&loc, "notif.copied.moved"),
+    );
 }
 
 /// Atalho pra notificar falha de refino. `message` JÁ vem traduzido (ou é um
