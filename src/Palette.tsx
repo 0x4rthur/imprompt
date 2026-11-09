@@ -7,7 +7,7 @@
 // flutuante. O movimento (entrada, cascata, revelação, tremida no erro) é CSS;
 // com movimento reduzido (ou em testes) as trocas são diretas.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -72,6 +72,11 @@ export default function Palette() {
   // O usuário já escolheu um preset nesta abertura: o default que chega depois
   // (get_settings) não pode passar por cima.
   const userPicked = useRef(false);
+  // Preset padrão das Preferências (pra onde a seleção cai se o atual sumir).
+  const defaultPreset = useRef("");
+  // Fechando (Esc): até a janela sumir, nenhuma tecla age no que está saindo.
+  const closingRef = useRef(false);
+  const hideTimer = useRef(0);
 
   // refs com os valores atuais (pro handler de teclado e o refine não pegarem
   // closures velhas).
@@ -96,7 +101,8 @@ export default function Palette() {
   // (ver auditoria BUG-4). NÃO re-semeia presetId (preserva a escolha da sessão).
   const applySettings = useCallback(async () => {
     try {
-      const s = await invoke<Pick<Settings, "output" | "api_model" | "locale" | "theme">>("get_settings");
+      const s = await invoke<Pick<Settings, "output" | "api_model" | "locale" | "theme" | "default_preset">>("get_settings");
+      if (s.default_preset) defaultPreset.current = s.default_preset;
       // Aplica o idioma ANTES dos rótulos: a janela do popup é reusada entre
       // gatilhos (não remonta), então sem reaplicar aqui o popup ficaria preso
       // no idioma da 1ª abertura mesmo após o usuário trocar nas Preferências.
@@ -117,17 +123,27 @@ export default function Palette() {
     (refineBtn && !refineBtn.disabled ? refineBtn : pal).focus();
   }, []);
 
-  useEffect(() => {
+  // Carrega a lista de presets. No mount E a cada reuso: a janela é criada na
+  // inicialização do app, então presets criados/excluídos (ou o idioma trocado)
+  // depois disso só aparecem se a lista for relida a cada abertura.
+  const loadPresets = useCallback(() => {
     invoke<Preset[]>("list_presets")
       .then((ps) => {
+        presetsRef.current = ps;
         setPresets(ps);
-        // Se o preset atual (seedado do default_preset, que pode estar obsoleto)
-        // não existe na lista, cai no primeiro disponível.
+        // O preset selecionado não existe mais (excluído/escondido, ou default
+        // obsoleto): cai no padrão do usuário; senão, no primeiro disponível.
         if (ps.length && !ps.some((p) => p.id === presetIdRef.current)) {
-          setPresetId(ps[0].id);
+          const next = ps.some((p) => p.id === defaultPreset.current) ? defaultPreset.current : ps[0].id;
+          presetIdRef.current = next;
+          setPresetId(next);
         }
       })
       .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    loadPresets();
     // PUXA o texto capturado: cobre o 1º open, quando o listener abaixo ainda
     // não está montado pra receber o evento.
     invoke<string>("get_captured_text").then((text) => { if (text) setCaptured(text); }).catch(console.error);
@@ -136,6 +152,7 @@ export default function Palette() {
     // presets[0] vale independente da ordem de resolução.
     invoke<Pick<Settings, "default_preset">>("get_settings")
       .then((s) => {
+        if (s.default_preset) defaultPreset.current = s.default_preset;
         if (s.default_preset && !userPicked.current) {
           const list = presetsRef.current;
           if (!list.length || list.some((p) => p.id === s.default_preset)) {
@@ -150,7 +167,12 @@ export default function Palette() {
     // rótulos (settings podem ter mudado — BUG-4) e o foco do diálogo (ROB-5).
     const un = listen<string>("captured-text", (e) => {
       applying.current = false;
+      closingRef.current = false;
+      window.clearTimeout(hideTimer.current); // um Esc recente não esconde a abertura nova
       cancelPending(); // resposta do texto anterior não pode cair neste
+      capturedRef.current = e.payload;
+      refinedRef.current = null;
+      errorRef.current = false;
       setCaptured(e.payload);
       setRefined(null);
       setError(false);
@@ -163,6 +185,7 @@ export default function Palette() {
       // oculta no startup, então a animação do mount ninguém viu.
       setAnimSeq((s) => s + 1);
       applySettings();
+      loadPresets();
       requestAnimationFrame(focusPalette);
     });
     return () => { un.then((f) => f()); };
@@ -186,9 +209,10 @@ export default function Palette() {
   const close = useCallback(() => {
     cancelPending(); // desistiu: a resposta em voo não aparece nem é aplicada
     setLoading(false);
+    closingRef.current = true;
     if (reducedMotion()) { appWindow.hide(); return; }
     setClosing(true);
-    window.setTimeout(() => { appWindow.hide(); }, 130);
+    hideTimer.current = window.setTimeout(() => { appWindow.hide(); }, 130);
   }, []);
 
   // Refina com o preset atual. Chamado de novo durante um carregamento (troca de
@@ -199,11 +223,16 @@ export default function Palette() {
     const seq = ++reqSeq.current;
     const preset = presetIdRef.current;
     loadingRef.current = true;
+    refinedRef.current = null;
+    errorRef.current = false;
     setLoading(true); setRefined(null); setError(false); setCopied(false);
     try {
       const out = await invoke<string>("refine_text", { text, presetId: preset });
       if (seq !== reqSeq.current) return;
       resultPreset.current = preset;
+      loadingRef.current = false;
+      refinedRef.current = out;
+      errorRef.current = false;
       setError(false);
       setRefined(out);
       // Enter já tinha sido apertado enquanto carregava: aplica direto.
@@ -212,16 +241,16 @@ export default function Palette() {
       if (seq !== reqSeq.current) return;
       console.error(e);
       setQueue(false); // erro não tem o que aplicar
-      setError(true);
       // Mostra a mensagem REAL do backend (ex.: "Chave de API inválida ou sem
       // permissão.", "Limite de uso atingido. Tente em instantes.", "Sem resposta
       // da API (rede?). Verifique a conexão."). Cai num texto genérico só se o
       // erro não vier como string.
-      setRefined(
-        typeof e === "string" && e.trim()
-          ? e
-          : t("popup.error.fallback")
-      );
+      const message = typeof e === "string" && e.trim() ? e : t("popup.error.fallback");
+      loadingRef.current = false;
+      refinedRef.current = message;
+      errorRef.current = true;
+      setError(true);
+      setRefined(message);
     } finally {
       if (seq === reqSeq.current) { loadingRef.current = false; setLoading(false); }
     }
@@ -286,6 +315,8 @@ export default function Palette() {
       applying.current = false;
       setLeaving(false);
       await appWindow.show().catch(() => {});
+      // Volta com o foco no popup, pra o Enter seguinte chegar nele.
+      try { await appWindow.setFocus(); } catch { /* sem foco: um clique na janela resolve */ }
     }
   }
 
@@ -294,9 +325,20 @@ export default function Palette() {
     await applyText(refined, resultPreset.current);
   }, [refined, error]);
 
-  // O listener de teclado monta uma vez só; lê o apply mais recente por ref.
-  const applyRef = useRef(apply);
-  applyRef.current = apply;
+  // Um clique de MOUSE num botão do popup deixa o foco nele, e o Enter seguinte
+  // reativaria o botão em vez de avançar o fluxo: devolve o foco ao diálogo.
+  // (Ativação por teclado tem detail 0 e mantém o foco, como esperado.)
+  const refocus = (e: MouseEvent) => {
+    if (e.detail > 0) paletteRef.current?.focus({ preventScroll: true });
+  };
+
+  // "Aplica ao chegar" só vale enquanto o usuário está no popup: se ele foi pra
+  // outra janela, colar lá (por cima de outra seleção) seria uma surpresa.
+  useEffect(() => {
+    const onBlur = () => { if (autoApply.current) setQueue(false); };
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
 
   const copy = useCallback(async () => {
     if (refined == null) return;
@@ -319,12 +361,24 @@ export default function Palette() {
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       // Já aplicando: o popup está saindo, nenhuma tecla (nem a ativação nativa
       // de um botão focado) muda o que vai ser colado.
-      if (applying.current) { e.preventDefault(); return; }
+      if (applying.current || closingRef.current) { e.preventDefault(); return; }
       if (e.key === "Escape") { e.preventDefault(); close(); }
       else if (e.key === "Enter") {
+        const el = document.activeElement;
+        // Enter num chip focado (Tab) de OUTRO preset: é escolher aquele preset e
+        // seguir com ele — não avançar com o que estava selecionado antes.
+        const chip = el instanceof HTMLElement ? el.closest<HTMLElement>(".chip") : null;
+        const chipPreset = chip?.dataset.preset;
+        if (chipPreset && chipPreset !== presetIdRef.current) {
+          e.preventDefault();
+          if (e.repeat) return;
+          const asked = loadingRef.current || refinedRef.current != null;
+          choosePreset(chipPreset); // com um refino já pedido, isto refaz
+          if (!asked) refine();
+          return;
+        }
         // Enter num botão de ação focado (Refazer/Copiar/Aplicar/Expandir) ativa o
         // próprio botão; em qualquer outro lugar, avança o fluxo.
-        const el = document.activeElement;
         if (el instanceof HTMLElement && el.matches(".redo, .copy, .replace, .cap-toggle")) return;
         e.preventDefault();
         // Tecla segurada (auto-repeat) não aplica sozinha o resultado que acabou de chegar.
@@ -332,7 +386,7 @@ export default function Palette() {
         // Carregando: o Enter não se perde — fica combinado aplicar ao chegar.
         if (loadingRef.current) setQueue(true);
         // Erro não tem o que aplicar: Enter tenta de novo.
-        else if (refinedRef.current != null && !errorRef.current) applyRef.current();
+        else if (refinedRef.current != null && !errorRef.current) void applyText(refinedRef.current, resultPreset.current);
         else refine();
       }
       else if ((e.key === "r" || e.key === "R") && refinedRef.current != null) {
@@ -382,7 +436,8 @@ export default function Palette() {
 
   // Pra onde vai o resultado. O Responder sempre copia (colar por cima da
   // mensagem recebida não faz sentido) — o backend aplica a mesma regra.
-  const outNote = presetId === REPLY_ID
+  const isReply = presetId === REPLY_ID || presets.some((p) => p.id === presetId && p.reply);
+  const outNote = isReply
     ? t("popup.output.reply")
     : t(output === "replace" ? "popup.output.replace" : "popup.output.clipboard");
 
@@ -412,7 +467,7 @@ export default function Palette() {
           <div className="cap-head">
             <span className="cap-label">{t("popup.head.sub")}</span>
             {long && (
-              <button type="button" className="cap-toggle" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+              <button type="button" className="cap-toggle" aria-expanded={expanded} onClick={(e) => { setExpanded((v) => !v); refocus(e); }}>
                 {expanded ? t("popup.capture.collapse") : t("popup.capture.expand")}
               </button>
             )}
@@ -433,6 +488,7 @@ export default function Palette() {
                   className={"chip" + (on ? " active" : "")}
                   style={{ "--pc-h": presetHue(p.id), "--i": i } as CSSProperties}
                   aria-pressed={on}
+                  data-preset={p.id}
                   onClick={() => choosePreset(p.id)}
                 >
                   {on && <motion.span className="chip-pill" layoutId="chip-pill" transition={spring.snappy} aria-hidden="true" />}
@@ -476,7 +532,7 @@ export default function Palette() {
                   {t("popup.action.redo")}<kbd className="enter">{error ? "Enter" : "R"}</kbd>
                 </button>
                 {!error && (
-                  <button className="copy swap-btn" title={t("popup.action.copy.title")} onClick={copy}>
+                  <button className="copy swap-btn" title={t("popup.action.copy.title")} onClick={(e) => { void copy(); refocus(e); }}>
                     <Swap id={copied ? "done" : "copy"} className="swap">
                       {copied && <CheckIcon size={13} />}
                       {copied ? t("popup.action.copied") : t("popup.action.copy")}

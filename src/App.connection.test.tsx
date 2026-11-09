@@ -149,6 +149,24 @@ describe("API settings navigation", () => {
     expect((screen.getByRole("textbox", { name: "Model id" }) as HTMLInputElement).value).toBe("gpt-4o-mini");
   });
 
+  it("keeps the model field while the typed id passes through a suggested one", async () => {
+    const original = vi.mocked(invoke).getMockImplementation()!;
+    vi.mocked(invoke).mockImplementation((command, args) => command === "get_settings"
+      ? Promise.resolve({ ...initial, api_model: "gpt-4o-mini" }) as ReturnType<typeof invoke>
+      : original(command, args));
+    await openApp();
+    // Digitando "gpt-5-nano-2026…": no meio do caminho o texto É um id sugerido.
+    fireEvent.change(screen.getByRole("textbox", { name: "Model id" }), { target: { value: "gpt-5-nano" } });
+    expect((screen.getByRole("textbox", { name: "Model id" }) as HTMLInputElement).value).toBe("gpt-5-nano");
+  });
+  it("keeps the typed key while the custom Base URL is being edited", async () => {
+    await openApp();
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+    const key = screen.getByLabelText("API key") as HTMLInputElement;
+    fireEvent.change(key, { target: { value: "sk-typed" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), { target: { value: "https://my.host/v1" } });
+    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("sk-typed");
+  });
   it("does not quote public provider prices for a custom endpoint using the same model ID", async () => {
     await openApp();
     expect(screen.getByText("USD / 1M tokens")).toBeTruthy();

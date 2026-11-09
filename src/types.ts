@@ -9,6 +9,8 @@ export type Preset = {
   builtin: boolean;
   /** Preset padrão que o usuário editou (override ativo) — mostra "editado". */
   edited: boolean;
+  /** Preset de resposta (o "Responder" e cópias): o resultado é sempre copiado. */
+  reply?: boolean;
 };
 
 // Rascunho do formulário de "Meus presets" (id null = criando um novo).
@@ -18,6 +20,7 @@ export type PresetDraft = {
   instruction: string;
   example_input: string;
   example_output: string;
+  reply?: boolean;
 };
 
 export type ApiFormat = "auto" | "chat_completions" | "responses" | "anthropic";

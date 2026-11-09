@@ -212,6 +212,8 @@ export default function MotorTab({ settings, apply, balance = null }: Props) {
   const baseRef = useRef<HTMLInputElement>(null);
   const modelRef = useRef<HTMLInputElement>(null);
   const keyGeneration = useRef(0);
+  // A Base URL está sendo DIGITADA (endpoint próprio): a chave já digitada fica.
+  const keepTypedKey = useRef(false);
   const drafts = useRef(new Map<string, { base: string; model: string; format: ApiFormat; modelCustom: boolean }>());
 
   // Lê do backend se há uma chave salva no cofre (e a versão mascarada).
@@ -228,7 +230,11 @@ export default function MotorTab({ settings, apply, balance = null }: Props) {
   }
 
   useEffect(() => {
-    setApiKey("");
+    // Trocar de endpoint descarta a chave digitada pro anterior — menos quando a
+    // mudança é o próprio usuário editando a URL (corrigir um caractere apagava
+    // a chave, que fica fora da vista, e o teste seguinte falhava sem ela).
+    if (keepTypedKey.current) keepTypedKey.current = false;
+    else setApiKey("");
     void refreshKeyStatus();
     return () => { keyGeneration.current += 1; };
   }, [apiBase]);
@@ -379,7 +385,7 @@ export default function MotorTab({ settings, apply, balance = null }: Props) {
               ref={baseRef}
               value={apiBase}
               readOnly={!isCustom}
-              onChange={(e) => { setApiBase(e.target.value); setResult(null); }}
+              onChange={(e) => { keepTypedKey.current = true; setApiBase(e.target.value); setResult(null); }}
               placeholder="https://api.openai.com/v1"
               spellCheck={false}
               autoComplete="off"
@@ -401,7 +407,13 @@ export default function MotorTab({ settings, apply, balance = null }: Props) {
               aria-label={t("motor.model.aria")}
               className={recModels.length > 0 ? "dd-extra-input" : ""}
               value={apiModel}
-              onChange={(e) => { setApiModel(e.target.value); setResult(null); }}
+              onChange={(e) => {
+                setApiModel(e.target.value);
+                // Quem digita está no modo "id próprio": o campo não some quando o
+                // texto, no meio do caminho, coincide com um id sugerido.
+                if (recModels.length > 0) setModelCustom(true);
+                setResult(null);
+              }}
               placeholder={t("motor.model.placeholder")}
               spellCheck={false}
               autoComplete="off"
