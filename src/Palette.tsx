@@ -30,7 +30,7 @@ const FALLBACK_PRESET = "estruturar";
 // Preset "Responder" (id estável, igual ao do backend).
 const REPLY_ID = "responder";
 // Saída do "Aplicar": o popup encolhe e some antes de colar (casa com o CSS).
-const LEAVE_MS = 190;
+const LEAVE_MS = 120;
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -61,9 +61,18 @@ export default function Palette() {
   // "Aplicar" em andamento (animação de saída → esconder → colar): um 2º Enter,
   // R ou clique nesse meio-tempo não pode colar de novo nem refazer escondido.
   const applying = useRef(false);
-  // Preset que gerou o resultado na tela (o "Aplicar" entrega conforme ELE, mesmo
-  // que o usuário troque de chip depois de refinar).
+  // Preset que gerou o resultado na tela (o "Aplicar" entrega conforme ELE).
   const resultPreset = useRef(presetId);
+  // Geração do pedido em voo: cada refino (e cada cancelamento — Esc, texto novo,
+  // troca de preset) incrementa; uma resposta de geração antiga é descartada.
+  const reqSeq = useRef(0);
+  // Enter apertado DURANTE o carregamento = "aplica quando chegar" (Enter, Enter
+  // digitado mais rápido que a API). O ref decide; o estado só mostra o aviso.
+  const autoApply = useRef(false);
+  const [queued, setQueued] = useState(false);
+  // O usuário já escolheu um preset nesta abertura: o default que chega depois
+  // (get_settings) não pode passar por cima.
+  const userPicked = useRef(false);
 
   // refs com os valores atuais (pro handler de teclado e o refine não pegarem
   // closures velhas).
@@ -128,7 +137,7 @@ export default function Palette() {
     // presets[0] vale independente da ordem de resolução.
     invoke<Pick<Settings, "default_preset">>("get_settings")
       .then((s) => {
-        if (s.default_preset) {
+        if (s.default_preset && !userPicked.current) {
           const list = presetsRef.current;
           if (!list.length || list.some((p) => p.id === s.default_preset)) {
             setPresetId(s.default_preset);
@@ -142,6 +151,7 @@ export default function Palette() {
     // rótulos (settings podem ter mudado — BUG-4) e o foco do diálogo (ROB-5).
     const un = listen<string>("captured-text", (e) => {
       applying.current = false;
+      cancelPending(); // resposta do texto anterior não pode cair neste
       setCaptured(e.payload);
       setRefined(null);
       setError(false);
@@ -159,26 +169,50 @@ export default function Palette() {
     return () => { un.then((f) => f()); };
   }, []);
 
+  function setQueue(on: boolean) {
+    autoApply.current = on;
+    setQueued(on);
+  }
+  // Invalida o pedido em voo (a resposta, quando chegar, é ignorada) e desfaz o
+  // "aplicar ao chegar".
+  function cancelPending() {
+    reqSeq.current++;
+    loadingRef.current = false;
+    setQueue(false);
+  }
+
   // Fecha com animação de saída: marca closing (toca o pop-out) e esconde após ela.
   // O reset de closing fica no listener captured-text (no reuso), evitando flash.
   // Com movimento reduzido não há saída animada: esconde na hora.
   const close = useCallback(() => {
+    cancelPending(); // desistiu: a resposta em voo não aparece nem é aplicada
+    setLoading(false);
     if (reducedMotion()) { appWindow.hide(); return; }
     setClosing(true);
     window.setTimeout(() => { appWindow.hide(); }, 130);
   }, []);
 
+  // Refina com o preset atual. Chamado de novo durante um carregamento (troca de
+  // preset, R), o pedido novo substitui o anterior: só a última resposta vale.
   const refine = useCallback(async () => {
     const text = capturedRef.current.trim();
-    if (!text || loadingRef.current || applying.current) return;
+    if (!text || applying.current) return;
+    const seq = ++reqSeq.current;
+    const preset = presetIdRef.current;
+    loadingRef.current = true;
     setLoading(true); setRefined(null); setError(false); setCopied(false);
     try {
-      resultPreset.current = presetIdRef.current;
-      const out = await invoke<string>("refine_text", { text, presetId: presetIdRef.current });
+      const out = await invoke<string>("refine_text", { text, presetId: preset });
+      if (seq !== reqSeq.current) return;
+      resultPreset.current = preset;
       setError(false);
       setRefined(out);
+      // Enter já tinha sido apertado enquanto carregava: aplica direto.
+      if (autoApply.current) { setQueue(false); void applyText(out, preset); }
     } catch (e) {
+      if (seq !== reqSeq.current) return;
       console.error(e);
+      setQueue(false); // erro não tem o que aplicar
       setError(true);
       // Mostra a mensagem REAL do backend (ex.: "Chave de API inválida ou sem
       // permissão.", "Limite de uso atingido. Tente em instantes.", "Sem resposta
@@ -190,7 +224,21 @@ export default function Palette() {
           : t("popup.error.fallback")
       );
     } finally {
-      setLoading(false);
+      if (seq === reqSeq.current) { loadingRef.current = false; setLoading(false); }
+    }
+  }, []);
+
+  // Escolha de preset (tecla 1–9 ou clique). Antes do 1º Enter só seleciona; com
+  // um refino pedido (carregando ou com resultado/erro na tela), trocar o preset
+  // É pedir o resultado do novo: refaz na hora, sem precisar de outro Enter.
+  const choosePreset = useCallback((id: string) => {
+    userPicked.current = true;
+    if (id === presetIdRef.current || applying.current) return;
+    presetIdRef.current = id;
+    setPresetId(id);
+    if (loadingRef.current || refinedRef.current != null) {
+      setQueue(false); // a intenção mudou: o novo resultado espera um Enter
+      void refine();
     }
   }, []);
 
@@ -222,14 +270,15 @@ export default function Palette() {
     if (!active || active === document.body) paletteRef.current?.focus({ preventScroll: true });
   }, [refined]);
 
-  const apply = useCallback(async () => {
-    if (refined == null || error || applying.current) return;
+  // Entrega `text` (resultado do preset `preset`) no app de origem.
+  async function applyText(text: string, preset: string) {
+    if (applying.current) return;
     applying.current = true;
     // O popup encolhe e some antes de colar (o texto "vai" pro app de origem).
     if (!reducedMotion()) { setLeaving(true); await wait(LEAVE_MS); }
     await appWindow.hide();                 // devolve o foco pro app de origem antes de colar
     try {
-      await invoke("deliver_result", { text: refined, presetId: resultPreset.current });
+      await invoke("deliver_result", { text, presetId: preset });
     } catch (e) {
       // A entrega falhou (clipboard/paste rejeitado pelo SO). O popup já sumiu —
       // reexibe pra o usuário não perder o resultado e poder copiar manualmente
@@ -239,6 +288,11 @@ export default function Palette() {
       setLeaving(false);
       await appWindow.show().catch(() => {});
     }
+  }
+
+  const apply = useCallback(async () => {
+    if (refined == null || error) return;
+    await applyText(refined, resultPreset.current);
   }, [refined, error]);
 
   // O listener de teclado monta uma vez só; lê o apply mais recente por ref.
@@ -276,8 +330,10 @@ export default function Palette() {
         e.preventDefault();
         // Tecla segurada (auto-repeat) não aplica sozinha o resultado que acabou de chegar.
         if (e.repeat) return;
+        // Carregando: o Enter não se perde — fica combinado aplicar ao chegar.
+        if (loadingRef.current) setQueue(true);
         // Erro não tem o que aplicar: Enter tenta de novo.
-        if (refinedRef.current != null && !errorRef.current) applyRef.current();
+        else if (refinedRef.current != null && !errorRef.current) applyRef.current();
         else refine();
       }
       else if ((e.key === "r" || e.key === "R") && refinedRef.current != null) {
@@ -285,7 +341,7 @@ export default function Palette() {
       }
       else if (/^[1-9]$/.test(e.key)) {
         const p = presetsRef.current[parseInt(e.key, 10) - 1];
-        if (p) setPresetId(p.id);
+        if (p) choosePreset(p.id);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -378,7 +434,7 @@ export default function Palette() {
                   className={"chip" + (on ? " active" : "")}
                   style={{ "--pc-h": presetHue(p.id), "--i": i } as CSSProperties}
                   aria-pressed={on}
-                  onClick={() => setPresetId(p.id)}
+                  onClick={() => choosePreset(p.id)}
                 >
                   {on && <motion.span className="chip-pill" layoutId="chip-pill" transition={spring.snappy} aria-hidden="true" />}
                   {i < 9 && <span className="num" aria-hidden="true">{i + 1}</span>}
@@ -413,7 +469,7 @@ export default function Palette() {
             "Imprompt"; depois, Refazer (R) / Copiar / Aplicar (Enter). Com erro,
             Enter refaz. As ações entram em cascata a cada troca. */}
         <div className="palette-foot">
-          <span className="loc-note"><i aria-hidden="true" />{captured.trim() ? outNote : t("popup.note.selectAgain")}</span>
+          <span className="loc-note"><i aria-hidden="true" />{!captured.trim() ? t("popup.note.selectAgain") : queued ? t("popup.note.queued") : outNote}</span>
           <div className="foot-actions" key={hasResult ? (error ? "err" : "res") : "idle"}>
             {hasResult ? (
               <>
