@@ -31,6 +31,9 @@ const DEBOUNCE_MAX: u64 = 600;
 /// ainda assim, um modificador "preso" expira sozinho bem antes de causar um
 /// disparo-fantasma de um duplo-toque solto muito depois.
 const MOD_STALE_MS: u64 = 3_000;
+/// Sem KeyRelease, um novo KeyPress da tecla de ativação dentro deste prazo é
+/// auto-repeat (o SO repete a cada ~30 ms; o atraso inicial máximo é ~1 s).
+const REPEAT_STALE_MS: u64 = 1_500;
 
 /// Mensagem enviada pro resto do app quando o gatilho dispara.
 pub enum HotkeyEvent {
@@ -147,6 +150,11 @@ struct TapState {
     /// RECENTE (dentro da janela de debounce), e a expiração da janela o zera.
     mod_down_at: Option<Instant>,
     last: Option<Instant>,
+    /// Último KeyPress da tecla de ativação SEM um KeyRelease depois: enquanto ela
+    /// está em baixo, o SO repete KeyPress (auto-repeat) e isso não é um 2º toque
+    /// — sem isto, SEGURAR Ctrl+C disparava. Timestamp (não bool) pelo mesmo
+    /// motivo do modificador: um KeyRelease perdido expira sozinho.
+    key_down_at: Option<Instant>,
 }
 
 impl TapState {
@@ -155,6 +163,7 @@ impl TapState {
             shared,
             mod_down_at: None,
             last: None,
+            key_down_at: None,
         }
     }
 
@@ -180,8 +189,23 @@ impl TapState {
                 self.mod_down_at = None;
                 false
             }
+            EventType::KeyRelease(k) if k == actk => {
+                self.key_down_at = None;
+                false
+            }
             EventType::KeyPress(k) if k == actk => {
                 let now = Instant::now();
+                // Auto-repeat (tecla ainda em baixo): não conta como toque. Cada
+                // repetição renova o timestamp; a 1ª pressão depois de um release
+                // (ou de um release perdido há mais de REPEAT_STALE_MS) conta.
+                let repeating = self
+                    .key_down_at
+                    .map(|t| now.duration_since(t) <= Duration::from_millis(REPEAT_STALE_MS))
+                    .unwrap_or(false);
+                self.key_down_at = Some(now);
+                if repeating {
+                    return false;
+                }
                 // Re-valida o modificador AGORA: precisa estar genuinamente em
                 // baixo (press recente). Um KeyRelease perdido expira sozinho.
                 if !self.mod_is_active(now) {
@@ -246,6 +270,7 @@ mod tests {
         let mut s = TapState::new(shared("ctrl", "c"));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::ControlLeft))));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
     }
 
     #[test]
@@ -253,7 +278,9 @@ mod tests {
         let mut s = TapState::new(shared("ctrl", "c"));
         s.handle(&ev(EventType::KeyPress(Key::ControlLeft)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC)))); // 1º
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
         assert!(s.handle(&ev(EventType::KeyPress(Key::KeyC)))); // 2º → dispara
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
     }
 
     #[test]
@@ -262,11 +289,15 @@ mod tests {
         // Ctrl+C agora NÃO dispara (não é o combo configurado).
         s.handle(&ev(EventType::KeyPress(Key::ControlLeft)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
         // Alt+X×2 dispara.
         s.handle(&ev(EventType::KeyPress(Key::Alt)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyX)))); // 1º
+        s.handle(&ev(EventType::KeyRelease(Key::KeyX)));
         assert!(s.handle(&ev(EventType::KeyPress(Key::KeyX)))); // 2º → dispara
+        s.handle(&ev(EventType::KeyRelease(Key::KeyX)));
     }
 
     #[test]
@@ -277,7 +308,9 @@ mod tests {
         sh.set("alt", "q", 300);
         s.handle(&ev(EventType::KeyPress(Key::Alt)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyQ))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyQ)));
         assert!(s.handle(&ev(EventType::KeyPress(Key::KeyQ))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyQ)));
     }
 
     #[test]
@@ -287,7 +320,9 @@ mod tests {
         // com um bool latchado, dispararia um refino-fantasma).
         let mut s = TapState::new(shared("ctrl", "c"));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC)))); // 1º (solto)
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC)))); // 2º (solto)
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
     }
 
     #[test]
@@ -298,7 +333,9 @@ mod tests {
         s.handle(&ev(EventType::KeyPress(Key::ControlLeft)));
         s.handle(&ev(EventType::KeyRelease(Key::ControlLeft)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
         assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC))));
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
     }
 
     #[test]
@@ -307,5 +344,18 @@ mod tests {
         assert_eq!(sh.window(), Duration::from_millis(DEBOUNCE_MAX));
         sh.set("ctrl", "c", 10); // abaixo do mínimo
         assert_eq!(sh.window(), Duration::from_millis(DEBOUNCE_MIN));
+    }
+
+    #[test]
+    fn holding_the_combo_does_not_trigger() {
+        // Segurar Ctrl+C: o SO repete KeyPress(C) sem KeyRelease. Não é duplo-toque.
+        let mut s = TapState::new(shared("ctrl", "c"));
+        s.handle(&ev(EventType::KeyPress(Key::ControlLeft)));
+        for _ in 0..20 {
+            assert!(!s.handle(&ev(EventType::KeyPress(Key::KeyC))));
+        }
+        // Soltou e tocou de novo dentro da janela: agora sim é o 2º toque.
+        s.handle(&ev(EventType::KeyRelease(Key::KeyC)));
+        assert!(s.handle(&ev(EventType::KeyPress(Key::KeyC))));
     }
 }
