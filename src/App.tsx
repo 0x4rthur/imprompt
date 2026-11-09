@@ -14,7 +14,7 @@ import PresetsTab from "./tabs/PresetsTab";
 import GatilhoTab from "./tabs/GatilhoTab";
 import GeralTab from "./tabs/GeralTab";
 import ConnectionStatus from "./ConnectionStatus";
-import { connection, type ApiConfig } from "./connection";
+import { apiConfig, connection, type ApiConfig } from "./connection";
 import { setLocale } from "./i18n";
 import { applyTheme } from "./theme";
 import type { Key } from "./i18n/catalog";
@@ -175,6 +175,7 @@ export default function App() {
   // o item está abaixo do anterior, de cima se está acima.
   const [dir, setDir] = useState<1 | -1>(1);
   const mainInnerRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const [history, setHistory] = useState<RefineRecord[]>([]);
   const updater = useAppUpdater();
   // Uso da API (mês corrente).
@@ -198,9 +199,19 @@ export default function App() {
   function loadUsage() {
     invoke<UsageSummary>("get_usage").then(setUsage).catch(console.error);
   }
-  // Saldo no provedor: ao abrir, ao entrar no Início/API e depois de aplicar a API.
-  function loadBalance() {
-    invoke<Balance>("get_api_balance").then(setBalance).catch(() => setBalance(null));
+  // Saldo no provedor: ao abrir, ao voltar o foco, ao entrar no Início/API e
+  // depois de aplicar a API. Cada consulta é uma chamada de rede ao provedor,
+  // então no máximo uma por minuto (salvo `force`), e só a resposta mais recente
+  // vale (uma antiga, lenta, não sobrescreve a nova).
+  const balanceSeq = useRef(0);
+  const balanceAt = useRef(0);
+  function loadBalance(force = false) {
+    if (!force && Date.now() - balanceAt.current < 60_000) return;
+    balanceAt.current = Date.now();
+    const seq = ++balanceSeq.current;
+    invoke<Balance>("get_api_balance")
+      .then((b) => { if (seq === balanceSeq.current) setBalance(b); })
+      .catch(() => { if (seq === balanceSeq.current) setBalance(null); });
   }
   // Histórico de uso por mês (pro gráfico de gastos do dashboard).
   function loadUsageHistory() {
@@ -210,6 +221,8 @@ export default function App() {
   // Persiste a aba escolhida e carrega o que ela precisa.
   function selectTab(t: Tab) {
     setDir(TABS.indexOf(t) >= TABS.indexOf(tab) ? 1 : -1);
+    // A área rolável é uma só pra todas as abas: a nova começa do topo.
+    if (t !== tab && mainRef.current) mainRef.current.scrollTop = 0;
     setTab(t);
     localStorage.setItem("imprompt.tab", t);
     if (t === "inicio") { loadUsage(); loadUsageHistory(); loadBalance(); }
@@ -251,7 +264,16 @@ export default function App() {
 
     // Ao voltar o foco pra janela (ex.: depois de um refino via Ctrl+C×2),
     // recarrega o contador de uso e o histórico pra refletir o que foi feito.
-    const unFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => { if (focused) { loadUsage(); loadUsageHistory(); loadHistory(); loadBalance(); } });
+    const unFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (!focused) return;
+      loadUsage(); loadUsageHistory(); loadHistory(); loadBalance();
+      // A 1ª checagem de conexão roda no login (às vezes antes da rede subir):
+      // um erro não fica grudado — ao voltar pra janela, testa de novo.
+      const current = settingsRef.current;
+      if (current && connection.snapshot(apiConfig(current)).health === "error") {
+        void connection.check(apiConfig(current), true);
+      }
+    });
     return () => {
       unFocus.then((f) => f());
     };
@@ -266,6 +288,8 @@ export default function App() {
       await invoke("set_settings", { newSettings: next });
       settingsRef.current = next;
       setSettings(next);
+      // Os presets padrão vêm no idioma do app: idioma novo, lista nova.
+      if ("locale" in patch) loadPresets();
     });
   }
 
@@ -280,7 +304,8 @@ export default function App() {
       const next = await connection.apply(config, key);
       settingsRef.current = next;
       setSettings(next);
-      loadBalance();
+      setBalance(null); // o saldo na tela era do provedor anterior
+      loadBalance(true);
     });
   }
 
@@ -347,7 +372,7 @@ export default function App() {
         {/* ── Conteúdo: barra de título + página rolável ── */}
         <div className="content">
           {titlebar}
-          <main className="main">
+          <main className="main" ref={mainRef}>
             <div className="main-inner" ref={mainInnerRef}>
 
               {needsAccess && (

@@ -92,4 +92,25 @@ describe("app updates", () => {
     unmount();
     expect(events.size).toBe(0);
   });
+
+  it("a later 'no update' clears an old failure, and progress only changes with the percentage", async () => {
+    const { result } = await setup();
+    vi.mocked(invoke).mockRejectedValueOnce("offline");
+    await act(() => result.current.check());
+    expect(result.current.error).toBe("offline");
+    act(() => emit("update-none", null)); // checagem de fundo deu certo depois
+    expect(result.current.error).toBe("");
+
+    let finish!: () => void;
+    vi.mocked(invoke).mockImplementationOnce(() => new Promise<null>((resolve) => { finish = () => resolve(null); }));
+    let installing!: Promise<void>;
+    act(() => { installing = result.current.install(); });
+    act(() => emit("update-progress", { phase: "downloading", downloaded: 100, total: 10_000 }));
+    const first = result.current.progress;
+    act(() => emit("update-progress", { phase: "downloading", downloaded: 150, total: 10_000 })); // ainda 1%
+    expect(result.current.progress).toBe(first);
+    act(() => emit("update-progress", { phase: "downloading", downloaded: 250, total: 10_000 })); // 2%
+    expect(result.current.progress).not.toBe(first);
+    await act(async () => { finish(); await installing; });
+  });
 });

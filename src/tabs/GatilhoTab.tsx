@@ -19,7 +19,9 @@ type Props = {
 const MOD_LABEL: Record<Settings["trigger_modifier"], Key> = { ctrl: "mod.ctrl", alt: "mod.alt", shift: "mod.shift" };
 
 // Grava o atalho ao pressionar: um modificador (Ctrl/Alt/Shift) + uma letra (A–Z).
-// Usa e.code (tecla física → casa com o rdev do backend) e os flags de modificador.
+// Grava a LETRA da tecla (e.key, layout do usuário): é o que o backend ouve no
+// Windows/Linux — num AZERTY, a tecla "A" tem code KeyQ. Cai na posição física
+// (e.code) quando a tecla não dá uma letra (Alt/AltGr) e no macOS (posicional).
 // Salva via update() — o backend re-registra o hotkey quando as settings mudam.
 function TriggerRecorder({ settings, update }: Props) {
   const { t } = useT();
@@ -32,8 +34,10 @@ function TriggerRecorder({ settings, update }: Props) {
       e.preventDefault();
       e.stopPropagation();
       if (e.key === "Escape") { setRecording(false); setHint(""); return; }
-      const m = e.code.match(/^Key([A-Z])$/);
-      const key = m ? m[1].toLowerCase() : null;
+      const byCode = e.code.match(/^Key([A-Z])$/);
+      const positional = byCode ? byCode[1].toLowerCase() : null;
+      const mac = /mac/i.test(navigator.platform);
+      const key = !mac && /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : positional;
       const mod: Settings["trigger_modifier"] | null = e.ctrlKey ? "ctrl" : e.altKey ? "alt" : e.shiftKey ? "shift" : null;
       const isModKey = e.key === "Control" || e.key === "Alt" || e.key === "Shift" || e.key === "Meta";
       if (mod && key) {
@@ -85,6 +89,15 @@ function TriggerRecorder({ settings, update }: Props) {
 
 export default function GatilhoTab({ settings, update }: Props) {
   const { t } = useT();
+  // Intervalo do duplo-toque: o controle acompanha o arrasto em estado local e
+  // só GRAVA ao soltar (cada passo gravado era uma escrita de arquivo no backend).
+  const [draftMs, setDraftMs] = useState<number | null>(null);
+  const ms = draftMs ?? settings.debounce_ms;
+  const commitMs = () => {
+    if (draftMs != null && draftMs !== settings.debounce_ms) update({ debounce_ms: draftMs }).catch(() => setDraftMs(null));
+  };
+  // O valor salvo chegou (ou mudou por fora): o rascunho já não é necessário.
+  useEffect(() => { setDraftMs(null); }, [settings.debounce_ms]);
   return (
     <div className="page-stack page-fill">
       {/* Atalho de ativação — gravado direto pelo teclado */}
@@ -92,18 +105,21 @@ export default function GatilhoTab({ settings, update }: Props) {
         <div className="card-head"><h2 className="card-title">{t("gatilho.label")}</h2></div>
         <TriggerRecorder settings={settings} update={update} />
         <div className="debounce">
-          <span id="debounce-label" className="debounce-label"><Trans k="gatilho.debounce" slots={{ ms: <strong>{settings.debounce_ms} ms</strong> }} /></span>
+          <span id="debounce-label" className="debounce-label"><Trans k="gatilho.debounce" slots={{ ms: <strong>{ms} ms</strong> }} /></span>
           <input
             type="range"
             className="range"
             aria-labelledby="debounce-label"
-            aria-valuetext={`${settings.debounce_ms} ms`}
+            aria-valuetext={`${ms} ms`}
             min={250}
             max={600}
             step={10}
-            value={settings.debounce_ms}
-            style={{ "--fill": `${((settings.debounce_ms - 250) / 350) * 100}%` } as CSSProperties}
-            onChange={(e) => update({ debounce_ms: Number(e.target.value) })}
+            value={ms}
+            style={{ "--fill": `${((ms - 250) / 350) * 100}%` } as CSSProperties}
+            onChange={(e) => setDraftMs(Number(e.target.value))}
+            onPointerUp={commitMs}
+            onKeyUp={commitMs}
+            onBlur={commitMs}
           />
           <span className="debounce-scale" aria-hidden="true"><span>250 ms</span><span>600 ms</span></span>
         </div>

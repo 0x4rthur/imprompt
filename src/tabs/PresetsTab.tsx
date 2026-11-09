@@ -32,6 +32,11 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
   const [anchor, setAnchor] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const [presetErr, setPresetErr] = useState("");
+  // Erro de excluir/restaurar (mostrado junto das ações da lista).
+  const [listErr, setListErr] = useState("");
+  // Timer do fechamento animado do formulário (cancelado se outro abrir antes).
+  const closeTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
   // Exclusão/restauração em dois cliques: id aguardando confirmação inline.
   const [confirmId, setConfirmId] = useState<string | null>(null);
   // Ref do botão "armado" (lixeira vermelha / confirmar restauração), pra cancelar
@@ -40,7 +45,10 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
 
   // ── Abrir/fechar o acordeon ──
   function openFor(a: string, d: PresetDraft) {
+    // Um fechamento ainda em andamento não pode apagar o formulário que abre agora.
+    window.clearTimeout(closeTimer.current);
     setPresetErr("");
+    setListErr("");
     setConfirmId(null);
     setClosing(false);
     setAnchor(a);
@@ -50,17 +58,17 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     openFor(NEW, { id: null, label: "", instruction: "", example_input: "", example_output: "" });
   }
   function startEditPreset(p: Preset) {
-    openFor(p.id, { id: p.id, label: p.label, instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
+    openFor(p.id, { id: p.id, label: p.label, instruction: p.instruction, example_input: p.example_input, example_output: p.example_output, reply: p.reply });
   }
   function startDuplicatePreset(p: Preset) {
-    openFor(p.id, { id: null, label: p.label + t("presets.copySuffix"), instruction: p.instruction, example_input: p.example_input, example_output: p.example_output });
+    openFor(p.id, { id: null, label: p.label + t("presets.copySuffix"), instruction: p.instruction, example_input: p.example_input, example_output: p.example_output, reply: p.reply });
   }
   // Fecha com animação: tira o "open" (colapsa) MAS mantém o form montado até o fim
   // da transição, pra o conteúdo ser visível durante o fecho (sem flicker).
   function closeForm() {
     if (closing) return;
     setClosing(true);
-    window.setTimeout(() => {
+    closeTimer.current = window.setTimeout(() => {
       setDraft(null);
       setAnchor(null);
       setClosing(false);
@@ -86,6 +94,7 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
       instruction: draft.instruction,
       example_input: draft.example_input,
       example_output: draft.example_output,
+      reply: draft.reply ?? false,
     };
     try {
       if (draft.id) await invoke("update_preset", { preset: body });
@@ -97,25 +106,30 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
     }
   }
   async function removePreset(p: Preset) {
+    setListErr("");
     try {
       await invoke("delete_preset", { id: p.id });
       if (settings.default_preset === p.id) {
         const fallback = presets.find((x) => x.id !== p.id)?.id;
         if (fallback) await update({ default_preset: fallback });
       }
+    } catch (e) {
+      // Ex.: o backend recusa excluir o último preset — o motivo aparece na tela.
+      setListErr(String(e));
+    } finally {
       setConfirmId(null);
       loadPresets();
-    } catch (e) {
-      console.error(e);
     }
   }
   async function restoreDefaults() {
+    setListErr("");
     try {
       await invoke("restore_default_presets");
+    } catch (e) {
+      setListErr(String(e));
+    } finally {
       setConfirmId(null);
       loadPresets();
-    } catch (e) {
-      console.error(e);
     }
   }
 
@@ -248,6 +262,7 @@ export default function PresetsTab({ settings, update, presets, loadPresets }: P
             <button className="btn-ghost" onClick={() => setConfirmId("__restore__")} title={t("presets.restore.title")}>{t("presets.restore")}</button>
           )}
         </div>
+        {listErr && <p className="field-err" role="alert">{listErr}</p>}
         <div className={"pl-acc" + (anchor === NEW && !closing ? " open" : "")}>
           <div className="pl-acc-inner">{anchor === NEW && <div className="pl-new">{formNode}</div>}</div>
         </div>

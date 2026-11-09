@@ -152,3 +152,96 @@ it("a preset picked before the settings arrive is not overridden by the default"
   await flush();
   expect(screen.getByRole("button", { name: "Preset 1" }).getAttribute("aria-pressed")).toBe("true");
 });
+
+it("the preset list is refreshed every time the popup is reused", async () => {
+  // A janela nasce na inicialização do app: presets criados/excluídos depois
+  // precisam aparecer na próxima abertura, sem reiniciar.
+  await open();
+  fireEvent.keyDown(window, { key: "4" }); // escolhe o Preset 3…
+  const fresh = [presets[0], presets[1], { ...presets[0], id: "novo", label: "Brand new" }];
+  const original = vi.mocked(invoke).getMockImplementation()!;
+  vi.mocked(invoke).mockImplementation((cmd: string, args?: unknown) =>
+    cmd === "list_presets" ? Promise.resolve(fresh) : (original as (c: string, a?: unknown) => Promise<unknown>)(cmd, args));
+  act(() => events.get("captured-text")!({ payload: "second text" }));
+  expect(await screen.findByRole("button", { name: "Brand new" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Preset 3" })).toBeNull(); // …que foi excluído
+  // A seleção cai num preset que existe (o padrão), e é com ele que refina.
+  fireEvent.keyDown(window, { key: "Enter" });
+  expect(pending[0].presetId).toBe("p0");
+});
+
+it("clicking into another window cancels the queued apply", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  fireEvent.keyDown(window, { key: "Enter" }); // aplica ao chegar…
+  fireEvent.blur(window); // …mas o usuário foi pra outra janela
+  await act(async () => { pending[0].resolve("Better text"); });
+  expect(await screen.findByText("Better text")).toBeTruthy(); // fica esperando o Enter
+  expect(calls("deliver_result")).toHaveLength(0);
+});
+
+it("Enter right after Esc does not apply the result being dismissed", async () => {
+  // Movimento ligado: o Esc toca 130 ms de saída antes de esconder a janela.
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false, media: "", onchange: null,
+    addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+    dispatchEvent: () => false,
+  }));
+  try {
+    await open();
+    fireEvent.keyDown(window, { key: "Enter" });
+    await act(async () => { pending[0].resolve("Better text"); });
+    await screen.findByText("Better text");
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "2" });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+    expect(calls("deliver_result")).toHaveLength(0);
+    expect(calls("refine_text")).toHaveLength(1);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("Enter still applies after a mouse click on Copy", async () => {
+  Object.assign(navigator, { clipboard: { writeText: vi.fn(() => Promise.resolve()) } });
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await act(async () => { pending[0].resolve("Better text"); });
+  const copy = await screen.findByRole("button", { name: "Copy" });
+  copy.focus();
+  await act(async () => { fireEvent.click(copy, { detail: 1 }); }); // clique de mouse
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  await waitFor(() => expect(calls("deliver_result")).toHaveLength(1));
+});
+
+it("Enter on a focused preset chip refines with that preset", async () => {
+  await open();
+  const chip = screen.getByRole("button", { name: "Preset 2" });
+  chip.focus();
+  fireEvent.keyDown(chip, { key: "Enter" });
+  expect(pending[0].presetId).toBe("p2");
+});
+
+it("Enter in the same instant the answer lands applies it instead of refining again", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await act(async () => {
+    pending[0].resolve("Better text");
+    await new Promise((resolve) => setTimeout(resolve, 0)); // resposta processada, tela ainda não
+    fireEvent.keyDown(window, { key: "Enter" });
+  });
+  await waitFor(() => expect(calls("deliver_result")).toHaveLength(1));
+  expect(calls("refine_text")).toHaveLength(1);
+});
+
+it("a copy of the Reply preset is also announced as copy-only", async () => {
+  const withReply = [...presets, { ...presets[0], id: "reply-copy", label: "My reply", reply: true }];
+  const original = vi.mocked(invoke).getMockImplementation()!;
+  vi.mocked(invoke).mockImplementation((cmd: string, args?: unknown) =>
+    cmd === "list_presets" ? Promise.resolve(withReply) : (original as (c: string, a?: unknown) => Promise<unknown>)(cmd, args));
+  render(<Palette />);
+  await screen.findByText("make this better");
+  fireEvent.click(await screen.findByRole("button", { name: "My reply" }));
+  expect(screen.getByText("will copy the reply — paste it with Ctrl+V")).toBeTruthy();
+});
