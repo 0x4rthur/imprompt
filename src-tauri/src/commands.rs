@@ -53,8 +53,15 @@ pub struct AppState {
     /// (via `get_captured_text`), o que evita a corrida do 1º open — quando o
     /// listener do evento ainda não existe.
     pub captured: Mutex<String>,
-    /// Histórico dos últimos refinos (mais recente primeiro), pro "desfazer".
+    /// Histórico dos últimos refinos (mais recente primeiro), pra aba Histórico.
     pub history: Mutex<Vec<RefineRecord>>,
+    /// Texto ORIGINAL do último refino realmente ENTREGUE (colado/copiado) — o
+    /// alvo do "Desfazer". O histórico também guarda respostas que o usuário
+    /// descartou (Esc, troca de preset), então não serve pra isso.
+    pub last_delivered: Mutex<Option<String>>,
+    /// Espaço em branco (início, fim) que cercava a seleção capturada — devolvido
+    /// ao colar por cima, pra não comer a quebra de linha do fim.
+    pub capture_wrap: Mutex<(String, String)>,
     /// Versão de uma atualização disponível (a UI puxa via `get_pending_update`,
     /// cobrindo o caso do evento ter sido emitido antes da janela montar).
     pub pending_update: Mutex<Option<String>>,
@@ -93,6 +100,8 @@ impl AppState {
             settings: Mutex::new(settings),
             captured: Mutex::new(String::new()),
             history: Mutex::new(Vec::new()),
+            last_delivered: Mutex::new(None),
+            capture_wrap: Mutex::new((String::new(), String::new())),
             pending_update: Mutex::new(None),
             update_operation: tokio::sync::Mutex::new(()),
             usage: Arc::new(crate::usage::UsageTracker::load()),
@@ -115,6 +124,16 @@ impl AppState {
             },
         );
         h.truncate(HISTORY_CAP);
+    }
+
+    /// Marca `original` como o texto do último refino ENTREGUE.
+    pub fn mark_delivered(&self, original: &str) {
+        *lock(&self.last_delivered) = Some(original.to_string());
+    }
+
+    /// O texto original do último refino entregue (alvo do "Desfazer").
+    pub fn last_delivered(&self) -> Option<String> {
+        lock(&self.last_delivered).clone()
     }
 }
 
@@ -221,6 +240,7 @@ pub fn update_preset(state: State<AppState>, preset: presets::Preset) -> Result<
         instruction,
         example_input: preset.example_input.trim().to_string(),
         example_output: preset.example_output.trim().to_string(),
+        reply: preset.reply,
     };
     let mut store = presets::load_store();
     if presets::is_default_id(&clean.id, &current_locale(&state)) {
@@ -531,17 +551,33 @@ pub fn get_captured_text(state: State<AppState>) -> String {
 }
 
 /// Entrega o resultado do popup conforme o modo de saída das settings
-/// (Substituir = cola por cima da seleção; Clipboard = só copia). O Responder
-/// sempre copia (ver `presets::delivery_for`).
+/// (Substituir = cola por cima da seleção; Clipboard = só copia). Um preset de
+/// resposta sempre copia (ver `presets::delivery_for`).
 #[tauri::command]
 pub fn deliver_result(
     state: State<AppState>,
     text: String,
     preset_id: Option<String>,
 ) -> Result<(), String> {
-    let output = lock(&state.settings).output.clone();
-    let mode = crate::presets::delivery_for(preset_id.as_deref().unwrap_or_default(), output);
-    crate::clipboard::deliver(&text, mode).map_err(|e| i18n_err(&state, &e.to_string()))
+    let (output, locale) = {
+        let s = lock(&state.settings);
+        (s.output.clone(), s.locale.clone())
+    };
+    let preset_id = preset_id.unwrap_or_default();
+    let mode = crate::presets::delivery_for(&preset_id, &locale, output);
+    let replacing = mode == crate::clipboard::OutputMode::Replace;
+    let text = if replacing {
+        let (lead, trail) = lock(&state.capture_wrap).clone();
+        crate::clipboard::rewrap(&lead, &text, &trail)
+    } else {
+        text
+    };
+    crate::clipboard::deliver(&text, mode).map_err(|e| i18n_err(&state, &e.to_string()))?;
+    if replacing {
+        let original = lock(&state.captured).clone();
+        state.mark_delivered(&original);
+    }
+    Ok(())
 }
 
 /// Devolve o histórico de refinos (mais recente primeiro) pra timeline da tela Início.
@@ -553,6 +589,19 @@ pub fn get_history(state: State<AppState>) -> Vec<RefineRecord> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn undo_targets_the_last_delivered_text_not_the_last_answer() {
+        let state = AppState::new(Settings::default());
+        assert_eq!(state.last_delivered(), None);
+        // Um refino respondido mas nunca aplicado (Esc, resposta descartada)…
+        state.push_history("texto A", "resultado A", "estruturar");
+        assert_eq!(state.last_delivered(), None);
+        // …não vira alvo do Desfazer; só o que foi entregue.
+        state.mark_delivered("texto B");
+        state.push_history("texto C", "resultado C", "estruturar");
+        assert_eq!(state.last_delivered().as_deref(), Some("texto B"));
+    }
 
     #[test]
     fn history_is_newest_first_and_capped() {

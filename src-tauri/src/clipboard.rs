@@ -26,7 +26,7 @@ pub enum OutputMode {
 /// clipboard está vazio agora — o copy do app em foco pode estar em voo num app
 /// lento — fazemos um poll curto com timeout, para o gatilho parar de "não
 /// disparar" de forma intermitente em vez de abortar mudo (ver auditoria BUG-2).
-pub fn read_selection() -> Result<String> {
+fn read_raw() -> Result<String> {
     let mut cb = Clipboard::new().map_err(|e| {
         anyhow!(crate::i18n::key_with_args(
             "err.clipboard.no_access",
@@ -35,9 +35,8 @@ pub fn read_selection() -> Result<String> {
     })?;
     // Caminho rápido (caso comum): já há texto não-vazio.
     if let Ok(t) = cb.get_text() {
-        let trimmed = t.trim();
-        if !trimmed.is_empty() {
-            return Ok(trimmed.to_string());
+        if !t.trim().is_empty() {
+            return Ok(t);
         }
     }
     // Clipboard vazio agora: espera o copy chegar (apps lentos), até ~200ms.
@@ -45,15 +44,38 @@ pub fn read_selection() -> Result<String> {
     loop {
         std::thread::sleep(std::time::Duration::from_millis(15));
         if let Ok(t) = cb.get_text() {
-            let trimmed = t.trim();
-            if !trimmed.is_empty() {
-                return Ok(trimmed.to_string());
+            if !t.trim().is_empty() {
+                return Ok(t);
             }
         }
         if std::time::Instant::now() >= deadline {
             return Err(anyhow!("err.clipboard.empty"));
         }
     }
+}
+
+/// Separa o espaço em branco em volta do texto: `(início, miolo, fim)`. Uma
+/// seleção só de espaço devolve tudo vazio.
+pub fn split_wrap(raw: &str) -> (&str, &str, &str) {
+    let core = raw.trim();
+    if core.is_empty() {
+        return ("", "", "");
+    }
+    let start = raw.len() - raw.trim_start().len();
+    (&raw[..start], core, &raw[start + core.len()..])
+}
+
+/// Devolve ao resultado o espaço que cercava a seleção original.
+pub fn rewrap(lead: &str, refined: &str, trail: &str) -> String {
+    format!("{lead}{refined}{trail}")
+}
+
+/// Como `read_selection`, mas devolve também o espaço em branco que cercava o
+/// texto: `(texto, início, fim)`.
+pub fn read_selection_wrapped() -> Result<(String, String, String)> {
+    let raw = read_raw()?;
+    let (lead, core, trail) = split_wrap(&raw);
+    Ok((core.to_string(), lead.to_string(), trail.to_string()))
 }
 
 /// Entrega o resultado conforme o modo escolhido.
@@ -146,3 +168,19 @@ fn paste_over_selection() -> Result<()> {
 // de ferramentas externas (wtype/ydotool) e pode não funcionar em todos os
 // compositores. No modo "Clipboard" (Ctrl+V manual) você evita esse problema —
 // vale considerar deixá-lo como padrão no Linux.
+
+#[cfg(test)]
+mod tests {
+    use super::{rewrap, split_wrap};
+
+    #[test]
+    fn keeps_the_whitespace_around_the_selection() {
+        // Seleção de linha inteira inclui a quebra do fim: colar sem ela juntaria
+        // o resultado com o parágrafo de baixo.
+        let (lead, core, trail) = split_wrap("  olá mundo\r\n");
+        assert_eq!((lead, core, trail), ("  ", "olá mundo", "\r\n"));
+        assert_eq!(rewrap(lead, "Olá, mundo!", trail), "  Olá, mundo!\r\n");
+        assert_eq!(split_wrap("sem espaço"), ("", "sem espaço", ""));
+        assert_eq!(split_wrap(" \n "), ("", "", ""));
+    }
+}

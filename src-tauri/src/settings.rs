@@ -66,6 +66,7 @@ impl From<OutputPref> for OutputMode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)] // campo ausente = valor padrão DELE (não o arquivo inteiro)
 pub struct Settings {
     /// Id do preset padrão usado no modo instantâneo (ex: "estruturar").
     pub default_preset: String,
@@ -149,6 +150,25 @@ impl Default for Settings {
     }
 }
 
+/// Interpreta o conteúdo do settings.json. `None` = ilegível.
+fn parse_settings(json: &str) -> Option<Settings> {
+    serde_json::from_str(json).ok()
+}
+
+/// Copia um arquivo de dados que não deu pra ler pra `<nome>.corrupt`, ao lado
+/// dele. O app segue com os padrões e o próximo save sobrescreve o original — a
+/// cópia é a chance de recuperar (settings, uso, presets). Best-effort.
+pub fn keep_corrupt_copy(path: &std::path::Path) {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".corrupt");
+    if let Err(e) = fs::copy(path, path.with_file_name(name)) {
+        eprintln!(
+            "[dados] não consegui guardar a cópia de {}: {e}",
+            path.display()
+        );
+    }
+}
+
 impl Settings {
     /// Caminho do arquivo de settings, dentro da pasta de dados do app.
     /// (No app real, prefira usar o `app_data_dir()` do Tauri.)
@@ -172,7 +192,14 @@ impl Settings {
             Ok(json) => json,
             Err(_) => return Self::default(),
         };
-        let settings: Settings = serde_json::from_str(&json).unwrap_or_default();
+        let settings = parse_settings(&json).unwrap_or_else(|| {
+            // Ilegível (JSON quebrado, valor que esta versão não conhece): guarda
+            // uma cópia antes que o próximo save grave o padrão por cima.
+            if let Ok(path) = Self::path() {
+                keep_corrupt_copy(&path);
+            }
+            Self::default()
+        });
 
         if let Some(legacy_key) = extract_legacy_api_key(&json) {
             if crate::secrets::save_api_key(&settings.api_base_url, &legacy_key).is_ok() {
@@ -288,5 +315,34 @@ mod tests {
         assert_eq!(extract_legacy_api_key(r#"{"api_key":""}"#), None);
         assert_eq!(extract_legacy_api_key(r#"{"api_key":"   "}"#), None);
         assert_eq!(extract_legacy_api_key("isto não é json"), None);
+    }
+
+    #[test]
+    fn a_settings_file_missing_fields_keeps_the_ones_it_has() {
+        // Antes, UM campo ausente fazia o arquivo inteiro virar o padrão.
+        let s = super::parse_settings(
+            r#"{"default_preset":"corrigir","output":"clipboard","locale":"pt-BR"}"#,
+        )
+        .expect("parses");
+        assert_eq!(s.default_preset, "corrigir");
+        assert_eq!(s.locale, "pt-BR");
+        assert!(matches!(s.output, super::OutputPref::Clipboard));
+        assert!(matches!(s.mode, super::ActivationMode::Instant)); // padrão
+        assert!(super::parse_settings("{ not json").is_none());
+    }
+
+    #[test]
+    fn an_unreadable_file_is_copied_aside_before_it_can_be_overwritten() {
+        let dir = std::env::temp_dir().join(format!("imprompt-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("settings.json");
+        std::fs::write(&file, "{ broken").unwrap();
+        super::keep_corrupt_copy(&file);
+        assert_eq!(
+            std::fs::read_to_string(dir.join("settings.json.corrupt")).unwrap(),
+            "{ broken"
+        );
+        assert!(file.exists()); // o original fica onde está
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -90,14 +90,10 @@ impl UsageTracker {
     pub fn record(&self, model: &str, prompt_tokens: u64, completion_tokens: u64) {
         let prices = load_or_init_prices();
         let (price, exact) = price_for(&prices, model);
-        let cost = cost_of(&price, prompt_tokens, completion_tokens);
         let key = current_month_key();
         let mut data = self.data.lock().unwrap_or_else(|e| e.into_inner());
         let m = data.months.entry(key).or_default();
-        m.refinements += 1;
-        m.prompt_tokens += prompt_tokens;
-        m.completion_tokens += completion_tokens;
-        m.cost_usd += cost;
+        add_refine(m, &price, prompt_tokens, completion_tokens);
         if !exact {
             // Usou o preço genérico (modelo fora da tabela) → custo do mês é só
             // uma aproximação grosseira. A UI avisa.
@@ -151,6 +147,20 @@ impl UsageTracker {
     }
 }
 
+/// Teto de tokens contados por refino. Os números vêm do endpoint (qualquer
+/// `u64`); um valor absurdo não pode estourar a soma nem envenenar o custo salvo.
+const MAX_TOKENS_PER_REFINE: u64 = 10_000_000;
+
+/// Soma UM refino no agregado do mês. PURA → testável.
+fn add_refine(m: &mut MonthUsage, price: &ModelPrice, prompt_tokens: u64, completion_tokens: u64) {
+    let prompt = prompt_tokens.min(MAX_TOKENS_PER_REFINE);
+    let completion = completion_tokens.min(MAX_TOKENS_PER_REFINE);
+    m.refinements = m.refinements.saturating_add(1);
+    m.prompt_tokens = m.prompt_tokens.saturating_add(prompt);
+    m.completion_tokens = m.completion_tokens.saturating_add(completion);
+    m.cost_usd += cost_of(price, prompt, completion);
+}
+
 /// Preço do modelo + se é EXATO (`true`, achou na tabela) ou o GENÉRICO de
 /// fallback (`false` → custo aproximado). PURA.
 fn price_for(prices: &HashMap<String, ModelPrice>, model: &str) -> (ModelPrice, bool) {
@@ -191,8 +201,13 @@ fn prices_path() -> Result<PathBuf> {
 }
 
 fn load_usage() -> Result<UsageData> {
-    let json = std::fs::read_to_string(usage_path()?)?;
-    Ok(serde_json::from_str(&json).unwrap_or_default())
+    let path = usage_path()?;
+    let json = std::fs::read_to_string(&path)?;
+    Ok(serde_json::from_str(&json).unwrap_or_else(|_| {
+        // Ilegível: guarda uma cópia antes que o próximo refino grave por cima.
+        crate::settings::keep_corrupt_copy(&path);
+        UsageData::default()
+    }))
 }
 fn save_usage(data: &UsageData) -> Result<()> {
     // Gravação ATÔMICA: escreve num .tmp e renomeia, pra um crash no meio não
@@ -396,5 +411,20 @@ mod tests {
         let (g, exact2) = price_for(&prices, "deepseek-chat");
         assert!(!exact2);
         assert_eq!(g.input_per_1m, DEFAULT_PRICE.input_per_1m);
+    }
+
+    #[test]
+    fn absurd_token_counts_cannot_overflow_or_poison_the_totals() {
+        // Um endpoint com defeito (ou hostil) pode devolver qualquer u64.
+        let price = ModelPrice {
+            input_per_1m: 1.0,
+            output_per_1m: 1.0,
+        };
+        let mut m = MonthUsage::default();
+        add_refine(&mut m, &price, u64::MAX, u64::MAX);
+        add_refine(&mut m, &price, u64::MAX, u64::MAX);
+        assert_eq!(m.refinements, 2);
+        assert_eq!(m.prompt_tokens, 2 * MAX_TOKENS_PER_REFINE);
+        assert!(m.cost_usd <= 4.0 * MAX_TOKENS_PER_REFINE as f64 / 1_000_000.0);
     }
 }
