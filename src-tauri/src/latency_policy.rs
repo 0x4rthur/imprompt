@@ -86,7 +86,7 @@ pub fn rejected_optional(status: u16, raw: &str, fields: &[&str]) -> bool {
     if !matches!(status, 400 | 422) || fields.is_empty() {
         return false;
     }
-    let Ok(error) = serde_json::from_str::<Value>(raw) else {
+    let Some(error) = crate::api_engine::error_object(raw) else {
         return false;
     };
     let error = &error["error"];
@@ -103,6 +103,7 @@ pub fn rejected_optional(status: u16, raw: &str, fields: &[&str]) -> bool {
         "unrecognized",
         "unknown parameter",
         "invalid value",
+        "valid values",
         "must be one of",
         "extra inputs",
     ]

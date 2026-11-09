@@ -17,7 +17,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::api_endpoint::{ApiFormat, Endpoint};
-use crate::engine::{clean_output, Engine};
+use crate::engine::{clean_output_for, Engine};
 use crate::usage::{estimate_tokens, UsageTracker};
 
 /// Reasoning models can need longer even for a short refinement.
@@ -207,7 +207,7 @@ impl Engine for ApiEngine {
         let start = std::time::Instant::now();
         let mut attempt = 0usize;
         loop {
-            match self.try_once(&body, &optional) {
+            match self.try_once(&body, &optional, user_text) {
                 Ok((text, usage)) => {
                     // Contabiliza o refino (só se este motor tiver tracker = API).
                     self.record_usage(&messages, &text, usage);
@@ -261,6 +261,7 @@ impl ApiEngine {
         &self,
         body: &Value,
         optional: &[&str],
+        user_text: &str,
     ) -> std::result::Result<Completion, RefineError> {
         let mut request = self.client.post(&self.endpoint.url);
         if !self.api_key.is_empty() {
@@ -287,7 +288,7 @@ impl ApiEngine {
                     &["expected JSON"],
                 ))
             })?;
-            return parse_response(self.endpoint.format, &parsed)
+            return parse_response_for(self.endpoint.format, &parsed, Some(user_text))
                 .map_err(|err| err.redact(&self.api_key));
         }
 
@@ -322,9 +323,20 @@ fn text_content(value: &Value) -> String {
         .unwrap_or_default()
 }
 
+#[cfg(test)]
 fn parse_response(
     format: ApiFormat,
     value: &Value,
+) -> std::result::Result<Completion, RefineError> {
+    parse_response_for(format, value, None)
+}
+
+/// Interpreta a resposta de sucesso (HTTP 200). `user_text` (o texto enviado)
+/// ajuda a limpeza a não cortar o que já era do usuário.
+fn parse_response_for(
+    format: ApiFormat,
+    value: &Value,
+    user_text: Option<&str>,
 ) -> std::result::Result<Completion, RefineError> {
     if !value["error"].is_null() {
         let code = value["error"]["code"]
@@ -335,7 +347,10 @@ fn parse_response(
     }
     let (content, input_tokens, output_tokens) = match format {
         ApiFormat::Anthropic => {
-            if value["stop_reason"] == "max_tokens" {
+            if matches!(
+                value["stop_reason"].as_str(),
+                Some("max_tokens" | "refusal" | "model_context_window_exceeded" | "pause_turn")
+            ) {
                 return Err(RefineError::Permanent("err.api.truncated".into()));
             }
             (
@@ -368,7 +383,10 @@ fn parse_response(
             let choice = value["choices"]
                 .get(0)
                 .ok_or_else(|| RefineError::Permanent("err.api.no_response".into()))?;
-            if choice["finish_reason"] == "length" {
+            if matches!(
+                choice["finish_reason"].as_str(),
+                Some("length" | "content_filter")
+            ) {
                 return Err(RefineError::Permanent("err.api.truncated".into()));
             }
             (
@@ -378,7 +396,7 @@ fn parse_response(
             )
         }
     };
-    let cleaned = clean_output(&content);
+    let cleaned = clean_output_for(&content, user_text);
     if cleaned.trim().is_empty() {
         return Err(RefineError::Permanent("err.api.empty".into()));
     }
@@ -439,6 +457,12 @@ fn classify_status(code: u16, raw_body: &str) -> RefineError {
     let code = code.to_string();
     match code.as_str() {
         "401" | "403" => RefineError::Permanent("err.api.unauthorized".to_string()),
+        // Conta sem crédito/cota também responde 429: repetir não resolve e o
+        // usuário precisa do motivo do provedor, não de "tente em instantes".
+        "429" if quota_exhausted(raw_body) => RefineError::Permanent(crate::i18n::key_with_args(
+            "err.api.status",
+            &[&code, &detail_arg],
+        )),
         "429" => RefineError::Transient("err.api.rate_limit".to_string()),
         "408" | "500" | "502" | "503" | "504" | "529" => RefineError::Transient(
             crate::i18n::key_with_args("err.api.temporary", &[&code, &detail_arg]),
@@ -450,6 +474,31 @@ fn classify_status(code: u16, raw_body: &str) -> RefineError {
     }
 }
 
+/// O corpo de erro (JSON) como objeto: alguns provedores (Gemini no endpoint
+/// compatível com OpenAI) embrulham o erro num array de um elemento.
+pub(crate) fn error_object(raw_body: &str) -> Option<Value> {
+    let v: Value = serde_json::from_str(raw_body.trim()).ok()?;
+    match v {
+        Value::Array(mut items) if items.len() == 1 => Some(items.remove(0)),
+        other => Some(other),
+    }
+}
+
+/// Um 429 que significa "sem crédito/cota", não "devagar".
+fn quota_exhausted(raw_body: &str) -> bool {
+    let Some(v) = error_object(raw_body) else {
+        return false;
+    };
+    let e = &v["error"];
+    let tag = |k: &str| e[k].as_str().unwrap_or_default().to_ascii_lowercase();
+    let (code, kind, message) = (tag("code"), tag("type"), tag("message"));
+    code == "insufficient_quota"
+        || kind == "insufficient_quota"
+        || ["quota", "billing", "credit", "balance"]
+            .iter()
+            .any(|w| message.contains(w))
+}
+
 /// Extrai a mensagem de erro do corpo (formato OpenAI: `{"error":{"message":"…"}}`);
 /// senão devolve um trecho do corpo cru.
 fn extract_api_error_message(raw_body: &str) -> String {
@@ -457,7 +506,7 @@ fn extract_api_error_message(raw_body: &str) -> String {
     if body.is_empty() {
         return String::new();
     }
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(body) {
+    if let Some(v) = error_object(body) {
         if let Some(msg) = v
             .get("error")
             .and_then(|e| e.get("message"))
@@ -1105,5 +1154,62 @@ mod tests {
             after.refinements, after.cost_usd
         );
         tracker.reset(); // não deixa o teste somando no contador real
+    }
+
+    #[test]
+    fn an_exhausted_quota_is_not_reported_as_a_passing_rate_limit() {
+        // 429 de conta sem crédito: não adianta repetir, e o usuário precisa do motivo.
+        let e = super::classify_status(
+            429,
+            r#"{"error":{"message":"You exceeded your current quota","code":"insufficient_quota"}}"#,
+        );
+        assert!(!e.is_transient());
+        assert!(e.into_message().contains("You exceeded your current quota"));
+        // 429 comum segue transitório.
+        assert!(
+            super::classify_status(429, r#"{"error":{"message":"Rate limit reached"}}"#)
+                .is_transient()
+        );
+    }
+
+    #[test]
+    fn reads_the_error_message_from_a_gemini_style_array_body() {
+        let body = r#"[{"error":{"code":400,"message":"Invalid reasoning_effort: minimal. Valid values are: high, low, medium, none","status":"INVALID_ARGUMENT"}}]"#;
+        assert_eq!(
+            super::extract_api_error_message(body),
+            "Invalid reasoning_effort: minimal. Valid values are: high, low, medium, none"
+        );
+        assert!(crate::latency_policy::rejected_optional(
+            400,
+            body,
+            &["reasoning_effort"]
+        ));
+    }
+
+    #[test]
+    fn never_delivers_output_cut_by_a_filter_or_refusal() {
+        use crate::api_endpoint::ApiFormat;
+        use serde_json::json;
+        for (format, response) in [
+            (
+                ApiFormat::ChatCompletions,
+                json!({"choices":[{"message":{"content":"partial"},"finish_reason":"content_filter"}]}),
+            ),
+            (
+                ApiFormat::Anthropic,
+                json!({"content":[{"type":"text","text":"partial"}],"stop_reason":"refusal"}),
+            ),
+            (
+                ApiFormat::Anthropic,
+                json!({"content":[{"type":"text","text":"partial"}],"stop_reason":"model_context_window_exceeded"}),
+            ),
+        ] {
+            assert_eq!(
+                super::parse_response(format, &response)
+                    .unwrap_err()
+                    .into_message(),
+                "err.api.truncated"
+            );
+        }
     }
 }
