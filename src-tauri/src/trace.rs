@@ -50,7 +50,11 @@ pub fn capped(existing: &str, addition: &str, max: usize) -> String {
 /// Anexa as linhas ao arquivo de rastro. Erro aqui nunca atrapalha o popup: quem
 /// chama ignora.
 pub fn append(lines: &[String]) -> anyhow::Result<()> {
-    let path = crate::settings::data_dir()?.join("popup-trace.log");
+    append_in(&crate::settings::data_dir()?, lines)
+}
+
+fn append_in(dir: &std::path::Path, lines: &[String]) -> anyhow::Result<()> {
+    let path = dir.join("popup-trace.log");
     let existing = std::fs::read_to_string(&path).unwrap_or_default();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -67,7 +71,26 @@ pub fn append(lines: &[String]) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{block, capped};
+    use super::{append_in, block, capped};
+
+    #[test]
+    fn each_popup_session_is_appended_to_the_file() {
+        let dir = std::env::temp_dir().join(format!("imprompt-trace-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        append_in(&dir, &["1 open preset=corrigir".to_string()]).unwrap();
+        append_in(&dir, &["2 enter state=idle".to_string()]).unwrap();
+        let saved = std::fs::read_to_string(dir.join("popup-trace.log")).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        let lines: Vec<&str> = saved.lines().collect();
+        assert_eq!(lines.len(), 4);
+        assert!(
+            lines[0].starts_with("--- ")
+                && lines[0].ends_with(concat!(" v", env!("CARGO_PKG_VERSION")))
+        );
+        assert_eq!(lines[1], "1 open preset=corrigir");
+        assert!(lines[2].starts_with("--- "));
+        assert_eq!(lines[3], "2 enter state=idle");
+    }
 
     #[test]
     fn a_block_has_a_header_and_one_clean_line_per_event() {
