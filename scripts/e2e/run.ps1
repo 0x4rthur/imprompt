@@ -188,7 +188,15 @@ finally {
   Remove-Item Env:\IMPROMPT_CONFIG_DIR -ErrorAction SilentlyContinue
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   try { if ($savedClipboard) { [System.Windows.Forms.Clipboard]::SetText($savedClipboard) } else { [System.Windows.Forms.Clipboard]::Clear() } } catch {}
-  if ($installedPath) { Start-Process -FilePath $installedPath -ArgumentList "--start-hidden" }
+  if ($installedPath) {
+    # Reabre o Imprompt instalado pelo serviço WMI, não como filho deste script:
+    # um filho morre junto quando o terminal/ferramenta que rodou o teste encerra
+    # a árvore de processos, e o usuário ficaria sem o app.
+    try {
+      $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = "`"$installedPath`" --start-hidden" }
+      if ($r.ReturnValue -ne 0) { throw "codigo $($r.ReturnValue)" }
+    } catch { Start-Process -FilePath $installedPath -ArgumentList "--start-hidden" }
+  }
 }
 $results | ForEach-Object { $_ }
 if ($failed) { exit 1 } else { "ALL PASSED"; exit 0 }
