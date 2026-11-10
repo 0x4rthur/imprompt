@@ -32,6 +32,9 @@ let settings: () => Promise<typeof SETTINGS>;
 
 const calls = (cmd: string) => vi.mocked(invoke).mock.calls.filter(([c]) => c === cmd);
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+// Pausa maior que a janela de "rajada de Enter" do popup: o usuário parou de
+// apertar, olhou o resultado, e só então age.
+const calm = () => act(() => new Promise((resolve) => setTimeout(resolve, 360)));
 
 beforeEach(() => {
   hide.mockClear();
@@ -91,6 +94,7 @@ it("picking another preset after a result refines again with it; Enter applies t
   expect(pending[1]).toMatchObject({ presetId: "p2", text: "make this better" });
   await act(async () => { pending[1].resolve("Result of p2"); });
   await screen.findByText("Result of p2");
+  await calm(); // olha o resultado novo antes de confirmar
   fireEvent.keyDown(window, { key: "Enter" });
   await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p2", presetId: "p2" }));
   expect(calls("deliver_result")).toHaveLength(1);
@@ -240,6 +244,11 @@ it("the preset picked last wins: mouse click on one, number key for another whil
   expect(pending).toHaveLength(2); // nenhum refino de volta pro preset clicado antes
   expect(screen.getByRole("button", { name: "Preset 1" }).getAttribute("aria-pressed")).toBe("true");
   await act(async () => { pending[0].resolve("Result of p2"); pending[1].resolve("Result of p1"); });
+  // O resultado do preset NOVO aparece; a rajada de Enter não cola nada.
+  expect(await screen.findByText("Result of p1")).toBeTruthy();
+  expect(calls("deliver_result")).toHaveLength(0);
+  await calm();
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
   await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p1", presetId: "p1" }));
   expect(calls("deliver_result")).toHaveLength(1);
 });
@@ -257,6 +266,10 @@ it("the preset picked last wins: same sequence after the first result is on scre
   expect(pending).toHaveLength(2);
   expect(pending[1].presetId).toBe("p3");
   await act(async () => { pending[1].resolve("Result of p3"); });
+  expect(await screen.findByText("Result of p3")).toBeTruthy();
+  expect(calls("deliver_result")).toHaveLength(0);
+  await calm();
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
   await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p3", presetId: "p3" }));
   expect(calls("deliver_result")).toHaveLength(1);
 });
@@ -277,6 +290,68 @@ it("pressing the number of the preset already selected still wins over a focused
   fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
   expect(pending).toHaveLength(1);
   expect(pending[0].presetId).toBe("p0");
+});
+
+// Rajada de Enter ("fico apertando Enter"). Quando o popup fecha, o próximo
+// Enter cai no app de origem — num chat, isso ENVIA o texto cru. Então: depois
+// de trocar de preset a rajada só gera; no mesmo preset ela cola, mas só quando
+// as teclas pararem.
+it("after switching preset, an Enter burst generates the new one and never pastes it unseen", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" }); // gerando com o p0…
+  fireEvent.click(screen.getByRole("button", { name: "Preset 1" })); // …troca pro p1
+  for (let i = 0; i < 4; i++) fireEvent.keyDown(window, { key: "Enter" });
+  expect(pending).toHaveLength(2);
+  expect(screen.queryByText(/applies when ready/)).toBeNull();
+  await act(async () => { pending[1].resolve("Result of p1"); });
+  expect(await screen.findByText("Result of p1")).toBeTruthy();
+  // Cauda da rajada: Enters que já vinham sendo apertados quando o resultado apareceu.
+  fireEvent.keyDown(window, { key: "Enter" });
+  fireEvent.keyDown(window, { key: "Enter" });
+  await flush();
+  expect(hide).not.toHaveBeenCalled();
+  expect(calls("deliver_result")).toHaveLength(0);
+  expect(calls("refine_text")).toHaveLength(2);
+  // Parou, viu o resultado, Enter: agora cola — o do preset novo.
+  await calm();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p1", presetId: "p1" }));
+  expect(calls("deliver_result")).toHaveLength(1);
+});
+
+it("an Enter burst on the same preset pastes only after the keys stop", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  fireEvent.keyDown(window, { key: "Enter" });
+  await act(async () => { pending[0].resolve("Better text"); });
+  fireEvent.keyDown(window, { key: "Enter" }); // ainda apertando quando a resposta chegou
+  await flush();
+  // O popup NÃO fecha no meio da rajada (o próximo Enter iria pro app de origem).
+  expect(hide).not.toHaveBeenCalled();
+  expect(calls("deliver_result")).toHaveLength(0);
+  await waitFor(() => expect(calls("deliver_result")).toHaveLength(1));
+  expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text", presetId: "p0" });
+});
+
+it("Enter, Enter typed before the answer still pastes the instant it arrives", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  fireEvent.keyDown(window, { key: "Enter" });
+  await calm(); // a API demora mais que a digitação: as teclas já pararam
+  await act(async () => { pending[0].resolve("Better text"); });
+  await flush();
+  expect(calls("deliver_result")).toHaveLength(1);
+});
+
+it("Esc during a burst cancels the pending paste", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  fireEvent.keyDown(window, { key: "Enter" });
+  await act(async () => { pending[0].resolve("Better text"); });
+  fireEvent.keyDown(window, { key: "Enter" });
+  fireEvent.keyDown(window, { key: "Escape" });
+  await calm();
+  expect(calls("deliver_result")).toHaveLength(0);
 });
 
 it("Enter in the same instant the answer lands applies it instead of refining again", async () => {
