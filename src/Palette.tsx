@@ -31,12 +31,13 @@ const FALLBACK_PRESET = "estruturar";
 const REPLY_ID = "responder";
 // Saída do "Aplicar": o popup encolhe e some antes de colar (casa com o CSS).
 const LEAVE_MS = 120;
-// Rajada de Enter ("fico apertando Enter"): Enters com menos que isto entre eles
-// são a mesma rajada. Quando o popup fecha, o Enter seguinte cai no app de
-// origem — num chat, isso ENVIA o texto cru. Por isso nada é colado enquanto a
-// rajada não parar por este tempo; e o resultado de um preset recém-trocado
-// precisa ficar este tempo na tela antes de um Enter poder colá-lo.
-const QUIET_MS = 300;
+// "Ficar apertando Enter": uma PESSOA aperta a cada 0,2–0,5 s (medir com rajadas
+// de máquina, a cada poucos ms, foi o erro da 0.1.16). Enters com menos que isto
+// entre eles são a mesma sequência. Quando o popup fecha, o Enter seguinte cai
+// no app de origem — num chat, isso ENVIA o texto cru. Por isso nada é colado
+// enquanto a sequência não parar por este tempo; e o resultado de um preset
+// recém-trocado precisa ficar este tempo na tela antes de um Enter poder colá-lo.
+const QUIET_MS = 600;
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -82,6 +83,10 @@ export default function Palette() {
   // sem eu ver": o resultado novo espera um Enter dado com calma, depois de visto.
   const switched = useRef(false);
   const shownAt = useRef(0);
+  // O que o card de resultado mostra: de qual preset é o resultado na tela, e se
+  // ele veio de uma troca (o rodapé avisa que está esperando o Enter).
+  const [shownPreset, setShownPreset] = useState("");
+  const [awaitsEnter, setAwaitsEnter] = useState(false);
   const settleTimer = useRef(0);
   // O usuário já escolheu um preset nesta abertura: o default que chega depois
   // (get_settings) não pode passar por cima.
@@ -269,6 +274,8 @@ export default function Palette() {
       refinedRef.current = out;
       errorRef.current = false;
       shownAt.current = performance.now();
+      setShownPreset(preset);
+      setAwaitsEnter(viaSwitch);
       setError(false);
       setRefined(out);
       // Enter já tinha sido apertado enquanto carregava: aplica assim que a
@@ -502,6 +509,20 @@ export default function Palette() {
     ? t("popup.output.reply")
     : t(output === "replace" ? "popup.output.replace" : "popup.output.clipboard");
 
+  // Etiqueta com o nome (e a cor) de um preset: no card, mostra COM QUAL preset
+  // o popup está gerando e de qual é o resultado — é assim que se vê que uma
+  // troca de preset foi entendida.
+  const presetTag = (id: string) => {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return null;
+    return (
+      <span className="result-preset" style={{ "--pc-h": presetHue(id) } as CSSProperties}>
+        <span className="p-dot" aria-hidden="true" />
+        <span className="result-preset-label">{p.label}</span>
+      </span>
+    );
+  };
+
   const long = captured.length > 140; // citação longa: recolhida em 2 linhas, expansível
   const hasResult = refined != null;
   const showCard = loading || hasResult;
@@ -566,11 +587,18 @@ export default function Palette() {
             {showCard && (
               <div className={"result" + (error ? " err" : "")} ref={resultRef}>
                 {loading ? (
-                  <div className="result-skel" aria-hidden="true"><span /><span /><span /></div>
+                  <>
+                    <div className="result-head">
+                      <span className="result-title">{t("popup.result.loading")}</span>
+                      {presetTag(presetId)}
+                    </div>
+                    <div className="result-skel" aria-hidden="true"><span /><span /><span /></div>
+                  </>
                 ) : (
                   <>
                     <div className="result-head">
                       <span className="result-title">{error ? t("popup.result.error") : t("popup.result.title")}</span>
+                      {!error && presetTag(shownPreset)}
                       {!error && badge && <span className="result-badge">{badge}</span>}
                     </div>
                     <div className={"result-body" + (error ? " err" : "")} {...(error ? { role: "alert" } : {})}>{refined}</div>
@@ -585,7 +613,12 @@ export default function Palette() {
             "Imprompt"; depois, Refazer (R) / Copiar / Aplicar (Enter). Com erro,
             Enter refaz. As ações entram em cascata a cada troca. */}
         <div className="palette-foot">
-          <span className="loc-note"><i aria-hidden="true" />{!captured.trim() ? t("popup.note.selectAgain") : queued ? t("popup.note.queued") : outNote}</span>
+          <span className="loc-note"><i aria-hidden="true" />{
+            !captured.trim() ? t("popup.note.selectAgain")
+              : queued ? t("popup.note.queued")
+              : hasResult && !error && awaitsEnter ? t("popup.note.switched")
+              : outNote
+          }</span>
           <div className="foot-actions" key={hasResult ? (error ? "err" : "res") : "idle"}>
             {hasResult ? (
               <>

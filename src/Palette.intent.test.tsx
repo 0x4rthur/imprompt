@@ -2,7 +2,7 @@
 // O popup precisa guardar a INTENÇÃO do usuário mesmo quando as teclas chegam
 // mais rápido que a API: Enter durante o carregamento, troca de preset depois
 // (ou durante) um refino, Esc, e a janela sendo reusada com outro texto.
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -34,7 +34,16 @@ const calls = (cmd: string) => vi.mocked(invoke).mock.calls.filter(([c]) => c ==
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 // Pausa maior que a janela de "rajada de Enter" do popup: o usuário parou de
 // apertar, olhou o resultado, e só então age.
-const calm = () => act(() => new Promise((resolve) => setTimeout(resolve, 360)));
+const calm = () => act(() => new Promise((resolve) => setTimeout(resolve, 660)));
+// Ritmo HUMANO de "ficar apertando Enter": um toque a cada ~0,35 s (não a cada
+// poucos ms, como uma máquina). Nesse ritmo nenhum toque pode valer como
+// confirmação — nem fechar o popup no meio (o próximo cairia no app de origem).
+const tap = async (times: number, everyMs = 350) => {
+  for (let i = 0; i < times; i++) {
+    fireEvent.keyDown(window, { key: "Enter" });
+    await act(() => new Promise((resolve) => setTimeout(resolve, everyMs)));
+  }
+};
 
 beforeEach(() => {
   hide.mockClear();
@@ -317,6 +326,56 @@ it("after switching preset, an Enter burst generates the new one and never paste
   fireEvent.keyDown(window, { key: "Enter" });
   await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p1", presetId: "p1" }));
   expect(calls("deliver_result")).toHaveLength(1);
+});
+
+it("at a human pace, Enter taps after a preset switch never paste; a calm Enter does", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await act(async () => { pending[0].resolve("Result of p0"); });
+  await screen.findByText("Result of p0");
+  fireEvent.keyDown(window, { key: "2" }); // troca pro p1: refaz com ele
+  await tap(2); // apertando Enter enquanto carrega…
+  await act(async () => { pending[1].resolve("Result of p1"); });
+  await tap(5); // …e continua apertando por 1,75 s depois que o resultado apareceu
+  expect(screen.getByText("Result of p1")).toBeTruthy();
+  expect(hide).not.toHaveBeenCalled();
+  expect(calls("deliver_result")).toHaveLength(0);
+  expect(calls("refine_text")).toHaveLength(2);
+  // O popup diz que o resultado novo está esperando a confirmação.
+  expect(screen.getByText(/new preset/)).toBeTruthy();
+  await calm();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p1", presetId: "p1" }));
+  expect(calls("deliver_result")).toHaveLength(1);
+}, 15000);
+
+it("at a human pace, Enter taps on the same preset paste only after they stop", async () => {
+  await open();
+  fireEvent.keyDown(window, { key: "Enter" });
+  await tap(2);
+  await act(async () => { pending[0].resolve("Better text"); });
+  await tap(4); // 1,4 s apertando depois que a resposta chegou
+  expect(hide).not.toHaveBeenCalled();
+  expect(calls("deliver_result")).toHaveLength(0);
+  await waitFor(() => expect(calls("deliver_result")).toHaveLength(1), { timeout: 2000 });
+  expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Better text", presetId: "p0" });
+}, 15000);
+
+// Sem o nome do preset no resultado, não dá pra VER que o popup entendeu a troca.
+it("the result card names the preset being generated and the one that produced the result", async () => {
+  await open();
+  const live = () => within(document.querySelector<HTMLElement>(".result-live")!);
+  fireEvent.keyDown(window, { key: "Enter" });
+  expect(live().getByText("Preset 0")).toBeTruthy(); // gerando com o p0
+  await act(async () => { pending[0].resolve("Result of p0"); });
+  await screen.findByText("Result of p0");
+  expect(live().getByText("Preset 0")).toBeTruthy();
+  fireEvent.keyDown(window, { key: "3" }); // troca: já mostra que está gerando com o p2
+  expect(live().getByText("Preset 2")).toBeTruthy();
+  expect(live().queryByText("Preset 0")).toBeNull();
+  await act(async () => { pending[1].resolve("Result of p2"); });
+  await screen.findByText("Result of p2");
+  expect(live().getByText("Preset 2")).toBeTruthy();
 });
 
 it("an Enter burst on the same preset pastes only after the keys stop", async () => {
