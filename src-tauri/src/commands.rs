@@ -844,6 +844,15 @@ pub fn is_autostart_blocked(app: tauri::AppHandle) -> bool {
     crate::autostart::blocked(&app.package_info().name)
 }
 
+/// Rastro de diagnóstico do popup: teclas, presets e tempos — nunca o texto do
+/// usuário (ver trace.rs). Melhor esforço: falhar ao gravar não atrapalha o popup.
+#[tauri::command]
+pub fn popup_trace(lines: Vec<String>) {
+    if let Err(e) = crate::trace::append(&lines) {
+        eprintln!("popup trace: {e}");
+    }
+}
+
 /// Resumo do uso da API no mês corrente (pra UI): nº de refinos + custo estimado.
 #[tauri::command]
 pub fn get_usage(state: State<AppState>) -> crate::usage::UsageSummary {

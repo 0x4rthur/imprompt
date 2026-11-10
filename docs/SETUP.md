@@ -78,6 +78,14 @@ Para ver a interface sem o backend Rust: `npm run dev:mock` (abre em
 qual preset foi refinado e entregue).
 Para o app de verdade: `npm run tauri dev`.
 
+**Quando alguém relata um comportamento estranho no popup:** o app grava um
+rastro em `%APPDATA%\imprompt\popup-trace.log` (teclas, presets escolhidos,
+pedidos e tempos de cada abertura; nunca o texto nem o resultado). Leia esse
+arquivo antes de supor o que a pessoa fez. Cada bloco começa com
+`--- <segundos unix> v<versão>`; os números no início das linhas são
+milissegundos. Ao testar tempo de teclas, use o ritmo de uma pessoa (um Enter a
+cada 0,3–0,5 s), não rajadas de máquina.
+
 ## 5. Publicar uma versão
 
 Ver `docs/UPDATER.md` → **"Publicar uma versão (passo a passo)"**. O script

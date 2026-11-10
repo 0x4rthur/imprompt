@@ -67,6 +67,9 @@ it("a second Enter while the popup is leaving does not deliver twice", async () 
     await screen.findByText("make this better");
     fireEvent.keyDown(window, { key: "Enter" });
     await screen.findByText("Better text");
+    // A pessoa lê o resultado antes de confirmar (um Enter colado no anterior
+    // faria parte da mesma sequência e esperaria as teclas pararem).
+    await act(() => new Promise((resolve) => setTimeout(resolve, 660)));
     fireEvent.keyDown(window, { key: "Enter" });
     fireEvent.keyDown(window, { key: "Enter" });
     fireEvent.keyDown(window, { key: "r" });

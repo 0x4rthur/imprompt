@@ -308,7 +308,6 @@ const en = {
   // Nota da ação quando não há nada capturado.
   "popup.note.selectAgain": "Select some text and fire the shortcut again",
   "popup.note.queued": "applies when ready · Esc cancels",
-  "popup.note.switched": "new preset · Enter applies it",
   // Resultado.
   "popup.result.error": "Error",
   "popup.result.title": "Result",
@@ -594,7 +593,6 @@ const ptBR: Record<keyof typeof en, string> = {
   "popup.dialog.aria": "Fazer um imprompt",
   "popup.note.selectAgain": "Selecione um texto e dispare o atalho de novo",
   "popup.note.queued": "aplica ao terminar · Esc cancela",
-  "popup.note.switched": "preset novo · Enter aplica",
   "popup.result.error": "Erro",
   "popup.result.title": "Resultado",
   "popup.result.loading": "Gerando",

@@ -1,7 +1,17 @@
 // Palette.tsx — o popup de refino (Ctrl+C×2 no modo "Mostrar popup").
 //
 // Fluxo: texto capturado → preset (1–9/clique) → Imprompt (Enter) → resultado →
-// Aplicar (Enter) / Copiar / Refazer (R). Esc fecha. Soft UI: fundo --canvas,
+// Aplicar (Enter) / Copiar / Refazer (R). Esc fecha.
+//
+// A lógica é toda no Enter, e é simples (pedida assim pelo usuário):
+//   • Trocar de preset só SELECIONA. O que estava pedido ou na tela era do preset
+//     anterior e some; nada é refeito sozinho.
+//   • Enter sem resultado do preset selecionado = GERA com ele.
+//   • Enter com o resultado do preset selecionado na tela = INSERE.
+// (Até a 0.1.17 trocar de preset refazia sozinho; o Enter que a pessoa dava pra
+// "gerar com esse" chegava com o resultado novo já pronto e virava "inserir".)
+//
+// Soft UI: fundo --canvas,
 // texto num bloco afundado, presets num trilho com a peça clara DESLIZANTE
 // (layoutId), resultado num card elevado que cresce até o texto, rodapé
 // flutuante. O movimento (entrada, cascata, revelação, tremida no erro) é CSS;
@@ -34,9 +44,8 @@ const LEAVE_MS = 120;
 // "Ficar apertando Enter": uma PESSOA aperta a cada 0,2–0,5 s (medir com rajadas
 // de máquina, a cada poucos ms, foi o erro da 0.1.16). Enters com menos que isto
 // entre eles são a mesma sequência. Quando o popup fecha, o Enter seguinte cai
-// no app de origem — num chat, isso ENVIA o texto cru. Por isso nada é colado
-// enquanto a sequência não parar por este tempo; e o resultado de um preset
-// recém-trocado precisa ficar este tempo na tela antes de um Enter poder colá-lo.
+// no app de origem — num chat, isso ENVIA o texto cru. Por isso nada é inserido
+// enquanto a sequência não parar por este tempo.
 const QUIET_MS = 600;
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -78,16 +87,24 @@ export default function Palette() {
   const [queued, setQueued] = useState(false);
   // Momento do último Enter (qualquer um, inclusive tecla segurada).
   const lastEnter = useRef(-Infinity);
-  // O pedido em voo / o resultado na tela veio de uma TROCA de preset. Aí os
-  // Enters apertados durante o carregamento querem dizer "gera esse", não "cola
-  // sem eu ver": o resultado novo espera um Enter dado com calma, depois de visto.
-  const switched = useRef(false);
-  const shownAt = useRef(0);
-  // O que o card de resultado mostra: de qual preset é o resultado na tela, e se
-  // ele veio de uma troca (o rodapé avisa que está esperando o Enter).
+  // De qual preset é o resultado na tela (o card mostra o nome).
   const [shownPreset, setShownPreset] = useState("");
-  const [awaitsEnter, setAwaitsEnter] = useState(false);
   const settleTimer = useRef(0);
+  // Rastro de diagnóstico: teclas, presets escolhidos, pedidos e decisões, com o
+  // tempo de cada um — NUNCA o texto do usuário nem o resultado. Vai pra um
+  // arquivo (popup-trace.log, na pasta de dados) quando o popup fecha ou insere,
+  // pra dar pra VER o que aconteceu quando alguém relata algo estranho.
+  const traceBuf = useRef<string[]>([]);
+  function trace(event: string) {
+    traceBuf.current.push(Math.round(performance.now()) + " " + event);
+    if (traceBuf.current.length > 300) traceBuf.current.shift();
+  }
+  function flushTrace() {
+    const lines = traceBuf.current.splice(0);
+    if (!lines.length) return;
+    // Diagnóstico nunca atrapalha o popup: qualquer falha aqui é ignorada.
+    try { void Promise.resolve(invoke("popup_trace", { lines })).catch(() => {}); } catch { /* idem */ }
+  }
   // O usuário já escolheu um preset nesta abertura: o default que chega depois
   // (get_settings) não pode passar por cima.
   const userPicked = useRef(false);
@@ -193,7 +210,8 @@ export default function Palette() {
       closingRef.current = false;
       window.clearTimeout(hideTimer.current); // um Esc recente não esconde a abertura nova
       cancelPending(); // resposta do texto anterior não pode cair neste
-      switched.current = false;
+      flushTrace();
+      trace("open preset=" + presetIdRef.current + " chars=" + e.payload.length);
       capturedRef.current = e.payload;
       refinedRef.current = null;
       errorRef.current = false;
@@ -231,6 +249,7 @@ export default function Palette() {
     const rest = QUIET_MS - (performance.now() - lastEnter.current);
     if (rest > 0) { settleTimer.current = window.setTimeout(settle, rest); return; }
     setQueue(false);
+    trace("keys-stopped");
     void applyText(text, resultPreset.current);
   }
   // Invalida o pedido em voo (a resposta, quando chegar, é ignorada) e desfaz o
@@ -246,6 +265,8 @@ export default function Palette() {
   // Com movimento reduzido não há saída animada: esconde na hora.
   const close = useCallback(() => {
     cancelPending(); // desistiu: a resposta em voo não aparece nem é aplicada
+    trace("close");
+    flushTrace();
     setLoading(false);
     closingRef.current = true;
     if (reducedMotion()) { appWindow.hide(); return; }
@@ -253,36 +274,37 @@ export default function Palette() {
     hideTimer.current = window.setTimeout(() => { appWindow.hide(); }, 130);
   }, []);
 
-  // Refina com o preset atual. Chamado de novo durante um carregamento (troca de
-  // preset, R), o pedido novo substitui o anterior: só a última resposta vale.
-  // `viaSwitch`: o pedido nasceu de uma troca de preset (ver `switched`).
-  const startRefine = useCallback(async (viaSwitch: boolean) => {
+  // Gera com o preset SELECIONADO. Chamado de novo durante um carregamento (R),
+  // o pedido novo substitui o anterior: só a última resposta vale.
+  const refine = useCallback(async () => {
     const text = capturedRef.current.trim();
     if (!text || applying.current) return;
     const seq = ++reqSeq.current;
     const preset = presetIdRef.current;
-    switched.current = viaSwitch;
+    const startedAt = performance.now();
+    trace("generate #" + seq + " preset=" + preset);
     loadingRef.current = true;
     refinedRef.current = null;
     errorRef.current = false;
     setLoading(true); setRefined(null); setError(false); setCopied(false);
     try {
       const out = await invoke<string>("refine_text", { text, presetId: preset });
-      if (seq !== reqSeq.current) return;
+      const took = Math.round(performance.now() - startedAt);
+      if (seq !== reqSeq.current) { trace("result #" + seq + " preset=" + preset + " ms=" + took + " dropped"); return; }
+      trace("result #" + seq + " preset=" + preset + " ms=" + took + " shown");
       resultPreset.current = preset;
       loadingRef.current = false;
       refinedRef.current = out;
       errorRef.current = false;
-      shownAt.current = performance.now();
       setShownPreset(preset);
-      setAwaitsEnter(viaSwitch);
       setError(false);
       setRefined(out);
-      // Enter já tinha sido apertado enquanto carregava: aplica assim que a
-      // rajada de Enter tiver parado.
+      // Enter já tinha sido apertado enquanto carregava: insere assim que a
+      // sequência de Enters tiver parado.
       if (autoApply.current) settle();
     } catch (e) {
       if (seq !== reqSeq.current) return;
+      trace("result #" + seq + " preset=" + preset + " error");
       console.error(e);
       setQueue(false); // erro não tem o que aplicar
       // Mostra a mensagem REAL do backend (ex.: "Chave de API inválida ou sem
@@ -299,12 +321,17 @@ export default function Palette() {
       if (seq === reqSeq.current) { loadingRef.current = false; setLoading(false); }
     }
   }, []);
-  // Refino pedido direto (Enter, botão, R): não é troca de preset.
-  const refine = useCallback(() => { void startRefine(false); }, []);
 
-  // Escolha de preset (tecla 1–9 ou clique). Antes do 1º Enter só seleciona; com
-  // um refino pedido (carregando ou com resultado/erro na tela), trocar o preset
-  // É pedir o resultado do novo: refaz na hora, sem precisar de outro Enter.
+  // Refazer (R ou botão): pede outro resultado do MESMO preset. Um "inserir" que
+  // estivesse combinado valia pro resultado anterior — o novo espera um Enter.
+  const redo = useCallback(() => {
+    setQueue(false);
+    void refine();
+  }, []);
+
+  // Escolha de preset (tecla 1–9 ou clique): só SELECIONA. O que estava pedido ou
+  // na tela era do preset anterior — some, e nada é refeito sozinho. O Enter
+  // seguinte gera com o preset novo.
   const choosePreset = useCallback((id: string) => {
     userPicked.current = true;
     if (applying.current) return;
@@ -315,11 +342,15 @@ export default function Palette() {
     const chip = focused instanceof HTMLElement ? focused.closest<HTMLElement>(".chip") : null;
     if (chip && chip.dataset.preset !== id) paletteRef.current?.focus({ preventScroll: true });
     if (id === presetIdRef.current) return;
+    const dropped = loadingRef.current ? "loading" : refinedRef.current != null ? "result" : "none";
+    trace("select " + presetIdRef.current + "->" + id + " dropped=" + dropped);
     presetIdRef.current = id;
     setPresetId(id);
-    if (loadingRef.current || refinedRef.current != null) {
-      setQueue(false); // a intenção mudou: o novo resultado espera um Enter
-      void startRefine(true);
+    if (dropped !== "none") {
+      cancelPending(); // a resposta em voo (do preset anterior) não aparece nem é inserida
+      refinedRef.current = null;
+      errorRef.current = false;
+      setLoading(false); setRefined(null); setError(false); setCopied(false);
     }
   }, []);
 
@@ -356,6 +387,8 @@ export default function Palette() {
     if (applying.current) return;
     applying.current = true;
     setQueue(false); // nada mais fica "combinado": este é o colar
+    trace("insert preset=" + preset);
+    flushTrace();
     // O popup encolhe e some antes de colar (o texto "vai" pro app de origem).
     if (!reducedMotion()) { setLeaving(true); await wait(LEAVE_MS); }
     await appWindow.hide();                 // devolve o foco pro app de origem antes de colar
@@ -366,6 +399,7 @@ export default function Palette() {
       // reexibe pra o usuário não perder o resultado e poder copiar manualmente
       // (botão Copiar), em vez de tudo sumir silenciosamente (ver auditoria ROB-6).
       console.error(e);
+      trace("insert-failed");
       applying.current = false;
       setLeaving(false);
       await appWindow.show().catch(() => {});
@@ -389,7 +423,11 @@ export default function Palette() {
   // "Aplica ao chegar" só vale enquanto o usuário está no popup: se ele foi pra
   // outra janela, colar lá (por cima de outra seleção) seria uma surpresa.
   useEffect(() => {
-    const onBlur = () => { if (autoApply.current) setQueue(false); };
+    const onBlur = () => {
+      trace("blur" + (autoApply.current ? " (cancels the pending insert)" : ""));
+      if (autoApply.current) setQueue(false);
+      flushTrace();
+    };
     window.addEventListener("blur", onBlur);
     return () => window.removeEventListener("blur", onBlur);
   }, []);
@@ -406,8 +444,8 @@ export default function Palette() {
     }
   }, [refined]);
 
-  // teclado: Esc fecha, Enter avança o fluxo (sem resultado: refina; com
-  // resultado: aplica — Ctrl+C, Ctrl+C, Enter, Enter), R refaz, 1–9 escolhe preset
+  // teclado: Esc fecha, Enter avança o fluxo (sem resultado do preset selecionado:
+  // gera; com ele na tela: insere — Ctrl+C, Ctrl+C, Enter, Enter), R refaz, 1–9 escolhe preset
   // (atalho cobre só os 9 primeiros presets — uma tecla por dígito). Lê estado de
   // refs e callbacks estáveis, então o listener monta uma vez só ([] como dep).
   useEffect(() => {
@@ -418,21 +456,25 @@ export default function Palette() {
       if (applying.current || closingRef.current) { e.preventDefault(); return; }
       if (e.key === "Escape") { e.preventDefault(); close(); }
       else if (e.key === "Enter") {
-        // Enter "calmo" = não faz parte de uma rajada (o anterior foi há um tempo).
+        // Enter "calmo" = não faz parte de uma sequência (o anterior foi há um tempo).
         const now = performance.now();
         const calm = now - lastEnter.current >= QUIET_MS;
         lastEnter.current = now;
         const el = document.activeElement;
-        // Enter num chip focado (Tab) de OUTRO preset: é escolher aquele preset e
-        // seguir com ele — não avançar com o que estava selecionado antes.
         const chip = el instanceof HTMLElement ? el.closest<HTMLElement>(".chip") : null;
         const chipPreset = chip?.dataset.preset;
+        if (!e.repeat) {
+          const state = loadingRef.current ? "loading" : refinedRef.current == null ? "idle" : errorRef.current ? "error" : "result";
+          const where = chipPreset ? "chip:" + chipPreset : el instanceof HTMLElement ? (el.className.split(" ")[0] || el.tagName.toLowerCase()) : "none";
+          trace("enter state=" + state + " preset=" + presetIdRef.current + " calm=" + (calm ? 1 : 0) + " focus=" + where);
+        }
+        // Enter num chip focado (Tab) de OUTRO preset: é escolher aquele preset e
+        // gerar com ele — não avançar com o que estava selecionado antes.
         if (chipPreset && chipPreset !== presetIdRef.current) {
           e.preventDefault();
           if (e.repeat) return;
-          const asked = loadingRef.current || refinedRef.current != null;
-          choosePreset(chipPreset); // com um refino já pedido, isto refaz
-          if (!asked) refine();
+          choosePreset(chipPreset);
+          refine();
           return;
         }
         // Enter num botão de ação focado (Refazer/Copiar/Aplicar/Expandir) ativa o
@@ -442,26 +484,29 @@ export default function Palette() {
         // Tecla segurada (auto-repeat) não aplica sozinha o resultado que acabou de chegar.
         if (e.repeat) return;
         if (loadingRef.current) {
-          // Carregando: o Enter não se perde — fica combinado aplicar ao chegar.
-          // Menos logo depois de TROCAR de preset: aí ele quer dizer "gera esse".
-          if (!switched.current) setQueue(true);
+          // Gerando com o preset selecionado: o Enter não se perde — fica
+          // combinado inserir ao chegar.
+          setQueue(true);
         }
         else if (refinedRef.current != null && !errorRef.current) {
-          // Aplicar já combinado: sai sozinho quando a rajada parar (settle).
+          // O resultado na tela é sempre do preset selecionado (trocar de preset
+          // tira o resultado da tela): Enter insere.
+          // Inserir já combinado: sai sozinho quando as teclas pararem (settle).
           if (autoApply.current) return;
-          // Resultado de um preset recém-trocado: a cauda da rajada não cola o
-          // que a pessoa ainda não viu — espera um Enter calmo.
-          if (switched.current && (!calm || now - shownAt.current < QUIET_MS)) return;
+          // No meio de uma sequência de Enters: insere quando ela parar — fechar
+          // agora jogaria o próximo Enter no app de origem.
+          if (!calm) { setQueue(true); settle(); return; }
           void applyText(refinedRef.current, resultPreset.current);
         }
-        // Erro não tem o que aplicar: Enter tenta de novo.
+        // Sem resultado do preset selecionado (ou com erro): gera com ele.
         else refine();
       }
       else if ((e.key === "r" || e.key === "R") && refinedRef.current != null) {
-        e.preventDefault(); refine();
+        e.preventDefault(); trace("key r"); redo();
       }
       else if (/^[1-9]$/.test(e.key)) {
         const p = presetsRef.current[parseInt(e.key, 10) - 1];
+        trace("key " + e.key + (p ? "" : " (no such preset)"));
         if (p) choosePreset(p.id);
       }
     }
@@ -571,7 +616,7 @@ export default function Palette() {
                   style={{ "--pc-h": presetHue(p.id), "--i": i } as CSSProperties}
                   aria-pressed={on}
                   data-preset={p.id}
-                  onClick={() => choosePreset(p.id)}
+                  onClick={() => { trace("click chip=" + p.id); choosePreset(p.id); }}
                 >
                   {on && <motion.span className="chip-pill" layoutId="chip-pill" transition={spring.snappy} aria-hidden="true" />}
                   {i < 9 && <span className="num" aria-hidden="true">{i + 1}</span>}
@@ -613,16 +658,11 @@ export default function Palette() {
             "Imprompt"; depois, Refazer (R) / Copiar / Aplicar (Enter). Com erro,
             Enter refaz. As ações entram em cascata a cada troca. */}
         <div className="palette-foot">
-          <span className="loc-note"><i aria-hidden="true" />{
-            !captured.trim() ? t("popup.note.selectAgain")
-              : queued ? t("popup.note.queued")
-              : hasResult && !error && awaitsEnter ? t("popup.note.switched")
-              : outNote
-          }</span>
+          <span className="loc-note"><i aria-hidden="true" />{!captured.trim() ? t("popup.note.selectAgain") : queued ? t("popup.note.queued") : outNote}</span>
           <div className="foot-actions" key={hasResult ? (error ? "err" : "res") : "idle"}>
             {hasResult ? (
               <>
-                <button className={"redo" + (error ? " lead" : "")} title={t("popup.action.redo.title")} onClick={refine}>
+                <button className={"redo" + (error ? " lead" : "")} title={t("popup.action.redo.title")} onClick={redo}>
                   {t("popup.action.redo")}<kbd className="enter">{error ? "Enter" : "R"}</kbd>
                 </button>
                 {!error && (
