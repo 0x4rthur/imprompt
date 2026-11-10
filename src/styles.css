@@ -314,6 +314,8 @@ fieldset.api-fields:disabled{opacity:.72}
 .banner.update .banner-text p{color:var(--dim)}
 .banner .update-status{margin:3px 0 0}
 .banner button{flex:none}
+.banner-actions{flex:none; display:flex; align-items:center; gap:8px}
+.help.warn{color:var(--amber-fg)}
 
 /* ── Casca: menu grafite flutuante + coluna de conteúdo ─────────────────── */
 /* A janela roda SEM decoração nativa (decorations:false): barra de título e

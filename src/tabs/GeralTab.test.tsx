@@ -20,3 +20,9 @@ it("shows the installed version up front and switches the theme", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Dark" }));
   expect(update).toHaveBeenCalledWith({ theme: "dark" });
 });
+
+it("says so when Windows is blocking the startup", () => {
+  render(<GeralTab autostart={false} autostartBlocked toggleAutostart={vi.fn()} autostartErr="" settings={settings} update={vi.fn(() => Promise.resolve())} updater={updater} />);
+  expect(screen.getByText(/Windows is blocking this/)).toBeTruthy();
+  expect(screen.queryByText("Open Imprompt manually whenever you want to use it.")).toBeNull();
+});

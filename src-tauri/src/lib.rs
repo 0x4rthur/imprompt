@@ -7,6 +7,7 @@
 
 mod api_endpoint;
 mod api_engine;
+mod autostart;
 mod balance;
 mod clipboard;
 mod commands;
@@ -122,6 +123,7 @@ pub fn run() {
             commands::get_history,
             commands::get_captured_text,
             commands::check_accessibility,
+            commands::is_autostart_blocked,
             commands::open_accessibility_settings,
             commands::open_url,
             commands::get_pending_update,

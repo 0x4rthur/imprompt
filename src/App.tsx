@@ -169,6 +169,10 @@ export default function App() {
   const settingsQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [autostart, setAutostart] = useState(false);
   const [autostartErr, setAutostartErr] = useState("");
+  // O app está registrado pra iniciar com o sistema, mas o Windows DESATIVOU a
+  // inicialização (Gerenciador de Tarefas / Configurações). O plugin pode dizer
+  // "ligado" mesmo assim; este estado vem de uma leitura própria do backend.
+  const [autostartBlocked, setAutostartBlocked] = useState(false);
   const [needsAccess, setNeedsAccess] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   // Direção da última troca (pela ordem do menu): a aba nova entra de baixo se
@@ -251,8 +255,8 @@ export default function App() {
     invoke<Settings>("get_settings")
       .then((s) => { setLocale(s.locale); applyTheme(s.theme); settingsRef.current = s; setSettings(s); })
       .catch(console.error);
-    // Estado real do autostart vem do plugin (fonte da verdade), não das settings.
-    isEnabled().then(setAutostart).catch(console.error);
+    // Estado real do autostart vem do sistema (plugin + bloqueio do Windows), não das settings.
+    loadAutostart();
     // macOS: avisa se faltar permissão de Acessibilidade (sempre true fora do macOS).
     invoke<boolean>("check_accessibility").then((ok) => setNeedsAccess(!ok)).catch(console.error);
     // Histórico de refinos da sessão (pra timeline da tela Início).
@@ -267,6 +271,8 @@ export default function App() {
     const unFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
       if (!focused) return;
       loadUsage(); loadUsageHistory(); loadHistory(); loadBalance();
+      // A inicialização pode ter sido (des)ativada no Windows enquanto a janela estava atrás.
+      loadAutostart();
       // A 1ª checagem de conexão roda no login (às vezes antes da rede subir):
       // um erro não fica grudado — ao voltar pra janela, testa de novo.
       const current = settingsRef.current;
@@ -309,7 +315,18 @@ export default function App() {
     });
   }
 
+  // Lê o estado da inicialização com o sistema: o que o plugin registrou e se o
+  // Windows está bloqueando.
+  function loadAutostart() {
+    isEnabled().then(setAutostart).catch(console.error);
+    invoke<boolean>("is_autostart_blocked")
+      .then((blocked) => setAutostartBlocked(blocked === true))
+      .catch(() => setAutostartBlocked(false));
+  }
+
   // Liga/desliga o início com o sistema (autostart) e persiste nas settings.
+  // Ligar também desfaz um bloqueio do Windows (o plugin regrava a entrada como
+  // aprovada); desligar remove a entrada, então não sobra nada bloqueado.
   async function toggleAutostart(on: boolean) {
     setAutostartErr("");
     try {
@@ -317,6 +334,7 @@ export default function App() {
       else await disable();
       setAutostart(on);
       await update({ autostart: on });
+      loadAutostart();
     } catch (e) {
       console.error(e);
       setAutostartErr(t("app.autostartError"));
@@ -392,6 +410,19 @@ export default function App() {
                 </div>
               )}
 
+              {autostartBlocked && (
+                <div className="banner" role="alert" data-enter>
+                  <div className="banner-text">
+                    <strong>{t("app.startup.title")}</strong>
+                    <p>{t("app.startup.body")}</p>
+                  </div>
+                  <div className="banner-actions">
+                    <button className="btn-ghost" onClick={() => toggleAutostart(false)}>{t("app.startup.keepOff")}</button>
+                    <button className="btn-dl primary" onClick={() => toggleAutostart(true)}>{t("app.startup.fix")}</button>
+                  </div>
+                </div>
+              )}
+
               {updater.version && (
                 <div className="banner update" role="status" data-enter>
                   <div className="banner-text">
@@ -435,7 +466,7 @@ export default function App() {
               {tab === "gatilho" && <GatilhoTab settings={settings} update={update} />}
 
               {tab === "geral" && (
-                <GeralTab autostart={autostart} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} updater={updater} />
+                <GeralTab autostart={autostart && !autostartBlocked} autostartBlocked={autostartBlocked} toggleAutostart={toggleAutostart} autostartErr={autostartErr} settings={settings} update={update} updater={updater} />
               )}
 
             </div>
