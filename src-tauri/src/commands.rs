@@ -836,6 +836,14 @@ pub async fn get_api_balance(
     rx.await.map_err(|e| e.to_string())?
 }
 
+/// "Iniciar com o sistema" está ligado no app mas DESATIVADO pelo Windows
+/// (Gerenciador de Tarefas / Configurações → Inicialização)? A UI avisa e oferece
+/// reativar — o plugin de autostart sozinho mostraria a opção como ligada.
+#[tauri::command]
+pub fn is_autostart_blocked(app: tauri::AppHandle) -> bool {
+    crate::autostart::blocked(&app.package_info().name)
+}
+
 /// Resumo do uso da API no mês corrente (pra UI): nº de refinos + custo estimado.
 #[tauri::command]
 pub fn get_usage(state: State<AppState>) -> crate::usage::UsageSummary {

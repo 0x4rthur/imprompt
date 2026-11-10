@@ -18,7 +18,10 @@ import type { AppUpdater } from "../useAppUpdater";
 const DONATE_URL = "https://donate.stripe.com/4gM7sK4Tz23E0JAbUl93y00";
 
 type Props = {
+  /** Abre de verdade com o sistema (registrado E não bloqueado pelo Windows). */
   autostart: boolean;
+  /** Registrado, mas o Windows desativou a inicialização. */
+  autostartBlocked?: boolean;
   toggleAutostart: (on: boolean) => void;
   autostartErr: string;
   settings: Settings;
@@ -26,7 +29,7 @@ type Props = {
   updater: AppUpdater;
 };
 
-export default function GeralTab({ autostart, toggleAutostart, autostartErr, settings, update, updater }: Props) {
+export default function GeralTab({ autostart, autostartBlocked = false, toggleAutostart, autostartErr, settings, update, updater }: Props) {
   const { t } = useT();
   const [version, setVersion] = useState("");
 
@@ -57,8 +60,8 @@ export default function GeralTab({ autostart, toggleAutostart, autostartErr, set
               <input type="checkbox" className="switch" checked={autostart} onChange={(e) => toggleAutostart(e.target.checked)} />
             </label>
             {autostartErr && <div className="field-err" role="alert">{autostartErr}</div>}
-            <p className="help">
-              {autostart ? t("geral.autostart.on.help") : t("geral.autostart.off.help")}
+            <p className={"help" + (autostartBlocked ? " warn" : "")}>
+              {autostartBlocked ? t("geral.autostart.blocked.help") : autostart ? t("geral.autostart.on.help") : t("geral.autostart.off.help")}
             </p>
           </section>
 

@@ -6,6 +6,7 @@
 // Parâmetros de URL: ?empty=1 (sem histórico/uso), ?err=1 (API falha),
 // ?lang=en (inglês), ?presets=11 (11 presets, pra testar muitas linhas).
 import type { MonthUsage, Preset, RefineRecord, Settings, UsageSummary } from "../../types";
+import { isBlocked } from "./autostart";
 
 const q = new URLSearchParams(location.search);
 const EMPTY = q.has("empty");
@@ -118,6 +119,7 @@ async function handle(cmd: string, args: Record<string, unknown>): Promise<unkno
       return usage;
     }
     case "get_usage_history": return EMPTY ? [] : MONTHS;
+    case "is_autostart_blocked": return isBlocked();
     case "get_api_balance": {
       // ?lowbal=1 simula saldo baixo; DeepSeek/OpenRouter leem saldo, o resto dá o link.
       const host = new URL(settings.api_base_url).host;

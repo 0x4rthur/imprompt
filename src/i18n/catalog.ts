@@ -40,6 +40,11 @@ const en = {
   "app.window.minimize": "Minimize",
   "app.window.close": "Close",
   "app.autostartError": "Couldn't start with the system. Please try again.",
+  "app.startup.title": "Windows turned off Imprompt's startup",
+  "app.startup.body": "Imprompt is set to start with the system, but Windows is blocking it. The shortcut only works after you open the app yourself.",
+  "app.startup.fix": "Turn back on",
+  "app.startup.keepOff": "Keep it off",
+  "geral.autostart.blocked.help": "Windows is blocking this, so Imprompt isn't opening with the system. Turn it on to fix it.",
   // Banner de Acessibilidade (macOS).
   "app.access.title": "Permission required (macOS)",
   "app.access.body":
@@ -359,6 +364,11 @@ const ptBR: Record<keyof typeof en, string> = {
   "app.window.minimize": "Minimizar",
   "app.window.close": "Fechar",
   "app.autostartError": "Não foi possível iniciar com o sistema. Tente de novo.",
+  "app.startup.title": "O Windows desativou a inicialização do Imprompt",
+  "app.startup.body": "O Imprompt está configurado para iniciar com o sistema, mas o Windows está bloqueando. O atalho só funciona depois que você abre o app.",
+  "app.startup.fix": "Reativar",
+  "app.startup.keepOff": "Deixar desligado",
+  "geral.autostart.blocked.help": "O Windows está bloqueando: o Imprompt não está abrindo junto com o sistema. Ligue para corrigir.",
   "app.access.title": "Permissão necessária (macOS)",
   "app.access.body":
     "O Imprompt precisa de Acessibilidade pra detectar o seu atalho ({mod}+{key}×2) e colar o resultado. Ative o Imprompt em Ajustes > Privacidade e Segurança > Acessibilidade.",
