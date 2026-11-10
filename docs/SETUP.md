@@ -74,7 +74,8 @@ em `clipboard.rs`, `hotkey.rs` ou no fluxo de `lib.rs`.
 
 Para ver a interface sem o backend Rust: `npm run dev:mock` (abre em
 <http://localhost:5174>; aceita `?lang=en`, `?empty=1`, `?err=1`, `?lowbal=1`,
-`?blocked=1`; o popup fica em `/popup.html`, e `__mockCalls` no console mostra
+`?blocked=1`, `?update=1` (há atualização) e `?update=retry` (o download cai e é
+tentado de novo); o popup fica em `/popup.html`, e `__mockCalls` no console mostra
 qual preset foi refinado e entregue).
 Para o app de verdade: `npm run tauri dev`.
 

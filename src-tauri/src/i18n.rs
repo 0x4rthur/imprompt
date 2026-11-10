@@ -252,6 +252,11 @@ const ENTRIES: &[(&str, &str, &str)] = &[
         "Couldn't check for the update right now (network?). Try again. [{0}]",
         "Não consegui verificar a atualização agora (rede?). Tente de novo. [{0}]",
     ),
+    (
+        "err.update.download",
+        "Couldn't download the update: the connection is slow or unstable. Nothing was changed; try again in a moment. [{0}]",
+        "Não consegui baixar a atualização: a conexão está lenta ou instável. Nada foi alterado; tente de novo em instantes. [{0}]",
+    ),
     // ── err.config.no_dir (IO: settings/usage/presets) ───────────────────────
     (
         "err.config.no_dir",

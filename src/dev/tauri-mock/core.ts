@@ -7,11 +7,15 @@
 // ?lang=en (inglês), ?presets=11 (11 presets, pra testar muitas linhas).
 import type { MonthUsage, Preset, RefineRecord, Settings, UsageSummary } from "../../types";
 import { isBlocked } from "./autostart";
+import { emitMock } from "./event";
 
 const q = new URLSearchParams(location.search);
 const EMPTY = q.has("empty");
 const ERR = q.has("err");
 const MANY = q.get("presets") === "11";
+// ?update=1: há uma atualização. ?update=retry: o download cai, é tentado de
+// novo e no fim falha (pra ver o que a tela diz numa conexão instável).
+const UPDATE = q.get("update");
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const STORE = "mock.settings";
 
@@ -156,9 +160,19 @@ async function handle(cmd: string, args: Record<string, unknown>): Promise<unkno
       if (ERR) throw API_ERROR;
       return RESULT;
     case "deliver_result": return null;
-    case "get_pending_update": return null;
-    case "check_for_updates": await wait(800); return null;
-    case "install_update": await wait(1000); return null;
+    case "get_pending_update": return UPDATE ? "9.9.9" : null;
+    case "check_for_updates": await wait(800); return UPDATE ? "9.9.9" : null;
+    case "install_update": {
+      if (UPDATE !== "retry") { await wait(1000); return null; }
+      const progress = (downloaded: number, total: number | null, attempt: number) =>
+        emitMock("update-progress", { phase: "downloading", downloaded, total, attempt });
+      progress(0, null, 1);
+      await wait(1500);
+      progress(0, null, 2);
+      await wait(1200);
+      for (const percent of [12, 37, 64]) { progress(percent, 100, 2); await wait(700); }
+      throw "Não consegui baixar a atualização: a conexão está lenta ou instável. Nada foi alterado; tente de novo em instantes. [operation timed out]";
+    }
     default: return null;
   }
 }
