@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-export type UpdateProgress = { phase: "downloading" | "installing"; downloaded: number; total: number | null };
+// `attempt`: tentativa de download (1 = a primeira). Numa conexão instável o
+// instalador tenta de novo sozinho; a tela mostra em qual tentativa está.
+export type UpdateProgress = { phase: "downloading" | "installing"; downloaded: number; total: number | null; attempt?: number };
 type State = { version: string | null; checking: boolean; checked: boolean; installing: boolean; error: string; progress: UpdateProgress | null };
 
 // Passo visível do progresso: o percentual inteiro (ou blocos de 256 KB quando o
@@ -11,7 +13,7 @@ function step(p: UpdateProgress): number {
   return p.total ? Math.floor((p.downloaded / p.total) * 100) : Math.floor(p.downloaded / 262_144);
 }
 function sameStep(a: UpdateProgress, b: UpdateProgress): boolean {
-  return a.phase === b.phase && step(a) === step(b);
+  return a.phase === b.phase && step(a) === step(b) && (a.attempt ?? 1) === (b.attempt ?? 1);
 }
 
 export function useAppUpdater() {

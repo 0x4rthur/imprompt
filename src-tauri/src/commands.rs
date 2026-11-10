@@ -601,6 +601,58 @@ pub fn get_history(state: State<AppState>) -> Vec<RefineRecord> {
 mod tests {
     use super::*;
 
+    // Atualização numa conexão instável: o download é tentado de novo sozinho.
+    #[tokio::test]
+    async fn a_failed_download_is_tried_again_and_the_first_success_wins() {
+        let mut seen = Vec::new();
+        let out: Result<&str, String> = with_retries(3, std::time::Duration::ZERO, |attempt| {
+            seen.push(attempt);
+            async move {
+                if attempt < 3 {
+                    Err(format!("stalled {attempt}"))
+                } else {
+                    Ok("installer")
+                }
+            }
+        })
+        .await;
+        assert_eq!(out, Ok("installer"));
+        assert_eq!(seen, vec![1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn after_the_last_attempt_the_last_error_is_returned() {
+        let mut calls = 0;
+        let out: Result<(), String> = with_retries(3, std::time::Duration::ZERO, |attempt| {
+            calls += 1;
+            async move { Err(format!("stalled {attempt}")) }
+        })
+        .await;
+        assert_eq!(out, Err("stalled 3".to_string()));
+        assert_eq!(calls, 3);
+    }
+
+    #[tokio::test]
+    async fn a_download_that_works_is_not_repeated() {
+        let mut calls = 0;
+        let out: Result<u8, String> = with_retries(3, std::time::Duration::ZERO, |_| {
+            calls += 1;
+            async { Ok(7) }
+        })
+        .await;
+        assert_eq!(out, Ok(7));
+        assert_eq!(calls, 1);
+    }
+
+    #[test]
+    fn a_failed_download_is_explained_in_both_languages() {
+        let msg = crate::i18n::key_with_args("err.update.download", &["timed out"]);
+        let pt = crate::i18n::tr_msg("pt-BR", &msg);
+        let en = crate::i18n::tr_msg("en", &msg);
+        assert!(pt.contains("Não consegui baixar a atualização") && pt.contains("timed out"));
+        assert!(en.contains("Couldn't download the update") && en.contains("timed out"));
+    }
+
     #[test]
     fn undo_targets_the_last_delivered_text_not_the_last_answer() {
         let state = AppState::new(Settings::default());
@@ -746,11 +798,46 @@ struct UpdateProgress {
     phase: &'static str,
     downloaded: u64,
     total: Option<u64>,
+    /// Tentativa de download (1 = a primeira): a UI avisa quando é uma nova.
+    attempt: u32,
+}
+
+/// Quantas vezes o download da atualização é tentado antes de desistir.
+const DOWNLOAD_ATTEMPTS: u32 = 3;
+/// Sem conseguir conectar / sem receber nada por este tempo, a tentativa é
+/// abandonada (em vez de ficar minutos parada em "Baixando…").
+const DOWNLOAD_CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+const DOWNLOAD_STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
+
+/// Tenta `op` até `attempts` vezes (com `pause` entre uma e outra); devolve o
+/// primeiro sucesso ou o ÚLTIMO erro. `op` recebe o número da tentativa (1, 2, …).
+async fn with_retries<T, E, F, Fut>(
+    attempts: u32,
+    pause: std::time::Duration,
+    mut op: F,
+) -> Result<T, E>
+where
+    F: FnMut(u32) -> Fut,
+    Fut: std::future::Future<Output = Result<T, E>>,
+{
+    let mut attempt = 1;
+    loop {
+        match op(attempt).await {
+            Ok(value) => return Ok(value),
+            Err(error) if attempt >= attempts => return Err(error),
+            Err(_) => {
+                attempt += 1;
+                tokio::time::sleep(pause).await;
+            }
+        }
+    }
 }
 
 /// Baixa e instala a atualização disponível e REINICIA o app. Re-checa pra obter
-/// um handle fresco do update (o objeto do check anterior não é guardável). Em
-/// sucesso o app reinicia (a chamada não retorna); em falha, devolve o erro.
+/// um handle fresco do update (o objeto do check anterior não é guardável) — o
+/// que vem é SEMPRE a versão mais nova publicada, não importa qual a tela estava
+/// oferecendo: não existe "passar pela versão do meio". Em sucesso o app reinicia
+/// (a chamada não retorna); em falha, devolve o erro.
 #[tauri::command]
 pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_updater::UpdaterExt;
@@ -760,6 +847,13 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     let checked = app
         .updater_builder()
         .timeout(std::time::Duration::from_secs(300))
+        // Conexão parada não pode segurar a tela por minutos: desiste da tentativa
+        // e tenta de novo (ver with_retries abaixo).
+        .configure_client(|client| {
+            client
+                .connect_timeout(DOWNLOAD_CONNECT_TIMEOUT)
+                .read_timeout(DOWNLOAD_STALL_TIMEOUT)
+        })
         .build()
         .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?
         .check()
@@ -784,31 +878,60 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     };
 
-    let mut downloaded = 0u64;
-    let bytes = update
-        .download(
-            |chunk, total| {
-                downloaded = downloaded.saturating_add(chunk as u64);
-                let _ = app.emit(
-                    "update-progress",
-                    UpdateProgress {
-                        phase: "downloading",
-                        downloaded,
-                        total,
-                    },
-                );
-            },
-            || {},
+    // A tela pode estar oferecendo uma versão mais antiga (a checagem dela foi
+    // há tempo e saiu outra depois): ela passa a mostrar a que vai ser baixada.
+    *lock(&state.pending_update) = Some(update.version.clone());
+    let _ = app.emit("update-available", &update.version);
+
+    let bytes = with_retries(
+        DOWNLOAD_ATTEMPTS,
+        std::time::Duration::from_secs(2),
+        |attempt| {
+            let app = app.clone();
+            let update = &update;
+            async move {
+                let progress = |downloaded: u64, total: Option<u64>| {
+                    let _ = app.emit(
+                        "update-progress",
+                        UpdateProgress {
+                            phase: "downloading",
+                            downloaded,
+                            total,
+                            attempt,
+                        },
+                    );
+                };
+                // Cada tentativa recomeça do zero — e a tela fica sabendo já no início.
+                progress(0, None);
+                let mut downloaded = 0u64;
+                update
+                    .download(
+                        |chunk, total| {
+                            downloaded = downloaded.saturating_add(chunk as u64);
+                            progress(downloaded, total);
+                        },
+                        || {},
+                    )
+                    .await
+            }
+        },
+    )
+    .await
+    .map_err(|e| {
+        crate::i18n::tr_msg(
+            &locale,
+            &crate::i18n::key_with_args("err.update.download", &[&e.to_string()]),
         )
-        .await
-        .map_err(|e| crate::i18n::tr_msg(&locale, &e.to_string()))?;
+    })?;
     // download() verifies the signature before returning any installable bytes.
+    let downloaded = bytes.len() as u64;
     let _ = app.emit(
         "update-progress",
         UpdateProgress {
             phase: "installing",
             downloaded,
             total: Some(downloaded),
+            attempt: 1,
         },
     );
     update

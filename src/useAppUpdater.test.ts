@@ -73,6 +73,30 @@ describe("app updates", () => {
     expect(result.current.progress).toBeNull();
   });
 
+  // A checagem da tela pode ser antiga: se saiu uma versão mais nova depois, o
+  // instalador baixa a MAIS NOVA e avisa — a tela não pode continuar dizendo a antiga.
+  it("shows the version the installer is really downloading when a newer one came out", async () => {
+    const { result } = await setup();
+    act(() => emit("update-available", "0.1.17"));
+    vi.mocked(invoke).mockImplementationOnce(() => new Promise(() => {}));
+    act(() => { void result.current.install(); });
+    act(() => emit("update-available", "0.1.18"));
+    expect(result.current.version).toBe("0.1.18");
+    expect(result.current.installing).toBe(true);
+  });
+
+  // Conexão travada: a 1ª tentativa não recebe nenhum byte e o instalador tenta
+  // de novo. A tela tem que mostrar a tentativa nova mesmo com 0 bytes nas duas.
+  it("a new download attempt shows up even before any byte arrives", async () => {
+    const { result } = await setup();
+    act(() => emit("update-available", "0.1.3"));
+    vi.mocked(invoke).mockImplementationOnce(() => new Promise(() => {}));
+    act(() => { void result.current.install(); });
+    act(() => emit("update-progress", { phase: "downloading", downloaded: 0, total: null, attempt: 1 }));
+    act(() => emit("update-progress", { phase: "downloading", downloaded: 0, total: null, attempt: 2 }));
+    expect(result.current.progress?.attempt).toBe(2);
+  });
+
   it("unlocks controls when the installer recheck finds no update", async () => {
     const { result } = await setup();
     act(() => emit("update-available", "0.1.3"));

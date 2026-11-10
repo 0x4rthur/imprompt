@@ -16,6 +16,14 @@ Comportamento no app:
 - **Sobre → Atualizações:** mostra a versão instalada, permite verificar sob demanda,
   baixar e instalar. O progresso e os erros aparecem no painel; falhas permitem
   tentar novamente. A assinatura é validada antes da instalação.
+- **Sempre direto pra versão mais nova:** "Baixar e reiniciar" checa de novo na
+  hora e baixa a última publicada, mesmo que a tela estivesse oferecendo uma
+  anterior (a tela passa a mostrar a que está baixando). Não existe instalar a
+  versão do meio antes.
+- **Conexão instável:** uma tentativa de download é abandonada se não conectar em
+  15 s ou ficar 25 s sem receber nada, e o download é tentado até 3 vezes. A tela
+  diz em qual tentativa está; se todas falharem, nada é alterado e dá pra tentar
+  de novo.
 
 ---
 
