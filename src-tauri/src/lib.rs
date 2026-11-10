@@ -19,6 +19,7 @@ mod model_catalog;
 mod presets;
 mod secrets;
 mod settings;
+mod trace;
 mod usage;
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -124,6 +125,7 @@ pub fn run() {
             commands::get_captured_text,
             commands::check_accessibility,
             commands::is_autostart_blocked,
+            commands::popup_trace,
             commands::open_accessibility_settings,
             commands::open_url,
             commands::get_pending_update,
