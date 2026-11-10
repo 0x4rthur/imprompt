@@ -261,7 +261,14 @@ export default function Palette() {
   // É pedir o resultado do novo: refaz na hora, sem precisar de outro Enter.
   const choosePreset = useCallback((id: string) => {
     userPicked.current = true;
-    if (id === presetIdRef.current || applying.current) return;
+    if (applying.current) return;
+    // A escolha MAIS RECENTE manda. Um clique de mouse (ou Tab) deixa o foco num
+    // chip; se a escolha agora é outro preset (tecla 1–9), o foco sai daquele chip
+    // — senão o Enter seguinte "escolheria o chip focado" e voltaria pro antigo.
+    const focused = document.activeElement;
+    const chip = focused instanceof HTMLElement ? focused.closest<HTMLElement>(".chip") : null;
+    if (chip && chip.dataset.preset !== id) paletteRef.current?.focus({ preventScroll: true });
+    if (id === presetIdRef.current) return;
     presetIdRef.current = id;
     setPresetId(id);
     if (loadingRef.current || refinedRef.current != null) {
