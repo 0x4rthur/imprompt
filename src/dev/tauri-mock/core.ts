@@ -87,7 +87,13 @@ const CAPTURED = "me ajuda a escrever um email pro cliente explicando o atraso d
 const RESULT = "Papel: você é um gerente de contas cuidadoso.\nTarefa: escreva um e-mail ao cliente explicando o atraso da entrega.\nTom: profissional e direto, sem soar como desculpa.\nDetalhes: a nova data é sexta que vem; inclua o código de rastreio.\nFormato: até 5 frases.";
 const API_ERROR = "Chave de API inválida ou sem permissão.";
 
+// Registro do que o popup pediu (só neste modo de teste): `__mockCalls` no
+// console mostra QUAL preset foi refinado e qual resultado foi entregue.
+const calls: { cmd: string; presetId: unknown }[] = [];
+(window as unknown as { __mockCalls: typeof calls }).__mockCalls = calls;
+
 export async function invoke<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
+  if (cmd === "refine_text" || cmd === "deliver_result") calls.push({ cmd, presetId: args.presetId });
   const out = await handle(cmd, args);
   return out as T;
 }

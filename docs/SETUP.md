@@ -73,7 +73,9 @@ instalado no início e o reabre no fim. Rode antes de publicar qualquer mudança
 em `clipboard.rs`, `hotkey.rs` ou no fluxo de `lib.rs`.
 
 Para ver a interface sem o backend Rust: `npm run dev:mock` (abre em
-<http://localhost:5174>; aceita `?lang=en`, `?empty=1`, `?err=1`, `?lowbal=1`).
+<http://localhost:5174>; aceita `?lang=en`, `?empty=1`, `?err=1`, `?lowbal=1`,
+`?blocked=1`; o popup fica em `/popup.html`, e `__mockCalls` no console mostra
+qual preset foi refinado e entregue).
 Para o app de verdade: `npm run tauri dev`.
 
 ## 5. Publicar uma versão

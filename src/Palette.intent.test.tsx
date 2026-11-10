@@ -223,6 +223,62 @@ it("Enter on a focused preset chip refines with that preset", async () => {
   expect(pending[0].presetId).toBe("p2");
 });
 
+// Um clique de MOUSE deixa o foco no chip clicado. O Enter num chip focado de
+// outro preset "escolhe aquele chip" — então, sem cuidado, ele desfaz a escolha
+// mais recente feita pelo número e cola o resultado do preset antigo.
+it("the preset picked last wins: mouse click on one, number key for another while loading, then Enter", async () => {
+  await open();
+  const clicked = screen.getByRole("button", { name: "Preset 2" });
+  clicked.focus(); // o clique de mouse foca o botão
+  fireEvent.click(clicked, { detail: 1 });
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  expect(pending[0].presetId).toBe("p2");
+  // Enquanto carrega: muda pro Preset 1 pelo número e aperta Enter várias vezes.
+  fireEvent.keyDown(document.activeElement ?? window, { key: "2" });
+  expect(pending[1].presetId).toBe("p1");
+  for (let i = 0; i < 3; i++) fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  expect(pending).toHaveLength(2); // nenhum refino de volta pro preset clicado antes
+  expect(screen.getByRole("button", { name: "Preset 1" }).getAttribute("aria-pressed")).toBe("true");
+  await act(async () => { pending[0].resolve("Result of p2"); pending[1].resolve("Result of p1"); });
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p1", presetId: "p1" }));
+  expect(calls("deliver_result")).toHaveLength(1);
+});
+
+it("the preset picked last wins: same sequence after the first result is on screen", async () => {
+  await open();
+  const clicked = screen.getByRole("button", { name: "Preset 2" });
+  clicked.focus();
+  fireEvent.click(clicked, { detail: 1 });
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  await act(async () => { pending[0].resolve("Result of p2"); });
+  await screen.findByText("Result of p2");
+  fireEvent.keyDown(document.activeElement ?? window, { key: "4" });
+  for (let i = 0; i < 3; i++) fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  expect(pending).toHaveLength(2);
+  expect(pending[1].presetId).toBe("p3");
+  await act(async () => { pending[1].resolve("Result of p3"); });
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("deliver_result", { text: "Result of p3", presetId: "p3" }));
+  expect(calls("deliver_result")).toHaveLength(1);
+});
+
+it("a number key wins over a chip that only has keyboard focus", async () => {
+  await open();
+  screen.getByRole("button", { name: "Preset 3" }).focus(); // Tab até o chip, sem escolher
+  fireEvent.keyDown(document.activeElement ?? window, { key: "2" });
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  expect(pending).toHaveLength(1);
+  expect(pending[0].presetId).toBe("p1");
+});
+
+it("pressing the number of the preset already selected still wins over a focused chip", async () => {
+  await open();
+  screen.getByRole("button", { name: "Preset 3" }).focus();
+  fireEvent.keyDown(document.activeElement ?? window, { key: "1" }); // o Preset 0 já é o selecionado
+  fireEvent.keyDown(document.activeElement ?? window, { key: "Enter" });
+  expect(pending).toHaveLength(1);
+  expect(pending[0].presetId).toBe("p0");
+});
+
 it("Enter in the same instant the answer lands applies it instead of refining again", async () => {
   await open();
   fireEvent.keyDown(window, { key: "Enter" });
