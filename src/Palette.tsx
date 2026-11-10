@@ -31,6 +31,12 @@ const FALLBACK_PRESET = "estruturar";
 const REPLY_ID = "responder";
 // Saída do "Aplicar": o popup encolhe e some antes de colar (casa com o CSS).
 const LEAVE_MS = 120;
+// Rajada de Enter ("fico apertando Enter"): Enters com menos que isto entre eles
+// são a mesma rajada. Quando o popup fecha, o Enter seguinte cai no app de
+// origem — num chat, isso ENVIA o texto cru. Por isso nada é colado enquanto a
+// rajada não parar por este tempo; e o resultado de um preset recém-trocado
+// precisa ficar este tempo na tela antes de um Enter poder colá-lo.
+const QUIET_MS = 300;
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -69,6 +75,14 @@ export default function Palette() {
   // digitado mais rápido que a API). O ref decide; o estado só mostra o aviso.
   const autoApply = useRef(false);
   const [queued, setQueued] = useState(false);
+  // Momento do último Enter (qualquer um, inclusive tecla segurada).
+  const lastEnter = useRef(-Infinity);
+  // O pedido em voo / o resultado na tela veio de uma TROCA de preset. Aí os
+  // Enters apertados durante o carregamento querem dizer "gera esse", não "cola
+  // sem eu ver": o resultado novo espera um Enter dado com calma, depois de visto.
+  const switched = useRef(false);
+  const shownAt = useRef(0);
+  const settleTimer = useRef(0);
   // O usuário já escolheu um preset nesta abertura: o default que chega depois
   // (get_settings) não pode passar por cima.
   const userPicked = useRef(false);
@@ -91,7 +105,11 @@ export default function Palette() {
   useEffect(() => {
     const offCtx = blockContextMenu();
     const offScroll = initAutoScrollbars();
-    return () => { offCtx(); offScroll(); window.clearTimeout(copiedTimer.current); };
+    return () => {
+      offCtx(); offScroll();
+      window.clearTimeout(copiedTimer.current);
+      window.clearTimeout(settleTimer.current);
+    };
   }, []);
 
   // Lê do backend os campos que o popup EXIBE (modo de saída + modelo) e atualiza
@@ -170,6 +188,7 @@ export default function Palette() {
       closingRef.current = false;
       window.clearTimeout(hideTimer.current); // um Esc recente não esconde a abertura nova
       cancelPending(); // resposta do texto anterior não pode cair neste
+      switched.current = false;
       capturedRef.current = e.payload;
       refinedRef.current = null;
       errorRef.current = false;
@@ -193,7 +212,21 @@ export default function Palette() {
 
   function setQueue(on: boolean) {
     autoApply.current = on;
+    if (!on) window.clearTimeout(settleTimer.current);
     setQueued(on);
+  }
+  // "Aplicar ao chegar" combinado e o resultado chegou: cola quando o Enter já
+  // parou há QUIET_MS (na hora, se a rajada acabou antes — o caso normal, a API
+  // demora mais que a digitação). Enquanto a pessoa ainda aperta Enter, fechar o
+  // popup jogaria o próximo Enter no app de origem.
+  function settle() {
+    window.clearTimeout(settleTimer.current);
+    const text = refinedRef.current;
+    if (!autoApply.current || text == null || errorRef.current || applying.current) return;
+    const rest = QUIET_MS - (performance.now() - lastEnter.current);
+    if (rest > 0) { settleTimer.current = window.setTimeout(settle, rest); return; }
+    setQueue(false);
+    void applyText(text, resultPreset.current);
   }
   // Invalida o pedido em voo (a resposta, quando chegar, é ignorada) e desfaz o
   // "aplicar ao chegar".
@@ -217,11 +250,13 @@ export default function Palette() {
 
   // Refina com o preset atual. Chamado de novo durante um carregamento (troca de
   // preset, R), o pedido novo substitui o anterior: só a última resposta vale.
-  const refine = useCallback(async () => {
+  // `viaSwitch`: o pedido nasceu de uma troca de preset (ver `switched`).
+  const startRefine = useCallback(async (viaSwitch: boolean) => {
     const text = capturedRef.current.trim();
     if (!text || applying.current) return;
     const seq = ++reqSeq.current;
     const preset = presetIdRef.current;
+    switched.current = viaSwitch;
     loadingRef.current = true;
     refinedRef.current = null;
     errorRef.current = false;
@@ -233,10 +268,12 @@ export default function Palette() {
       loadingRef.current = false;
       refinedRef.current = out;
       errorRef.current = false;
+      shownAt.current = performance.now();
       setError(false);
       setRefined(out);
-      // Enter já tinha sido apertado enquanto carregava: aplica direto.
-      if (autoApply.current) { setQueue(false); void applyText(out, preset); }
+      // Enter já tinha sido apertado enquanto carregava: aplica assim que a
+      // rajada de Enter tiver parado.
+      if (autoApply.current) settle();
     } catch (e) {
       if (seq !== reqSeq.current) return;
       console.error(e);
@@ -255,6 +292,8 @@ export default function Palette() {
       if (seq === reqSeq.current) { loadingRef.current = false; setLoading(false); }
     }
   }, []);
+  // Refino pedido direto (Enter, botão, R): não é troca de preset.
+  const refine = useCallback(() => { void startRefine(false); }, []);
 
   // Escolha de preset (tecla 1–9 ou clique). Antes do 1º Enter só seleciona; com
   // um refino pedido (carregando ou com resultado/erro na tela), trocar o preset
@@ -273,7 +312,7 @@ export default function Palette() {
     setPresetId(id);
     if (loadingRef.current || refinedRef.current != null) {
       setQueue(false); // a intenção mudou: o novo resultado espera um Enter
-      void refine();
+      void startRefine(true);
     }
   }, []);
 
@@ -309,6 +348,7 @@ export default function Palette() {
   async function applyText(text: string, preset: string) {
     if (applying.current) return;
     applying.current = true;
+    setQueue(false); // nada mais fica "combinado": este é o colar
     // O popup encolhe e some antes de colar (o texto "vai" pro app de origem).
     if (!reducedMotion()) { setLeaving(true); await wait(LEAVE_MS); }
     await appWindow.hide();                 // devolve o foco pro app de origem antes de colar
@@ -371,6 +411,10 @@ export default function Palette() {
       if (applying.current || closingRef.current) { e.preventDefault(); return; }
       if (e.key === "Escape") { e.preventDefault(); close(); }
       else if (e.key === "Enter") {
+        // Enter "calmo" = não faz parte de uma rajada (o anterior foi há um tempo).
+        const now = performance.now();
+        const calm = now - lastEnter.current >= QUIET_MS;
+        lastEnter.current = now;
         const el = document.activeElement;
         // Enter num chip focado (Tab) de OUTRO preset: é escolher aquele preset e
         // seguir com ele — não avançar com o que estava selecionado antes.
@@ -390,10 +434,20 @@ export default function Palette() {
         e.preventDefault();
         // Tecla segurada (auto-repeat) não aplica sozinha o resultado que acabou de chegar.
         if (e.repeat) return;
-        // Carregando: o Enter não se perde — fica combinado aplicar ao chegar.
-        if (loadingRef.current) setQueue(true);
+        if (loadingRef.current) {
+          // Carregando: o Enter não se perde — fica combinado aplicar ao chegar.
+          // Menos logo depois de TROCAR de preset: aí ele quer dizer "gera esse".
+          if (!switched.current) setQueue(true);
+        }
+        else if (refinedRef.current != null && !errorRef.current) {
+          // Aplicar já combinado: sai sozinho quando a rajada parar (settle).
+          if (autoApply.current) return;
+          // Resultado de um preset recém-trocado: a cauda da rajada não cola o
+          // que a pessoa ainda não viu — espera um Enter calmo.
+          if (switched.current && (!calm || now - shownAt.current < QUIET_MS)) return;
+          void applyText(refinedRef.current, resultPreset.current);
+        }
         // Erro não tem o que aplicar: Enter tenta de novo.
-        else if (refinedRef.current != null && !errorRef.current) void applyText(refinedRef.current, resultPreset.current);
         else refine();
       }
       else if ((e.key === "r" || e.key === "R") && refinedRef.current != null) {
